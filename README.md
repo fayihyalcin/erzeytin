@@ -44,7 +44,13 @@ npm --prefix backend install
 npm --prefix frontend install
 ```
 
-4. Gelistirme modunda calistir:
+4. Veritabani migrationlarini uygula (Drizzle):
+
+```bash
+npm run db:migrate
+```
+
+5. Gelistirme modunda calistir:
 
 ```bash
 npm run dev
@@ -69,6 +75,21 @@ npm run build
 ```
 
 Bu komut backend ve frontend icin production build alir.
+
+## Veritabani Migrations (Drizzle)
+
+```bash
+# schema degisikliklerinden yeni migration uret
+npm run db:generate
+
+# localde tablolar zaten varsa migrationlari "uygulanmis" olarak isaretle
+npm --prefix backend run db:baseline
+
+# migrationlari veritabanina uygula
+npm run db:migrate
+```
+
+Not: `backend/.env.example` dosyasinda `DB_SYNC=false` olarak gelir. Schema yonetimi Drizzle migrationlari ile yapilir.
 
 ## Sunucu Kurulumu
 

@@ -16,4 +16,17 @@ npm run build
 npm run start:prod
 ```
 
-Ortam degiskenleri icin `backend/.env.example` dosyasini baz alin.
+## Veritabani (Drizzle)
+
+```bash
+# yeni migration uret
+npm run db:generate
+
+# localde tablolar zaten varsa migration kaydi olustur
+npm run db:baseline
+
+# migrationlari uygula
+npm run db:migrate
+```
+
+Ortam degiskenleri icin `backend/.env.example` dosyasini baz alin. `DB_SYNC=false` ile kullanin.

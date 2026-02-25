@@ -49,9 +49,12 @@ docker compose up -d
 npm ci
 npm --prefix backend ci
 npm --prefix frontend ci
+npm --prefix backend run db:migrate
 npm --prefix backend run build
 npm --prefix frontend run build
 ```
+
+Not: Eger veritabani zaten doluysa ve tablolar mevcutsa bir kez `npm --prefix backend run db:baseline` komutuyla migration kaydi olusturup sonra `db:migrate` calistirin.
 
 ## 6) Backend'i PM2 Ile Calistir
 
@@ -94,6 +97,7 @@ cd /var/www/erzeytin
 git pull
 npm --prefix backend ci
 npm --prefix frontend ci
+npm --prefix backend run db:migrate
 npm --prefix backend run build
 npm --prefix frontend run build
 pm2 restart zeytin-backend

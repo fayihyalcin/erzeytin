@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { resolve } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminUser } from './users/admin-user.entity';
@@ -22,6 +23,10 @@ import { UsersModule } from './users/users.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: [
+        resolve(__dirname, '../../.env'),
+        resolve(process.cwd(), '.env'),
+      ],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

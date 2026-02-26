@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { useCustomerAuth } from './context/CustomerAuthContext';
 import { CategoryFormPage } from './pages/CategoryFormPage';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -15,6 +16,14 @@ import { ProductsPage } from './pages/ProductsPage';
 import { RepresentativesPage } from './pages/RepresentativesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { StorefrontPage } from './pages/StorefrontPage';
+import { CustomerLoginPage } from './pages/CustomerLoginPage';
+import { CustomerRegisterPage } from './pages/CustomerRegisterPage';
+import {
+  ContactPage,
+  KvkkPage,
+  PrivacyPolicyPage,
+  SalesAgreementPage,
+} from './pages/LegalPages';
 import { WebsiteContentPage } from './pages/WebsiteContentPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -41,13 +50,64 @@ function GuestRoute({ children }: { children: ReactNode }) {
   return children;
 }
 
+function CustomerProtectedRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated, loading } = useCustomerAuth();
+
+  if (loading) {
+    return <div className="screen-message">Yukleniyor...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/customer/login" replace />;
+  }
+
+  return children;
+}
+
+function CustomerGuestRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useCustomerAuth();
+
+  if (isAuthenticated) {
+    return <Navigate to="/customer/dashboard" replace />;
+  }
+
+  return children;
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/" element={<StorefrontPage />} />
       <Route path="/product/:productId" element={<ProductDetailPage />} />
       <Route path="/cart" element={<CartPage />} />
-      <Route path="/customer/dashboard" element={<CustomerDashboardPage />} />
+      <Route
+        path="/customer/dashboard"
+        element={
+          <CustomerProtectedRoute>
+            <CustomerDashboardPage />
+          </CustomerProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer/login"
+        element={
+          <CustomerGuestRoute>
+            <CustomerLoginPage />
+          </CustomerGuestRoute>
+        }
+      />
+      <Route
+        path="/customer/register"
+        element={
+          <CustomerGuestRoute>
+            <CustomerRegisterPage />
+          </CustomerGuestRoute>
+        }
+      />
+      <Route path="/kvkk" element={<KvkkPage />} />
+      <Route path="/gizlilik" element={<PrivacyPolicyPage />} />
+      <Route path="/satis-sozlesmesi" element={<SalesAgreementPage />} />
+      <Route path="/iletisim" element={<ContactPage />} />
 
       <Route
         path="/admin"

@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { resolveProductGallery, resolveProductImage } from '../lib/product-images';
 import type { Product } from '../types/api';
 
 const STORAGE_KEY = 'zeytin_store_cart_v1';
@@ -42,14 +43,28 @@ interface StoreCartContextValue {
 const StoreCartContext = createContext<StoreCartContextValue | undefined>(undefined);
 
 function toProductSnapshot(product: Product): CartProductSnapshot {
+  const categoryName = product.category?.name ?? null;
+
   return {
     id: product.id,
     name: product.name,
     price: String(product.price ?? '0'),
     compareAtPrice: product.compareAtPrice ?? null,
-    featuredImage: product.featuredImage ?? null,
-    images: product.images ?? [],
-    categoryName: product.category?.name ?? null,
+    featuredImage:
+      resolveProductImage({
+        id: product.id,
+        name: product.name,
+        categoryName,
+      }) || null,
+    images: resolveProductGallery(
+      {
+        id: product.id,
+        name: product.name,
+        categoryName,
+      },
+      4,
+    ),
+    categoryName,
     stock: Math.max(Number(product.stock ?? 0), 0),
   };
 }
@@ -89,10 +104,28 @@ function loadInitialCart() {
         }
 
         const quantity = Math.max(1, Math.floor(item.quantity));
+        const normalizedFeaturedImage =
+          resolveProductImage({
+            id: item.product.id,
+            name: item.product.name,
+            categoryName: item.product.categoryName,
+          }) || null;
+
         return {
           productId: item.productId,
           quantity,
-          product: item.product,
+          product: {
+            ...item.product,
+            featuredImage: normalizedFeaturedImage,
+            images: resolveProductGallery(
+              {
+                id: item.product.id,
+                name: item.product.name,
+                categoryName: item.product.categoryName,
+              },
+              4,
+            ),
+          },
         } satisfies StoreCartItem;
       })
       .filter((item): item is StoreCartItem => item !== null);

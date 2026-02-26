@@ -71,7 +71,7 @@ export function DashboardLayout() {
     <div className={isSidebarOpen ? 'dashboard-shell sidebar-open' : 'dashboard-shell sidebar-closed'}>
       <aside className="dashboard-sidebar" id="dashboard-sidebar">
         <div className="sidebar-top">
-          <div className="brand">Er Zeytin</div>
+          <div className="brand">Er Zeyincilik</div>
           <button
             aria-label="Menuyu kapat"
             className="sidebar-close"

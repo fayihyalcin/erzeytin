@@ -9,52 +9,52 @@ import type {
 } from '../types/api';
 
 const DEFAULT_THEME: WebsiteThemeConfig = {
-  brandName: 'Er Zeytin',
-  tagline: 'Egeden Sofrana Dogal Lezzet',
-  adminButtonLabel: 'Admin Giris',
+  brandName: 'Er Zeyincilik',
+  tagline: "Ege'den Sofrana Doğal Lezzet",
+  adminButtonLabel: 'Yönetim Girişi',
 };
 
 const DEFAULT_NAV_ITEMS: WebsiteNavItem[] = [
   { label: 'Ana Sayfa', href: '#hero' },
-  { label: 'Hakkimizda', href: '#footer' },
-  { label: 'Magaza', href: '#products' },
-  { label: 'Saticilar', href: '#products' },
+  { label: 'Hakkımızda', href: '#footer' },
+  { label: 'Mağaza', href: '#products' },
+  { label: 'Satıcılar', href: '#products' },
   { label: 'Kategoriler', href: '#categories' },
   { label: 'Blog', href: '#campaigns' },
   { label: 'Kampanyalar', href: '#campaigns' },
-  { label: 'Iletisim', href: '#footer' },
+  { label: 'İletişim', href: '#footer' },
 ];
 
 const DEFAULT_HERO_SLIDES: WebsiteHeroSlide[] = [
   {
     badge: 'Yeni Hasat',
-    title: 'Ayvalik Erken Hasat Sizma Zeytinyagi',
-    subtitle: 'Tas degirmen, soguk sikim, yuksek polifenol',
+    title: 'Ayvalık Erken Hasat Sızma Zeytinyağı',
+    subtitle: 'Taş değirmen, soğuk sıkım, yüksek polifenol',
     description:
-      'Aromasi guclu, meyvemsiligi yuksek premium sizma serimizi bugun kesfedin.',
-    ctaLabel: 'Shop Now',
+      'Aroması güçlü, meyvemsiliği yüksek premium sızma serimizi bugün keşfedin.',
+    ctaLabel: 'Şimdi İncele',
     ctaHref: '#products',
     imageUrl:
       'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1600&q=80',
   },
   {
-    badge: 'Yoresel Secki',
+    badge: 'Yöresel Seçki',
     title: 'Gemlik Siyah Zeytin Koleksiyonu',
-    subtitle: 'Dogal fermantasyon, iri tane secimi',
+    subtitle: 'Doğal fermantasyon, iri tane seçimi',
     description:
-      'Kahvaltilik ve mezelik seceneklerde sofraniza uygun taze urunleri secin.',
-    ctaLabel: 'Shop Now',
+      'Kahvaltılık ve mezelik seçeneklerde sofranıza uygun taze ürünleri seçin.',
+    ctaLabel: 'Şimdi İncele',
     ctaHref: '#products',
     imageUrl:
       'https://images.unsplash.com/photo-1593001874117-c99c800e3eb5?auto=format&fit=crop&w=1600&q=80',
   },
   {
     badge: 'Butik Seri',
-    title: 'Kirilmis Yesil Zeytin ve Gurme Paketler',
-    subtitle: 'Limonlu, kekikli ve aci biberli secenekler',
+    title: 'Kırılmış Yeşil Zeytin ve Gurme Paketler',
+    subtitle: 'Limonlu, kekikli ve acı biberli seçenekler',
     description:
-      'Atistirmalik ve servislik paketlerle zeytin lezzetini her ana tasiyin.',
-    ctaLabel: 'Shop Now',
+      'Atıştırmalık ve servislik paketlerle zeytin lezzetini her ana taşıyın.',
+    ctaLabel: 'Şimdi İncele',
     ctaHref: '#products',
     imageUrl:
       'https://images.unsplash.com/photo-1606787366850-de6330128bfc?auto=format&fit=crop&w=1600&q=80',
@@ -63,24 +63,24 @@ const DEFAULT_HERO_SLIDES: WebsiteHeroSlide[] = [
 
 const DEFAULT_PROMO_CARDS: WebsitePromoCard[] = [
   {
-    title: 'Erken Hasat Serisinde 3 Al 2 Ode',
-    subtitle: '500 ml ve 750 ml cam sise urunlerinde gecerli kampanya',
-    ctaLabel: 'Shop Now',
+    title: 'Erken Hasat Serisinde 3 Al 2 Öde',
+    subtitle: '500 ml ve 750 ml cam şişe ürünlerinde geçerli kampanya',
+    ctaLabel: 'Şimdi İncele',
     ctaHref: '#products',
     imageUrl:
       'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=1400&q=80',
   },
   {
-    title: 'Kahvaltilik Zeytin Paketleri',
-    subtitle: 'Aile boyu siyah ve yesil zeytin paketlerinde haftalik indirim',
-    ctaLabel: 'Shop Now',
+    title: 'Kahvaltılık Zeytin Paketleri',
+    subtitle: 'Aile boyu siyah ve yeşil zeytin paketlerinde haftalık indirim',
+    ctaLabel: 'Şimdi İncele',
     ctaHref: '#footer',
     imageUrl:
       'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=1400&q=80',
   },
   {
-    title: 'Kurumsal Tedarik ve Hediye Kutulari',
-    subtitle: 'Restoranlar, oteller ve kurumsal firmalar icin ozel fiyatlandirma',
+    title: 'Kurumsal Tedarik ve Hediye Kutuları',
+    subtitle: 'Restoranlar, oteller ve kurumsal firmalar için özel fiyatlandırma',
     ctaLabel: 'Teklif Al',
     ctaHref: '#footer',
     imageUrl:
@@ -91,52 +91,52 @@ const DEFAULT_PROMO_CARDS: WebsitePromoCard[] = [
 const DEFAULT_FEATURE_ITEMS: WebsiteFeatureItem[] = [
   {
     icon: 'truck',
-    title: 'Hizli Kargo',
-    description: 'Saat 14:00e kadar verilen siparisler ayni gun kargoda.',
+    title: 'Hızlı Kargo',
+    description: "Saat 14:00'e kadar verilen siparişler aynı gün kargoda.",
   },
   {
     icon: 'leaf',
-    title: 'Dogal Uretim',
-    description: 'Katkisiz, filtreli veya filtresiz naturel sizma secenekleri.',
+    title: 'Doğal Üretim',
+    description: 'Katkısız, filtreli veya filtresiz naturel sızma seçenekleri.',
   },
   {
     icon: 'shield',
-    title: 'Guvenli Odeme',
-    description: '3D secure destekli guvenli online odeme altyapisi.',
+    title: 'Güvenli Ödeme',
+    description: '3D secure destekli güvenli online ödeme altyapısı.',
   },
   {
     icon: 'gift',
     title: 'Hediye Paketi',
-    description: 'Ozel kutu ve not karti ile gonderim secenekleri.',
+    description: 'Özel kutu ve not kartı ile gönderim seçenekleri.',
   },
 ];
 
 const DEFAULT_FOOTER_COLUMNS: WebsiteFooterColumn[] = [
   {
     title: 'Kurumsal',
-    links: ['Hakkimizda', 'Uretim Sureci', 'Sertifikalar', 'Iletisim'],
+    links: ['Hakkımızda', 'Üretim Süreci', 'Sertifikalar', 'İletişim'],
   },
   {
-    title: 'Musteri Hizmetleri',
-    links: ['Sikca Sorulan Sorular', 'Kargo ve Teslimat', 'Iade Politikasi'],
+    title: 'Müşteri Hizmetleri',
+    links: ['Sıkça Sorulan Sorular', 'Kargo ve Teslimat', 'İade Politikası'],
   },
   {
-    title: 'Hesabim',
-    links: ['Siparislerim', 'Favorilerim', 'Adres Bilgilerim'],
+    title: 'Hesabım',
+    links: ['Siparişlerim', 'Favorilerim', 'Adres Bilgilerim'],
   },
 ];
 
 export function createDefaultWebsiteConfig(): WebsiteConfig {
   return {
     theme: { ...DEFAULT_THEME },
-    announcement: 'Yeni hasat soguk sikim zeytinyaglari ve secili zeytin serileri stokta.',
+    announcement: 'Yeni hasat soğuk sıkım zeytinyağları ve seçili zeytin serileri stokta.',
     navItems: DEFAULT_NAV_ITEMS.map((item) => ({ ...item })),
     heroSlides: DEFAULT_HERO_SLIDES.map((slide) => ({ ...slide })),
     promoCards: DEFAULT_PROMO_CARDS.map((card) => ({ ...card })),
     featureItems: DEFAULT_FEATURE_ITEMS.map((item) => ({ ...item })),
-    newsletterTitle: 'Lezzet Bultenine Katilin',
+    newsletterTitle: 'Lezzet Bültenine Katılın',
     newsletterDescription:
-      'Indirimler, yeni hasat duyurulari ve zeytinyagli tarifler e-posta kutunuza gelsin.',
+      'İndirimler, yeni hasat duyuruları ve zeytinyağlı tarifler e-posta kutunuza gelsin.',
     footerColumns: DEFAULT_FOOTER_COLUMNS.map((column) => ({
       title: column.title,
       links: [...column.links],
@@ -216,7 +216,7 @@ function normalizeHeroSlides(value: unknown, fallback: WebsiteHeroSlide[]) {
         title,
         subtitle: toStringValue(record.subtitle),
         description: toStringValue(record.description),
-        ctaLabel: toStringValue(record.ctaLabel, 'Urunleri Kesfet'),
+        ctaLabel: toStringValue(record.ctaLabel, 'Ürünleri Keşfet'),
         ctaHref: toStringValue(record.ctaHref, '#products'),
         imageUrl,
       };
@@ -247,7 +247,7 @@ function normalizePromoCards(value: unknown, fallback: WebsitePromoCard[]) {
       return {
         title,
         subtitle: toStringValue(record.subtitle),
-        ctaLabel: toStringValue(record.ctaLabel, 'Detayi Gor'),
+        ctaLabel: toStringValue(record.ctaLabel, 'Detayı Gör'),
         ctaHref: toStringValue(record.ctaHref, '#products'),
         imageUrl,
       };

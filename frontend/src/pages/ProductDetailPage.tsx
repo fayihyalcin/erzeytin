@@ -1,28 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { StorefrontWhatsAppButton } from '../components/StorefrontWhatsAppButton';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
+import {
+  resolveProductGallery as resolveCatalogProductGallery,
+  resolveProductImage as resolveCatalogProductImage,
+} from '../lib/product-images';
 import type { Product, PublicSettingsDto } from '../types/api';
 import './StorefrontPage.css';
 import './ProductDetailPage.css';
 
-const FALLBACK_PRODUCT_IMAGE =
-  'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=1000&q=80';
+function toImageSource(product: Product) {
+  return {
+    id: product.id,
+    name: product.name,
+    categoryName: product.category?.name,
+  };
+}
 
 function resolveProductImage(product: Product) {
-  return product.featuredImage || product.images[0] || FALLBACK_PRODUCT_IMAGE;
+  return resolveCatalogProductImage(toImageSource(product));
 }
 
 function uniqueGalleryImages(product: Product) {
-  const images = [product.featuredImage, ...(product.images ?? [])]
-    .filter((image): image is string => !!image)
-    .filter((image, index, arr) => arr.indexOf(image) === index);
-
-  if (images.length > 0) {
-    return images;
-  }
-
-  return [FALLBACK_PRODUCT_IMAGE];
+  return resolveCatalogProductGallery(toImageSource(product), 4);
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -157,7 +159,7 @@ function ProductDetailContent({
   const [zoomOrigin, setZoomOrigin] = useState('50% 50%');
 
   const maxQuantity = Math.max(product.stock, 1);
-  const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0] ?? FALLBACK_PRODUCT_IMAGE;
+  const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0] ?? '';
   const price = Number(product.price ?? 0);
   const compare = Number(product.compareAtPrice ?? 0);
   const hasDiscount = compare > price && price > 0;
@@ -540,6 +542,28 @@ function ProductDetailContent({
           </div>
         </div>
       ) : null}
+
+      <footer className="sf-footer">
+        <div className="sf-container sf-footer-legal-links">
+          <Link to="/satis-sozlesmesi">Satis Sozlesmesi</Link>
+          <Link to="/kvkk">KVKK</Link>
+          <Link to="/gizlilik">Gizlilik</Link>
+        </div>
+
+        <div className="sf-container sf-footer-bottom">
+          <span>
+            Er Zeyincilik (c) {new Date().getFullYear()} - Tum haklari saklidir.
+          </span>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            Yukari Don
+          </button>
+        </div>
+      </footer>
+
+      <StorefrontWhatsAppButton />
     </div>
   );
 }

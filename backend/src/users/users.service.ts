@@ -99,4 +99,17 @@ export class UsersService {
       updatedAt: saved.updatedAt,
     };
   }
+
+  async deleteRepresentative(id: string) {
+    const representative = await this.usersRepository.findOne({
+      where: { id, role: 'REPRESENTATIVE' },
+    });
+
+    if (!representative) {
+      throw new NotFoundException('Musteri temsilcisi bulunamadi.');
+    }
+
+    await this.usersRepository.remove(representative);
+    return { success: true };
+  }
 }

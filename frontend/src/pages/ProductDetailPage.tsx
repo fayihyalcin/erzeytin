@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { StorefrontWhatsAppButton } from '../components/StorefrontWhatsAppButton';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
 import {
@@ -16,6 +15,8 @@ function toImageSource(product: Product) {
     id: product.id,
     name: product.name,
     categoryName: product.category?.name,
+    featuredImage: product.featuredImage,
+    images: product.images,
   };
 }
 
@@ -110,6 +111,7 @@ function RelatedProductCard({
   const discountPercent = hasDiscount
     ? Math.round(((compare - price) / compare) * 100)
     : 0;
+  const isOutOfStock = product.stock <= 0;
 
   return (
     <article className="sf-related-card">
@@ -119,14 +121,14 @@ function RelatedProductCard({
       <h4>
         <Link to={`/product/${product.id}`}>{product.name}</Link>
       </h4>
-      <p>{product.category?.name || 'Zeytin ve Zeytinyagi'}</p>
+      <p>{product.category?.name || 'Zeytin ve Zeytinyağı'}</p>
       <div className="sf-related-price">
         <strong>{formatter.format(price)}</strong>
         {hasDiscount ? <span>{formatter.format(compare)}</span> : null}
         {hasDiscount ? <small>%{discountPercent} OFF</small> : null}
       </div>
-      <button type="button" onClick={() => onAdd(product)}>
-        Sepete Ekle
+      <button disabled={isOutOfStock} type="button" onClick={() => onAdd(product)}>
+        {isOutOfStock ? 'Tükendi' : 'Sepete Ekle'}
       </button>
     </article>
   );
@@ -158,7 +160,8 @@ function ProductDetailContent({
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomOrigin, setZoomOrigin] = useState('50% 50%');
 
-  const maxQuantity = Math.max(product.stock, 1);
+  const maxQuantity = Math.max(product.stock, 0);
+  const canPurchase = maxQuantity > 0;
   const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0] ?? '';
   const price = Number(product.price ?? 0);
   const compare = Number(product.compareAtPrice ?? 0);
@@ -169,7 +172,7 @@ function ProductDetailContent({
   const shortSummary =
     product.shortDescription ||
     product.description ||
-    `${product.name} icin taze dolum ve guvenli teslimat secenegi.`;
+    `${product.name} için taze dolum ve güvenli teslimat seçeneği.`;
 
   const relatedProducts = useMemo(() => {
     const sameCategory = products.filter(
@@ -226,11 +229,25 @@ function ProductDetailContent({
 
   const changeQuantity = useCallback(
     (next: number) => {
+      if (maxQuantity <= 0) {
+        setQuantity(0);
+        return;
+      }
+
       const normalized = Math.floor(next);
       setQuantity(clamp(Number.isFinite(normalized) ? normalized : 1, 1, maxQuantity));
     },
     [maxQuantity],
   );
+
+  useEffect(() => {
+    if (maxQuantity <= 0) {
+      setQuantity(0);
+      return;
+    }
+
+    setQuantity((current) => clamp(current, 1, maxQuantity));
+  }, [maxQuantity]);
 
   const openZoom = useCallback(() => {
     setZoomLevel(1);
@@ -323,7 +340,7 @@ function ProductDetailContent({
 
             <div className="sf-pd-main-media">
               {galleryImages.length > 1 ? (
-                <button className="sf-pd-main-arrow left" type="button" onClick={goToPrevImage} aria-label="Onceki gorsel">
+                <button className="sf-pd-main-arrow left" type="button" onClick={goToPrevImage} aria-label="Önceki görsel">
                   {'<'}
                 </button>
               ) : null}
@@ -336,7 +353,7 @@ function ProductDetailContent({
               <img src={selectedImage} alt={product.name} onClick={openZoom} />
 
               {galleryImages.length > 1 ? (
-                <button className="sf-pd-main-arrow right" type="button" onClick={goToNextImage} aria-label="Sonraki gorsel">
+                <button className="sf-pd-main-arrow right" type="button" onClick={goToNextImage} aria-label="Sonraki görsel">
                   {'>'}
                 </button>
               ) : null}
@@ -348,8 +365,8 @@ function ProductDetailContent({
               <span className="star" aria-hidden="true">
                 *
               </span>
-              <span>Henuz Degerlendirilmemis</span>
-              <button type="button">Ilk Sen Degerlendir</button>
+              <span>Henüz Değerlendirilmemiş</span>
+              <button type="button">İlk Sen Değerlendir</button>
             </div>
 
             <div className="sf-pd-price-row">
@@ -358,39 +375,47 @@ function ProductDetailContent({
             </div>
             {hasDiscount ? <p className="sf-pd-discount">%{discountPercent} indirim</p> : null}
             <p className="sf-pd-shipping">{formatter.format(2000)} uzeri kargo bedava</p>
+            {!canPurchase ? <p className="sf-pd-stock-note">Bu ürün geçici olarak stokta yok.</p> : null}
+
+            <div className="sf-pd-service-strip">
+              <span>{canPurchase ? 'Aynı gün kargo planlama' : 'Stok yenileniyor'}</span>
+              <span>Güvenli paketleme</span>
+              <span>PAYTR ile odeme</span>
+            </div>
 
             <div className="sf-pd-qty-line">
               <span className="sf-pd-qty-label">ADET</span>
               <div className="sf-pd-qty-box">
-                <button type="button" onClick={() => changeQuantity(quantity - 1)} aria-label="Miktari azalt">
+                <button disabled={!canPurchase} type="button" onClick={() => changeQuantity(quantity - 1)} aria-label="Miktarı azalt">
                   -
                 </button>
                 <input
                   type="number"
-                  min={1}
+                  disabled={!canPurchase}
+                  min={canPurchase ? 1 : 0}
                   max={maxQuantity}
                   value={quantity}
                   onChange={(event) => changeQuantity(Number(event.target.value))}
                 />
-                <button type="button" onClick={() => changeQuantity(quantity + 1)} aria-label="Miktari arttir">
+                <button disabled={!canPurchase} type="button" onClick={() => changeQuantity(quantity + 1)} aria-label="Miktarı artır">
                   +
                 </button>
               </div>
             </div>
 
             <div className="sf-pd-actions">
-              <button className="sf-pd-btn add" type="button" onClick={() => onAddProduct(product, quantity)}>
+              <button className="sf-pd-btn add" disabled={!canPurchase} type="button" onClick={() => onAddProduct(product, quantity || 1)}>
                 <CartGlyph />
-                <span>Sepete Ekle</span>
+                <span>{canPurchase ? 'Sepete Ekle' : 'Stokta Yok'}</span>
               </button>
-              <button className="sf-pd-btn buy" type="button" onClick={() => onBuyNow(product, quantity)}>
+              <button className="sf-pd-btn buy" disabled={!canPurchase} type="button" onClick={() => onBuyNow(product, quantity || 1)}>
                 <BagGlyph />
-                <span>Hemen Al</span>
+                <span>{canPurchase ? 'Hemen Al' : 'Stokta Yok'}</span>
               </button>
               <button className="sf-pd-icon-btn" type="button" aria-label="Favorilere ekle">
                 <HeartGlyph />
               </button>
-              <button className="sf-pd-icon-btn" type="button" aria-label="Karsilastir">
+              <button className="sf-pd-icon-btn" type="button" aria-label="Karşılaştır">
                 <RefreshGlyph />
               </button>
             </div>
@@ -401,7 +426,7 @@ function ProductDetailContent({
                 <dd>{product.barcode || '-'}</dd>
               </div>
               <div>
-                <dt>Markasi</dt>
+                <dt>Markası</dt>
                 <dd>{product.brand || 'Aydoganlar'}</dd>
               </div>
               <div>
@@ -417,22 +442,22 @@ function ProductDetailContent({
         </section>
 
         <section className="sf-pd-description">
-          <h2>Urun Detaylari</h2>
+          <h2>Ürün Detayları</h2>
           <p>
             {product.description ||
-              'Urun ozenle secilen hammaddelerle uretilmistir. Serin ve gunes almayan ortamda saklayiniz.'}
+              'Ürün özenle seçilen hammaddelerle üretilmiştir. Serin ve güneş almayan ortamda saklayınız.'}
           </p>
           <div className="sf-pd-note-grid">
             <p>Taze dolum ve izlenebilir parti numarasi</p>
-            <p>Guvenli paketleme ve hasarsiz teslimat</p>
-            <p>Yuksek stok dogrulugu ve hizli sevkiyat</p>
-            <p>Kurumsal siparislerde ozel fiyatlandirma</p>
+            <p>Güvenli paketleme ve hasarsiz teslimat</p>
+            <p>Yüksek stok doğruluğu ve hızlı sevkiyat</p>
+            <p>Kurumsal siparişlerde özel fiyatlandırma</p>
           </div>
         </section>
 
         <section className="sf-related-products">
           <div className="sf-related-head">
-            <h2>Related Products</h2>
+            <h2>İlgili Ürünler</h2>
             <div className="sf-related-nav">
               <button
                 type="button"
@@ -478,9 +503,34 @@ function ProductDetailContent({
               ))}
             </div>
           ) : (
-            <p className="sf-featured-empty">Ilgili urun bulunamadi.</p>
+            <p className="sf-featured-empty">İlgili ürün bulunamadı.</p>
           )}
         </section>
+      </div>
+
+      <div className="sf-pd-mobile-dock">
+        <div className="sf-pd-mobile-dock-meta">
+          <small>{product.name}</small>
+          <strong>{formatter.format(price)}</strong>
+        </div>
+        <div className="sf-pd-mobile-dock-actions">
+          <button
+            className="ghost"
+            disabled={!canPurchase}
+            type="button"
+            onClick={() => onAddProduct(product, quantity || 1)}
+          >
+            Sepete Ekle
+          </button>
+          <button
+            className="primary"
+            disabled={!canPurchase}
+            type="button"
+            onClick={() => onBuyNow(product, quantity || 1)}
+          >
+            Hemen Al
+          </button>
+        </div>
       </div>
 
       {zoomOpen ? (
@@ -518,7 +568,7 @@ function ProductDetailContent({
               }}
             >
               {galleryImages.length > 1 ? (
-                <button className="sf-pd-lightbox-arrow left" type="button" onClick={goToPrevImage} aria-label="Onceki gorsel">
+                <button className="sf-pd-lightbox-arrow left" type="button" onClick={goToPrevImage} aria-label="Önceki görsel">
                   {'<'}
                 </button>
               ) : null}
@@ -530,14 +580,14 @@ function ProductDetailContent({
               />
 
               {galleryImages.length > 1 ? (
-                <button className="sf-pd-lightbox-arrow right" type="button" onClick={goToNextImage} aria-label="Sonraki gorsel">
+                <button className="sf-pd-lightbox-arrow right" type="button" onClick={goToNextImage} aria-label="Sonraki görsel">
                   {'>'}
                 </button>
               ) : null}
             </div>
 
             <p className="sf-pd-lightbox-help">
-              Mouse wheel ile zoom yapin. Ok tuslariyla gorseller arasinda gecis yapabilirsiniz.
+              Mouse wheel ile zoom yapın. Ok tuşlarıyla görseller arasında geçiş yapabilirsiniz.
             </p>
           </div>
         </div>
@@ -552,18 +602,17 @@ function ProductDetailContent({
 
         <div className="sf-container sf-footer-bottom">
           <span>
-            Er Zeyincilik (c) {new Date().getFullYear()} - Tum haklari saklidir.
+            Er Zeyincilik (c) {new Date().getFullYear()} - Tüm hakları saklıdır.
           </span>
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           >
-            Yukari Don
+            Yukarı Dön
           </button>
         </div>
       </footer>
 
-      <StorefrontWhatsAppButton />
     </div>
   );
 }
@@ -634,16 +683,16 @@ export function ProductDetailPage() {
   );
 
   if (loading) {
-    return <div className="storefront-loading">Urun detayi yukleniyor...</div>;
+    return <div className="storefront-loading">Ürün detayı yükleniyor...</div>;
   }
 
   if (!product) {
     return (
       <div className="storefront-page sf-pd-page">
         <div className="sf-container sf-detail-not-found">
-          <h1>Urun Bulunamadi</h1>
-          <p>Urun kaldirilmis veya link gecersiz olabilir.</p>
-          <Link to="/">Ana Sayfaya Don</Link>
+          <h1>Ürün Bulunamadı</h1>
+          <p>Ürün kaldırılmış veya link geçersiz olabilir.</p>
+          <Link to="/">Ana Sayfaya Dön</Link>
         </div>
       </div>
     );

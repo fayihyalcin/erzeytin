@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -50,6 +51,12 @@ export class CatalogController {
     return this.catalogService.updateCategory(id, dto);
   }
 
+  @Delete('categories/:id')
+  @UseGuards(JwtAuthGuard)
+  deleteCategory(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.catalogService.deleteCategory(id);
+  }
+
   @Get('products')
   @UseGuards(JwtAuthGuard)
   findProducts() {
@@ -69,5 +76,11 @@ export class CatalogController {
     @Body() dto: UpdateProductDto,
   ) {
     return this.catalogService.updateProduct(id, dto);
+  }
+
+  @Delete('products/:id')
+  @UseGuards(JwtAuthGuard)
+  deleteProduct(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.catalogService.deleteProduct(id);
   }
 }

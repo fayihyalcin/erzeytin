@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -48,6 +49,15 @@ export class UsersController {
   ) {
     this.assertAdmin(user);
     return this.usersService.updateRepresentative(id, dto);
+  }
+
+  @Delete('representatives/:id')
+  deleteRepresentative(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    this.assertAdmin(user);
+    return this.usersService.deleteRepresentative(id);
   }
 
   private assertAdmin(user: CurrentUserPayload) {

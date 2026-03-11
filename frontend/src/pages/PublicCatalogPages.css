@@ -1,0 +1,717 @@
+.pc-page-shell {
+  display: grid;
+  gap: 22px;
+  width: min(1120px, calc(100% - 28px));
+  margin: 0 auto;
+}
+
+.pc-page-hero {
+  position: relative;
+  min-height: 460px;
+  overflow: hidden;
+  border-radius: 26px;
+  background: linear-gradient(135deg, #122029 0%, #183540 100%);
+  box-shadow: 0 22px 50px rgba(16, 30, 38, 0.12);
+}
+
+.pc-page-hero-media,
+.pc-page-hero-image,
+.pc-page-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pc-page-hero-image,
+.pc-page-hero-video {
+  object-fit: cover;
+}
+
+.pc-page-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(105deg, rgba(7, 14, 20, 0.86) 12%, rgba(7, 14, 20, 0.34) 50%, rgba(7, 14, 20, 0.82) 100%),
+    linear-gradient(180deg, rgba(9, 16, 22, 0.1) 0%, rgba(9, 16, 22, 0.5) 100%);
+}
+
+.pc-page-hero-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.7fr);
+  gap: 18px;
+  align-items: end;
+  min-height: 460px;
+  padding: 30px;
+}
+
+.pc-page-hero-copy,
+.pc-page-hero-summary,
+.pc-sidebar-card,
+.pc-category-card,
+.pc-product-card,
+.pc-promo-card,
+.pc-ribbon-banner,
+.pc-campaign-product,
+.pc-parallax-card,
+.pc-empty-state,
+.pc-stat-strip article {
+  border: 1px solid rgba(22, 33, 42, 0.08);
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.pc-page-hero-copy,
+.pc-page-hero-summary {
+  background: rgba(10, 18, 24, 0.52);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  color: #f8faf7;
+}
+
+.pc-page-hero-copy {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+}
+
+.pc-page-hero-badge,
+.pc-section-head span,
+.pc-sidebar-card span,
+.pc-ribbon-banner-copy span,
+.pc-promo-card-copy span,
+.pc-parallax-card-copy span,
+.pc-product-card-category {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8f4f2;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pc-section-head span,
+.pc-sidebar-card span,
+.pc-product-card-category {
+  background: rgba(15, 140, 128, 0.1);
+  color: #0f8c80;
+}
+
+.pc-page-hero-copy h1,
+.pc-section-head h2 {
+  margin: 0;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.pc-page-hero-copy h1 {
+  max-width: 13ch;
+  font-size: clamp(30px, 3.9vw, 46px);
+}
+
+.pc-page-hero-copy p,
+.pc-page-hero-summary p,
+.pc-section-head p,
+.pc-category-card-body p,
+.pc-product-card-body p,
+.pc-empty-state p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.pc-page-hero-actions,
+.pc-category-card-actions,
+.pc-section-head {
+  display: flex;
+  gap: 10px;
+}
+
+.pc-page-hero-actions a,
+.pc-category-card-actions a,
+.pc-section-head a,
+.pc-ribbon-banner-copy a,
+.pc-promo-card-copy a,
+.pc-parallax-card-copy a,
+.pc-campaign-product-price a,
+.pc-empty-state button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: none;
+  background: #f5efe6;
+  color: #16212a;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pc-page-hero-actions a.ghost,
+.pc-category-card-actions a.ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8faf7;
+}
+
+.pc-page-hero-summary {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.pc-page-hero-summary strong {
+  font-size: 18px;
+}
+
+.pc-page-hero-summary ul,
+.pc-sidebar-card ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pc-page-hero-summary li,
+.pc-sidebar-card li {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+.pc-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pc-stat-strip article {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+}
+
+.pc-stat-strip strong {
+  font-size: 24px;
+  color: #0f8c80;
+}
+
+.pc-stat-strip span {
+  color: rgba(22, 33, 42, 0.62);
+  font-size: 13px;
+}
+
+.pc-section-head {
+  align-items: end;
+  justify-content: space-between;
+}
+
+.pc-section-head > div {
+  max-width: 680px;
+  display: grid;
+  gap: 8px;
+}
+
+.pc-section-head h2 {
+  font-size: clamp(24px, 2.8vw, 34px);
+  color: #16212a;
+}
+
+.pc-category-grid,
+.pc-product-grid,
+.pc-promo-grid,
+.pc-parallax-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.pc-category-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pc-category-card {
+  overflow: hidden;
+}
+
+.pc-category-card-media {
+  position: relative;
+  height: 220px;
+}
+
+.pc-category-card-media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.pc-category-card-media span {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: inline-flex;
+  min-height: 30px;
+  padding: 0 12px;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(10, 18, 24, 0.72);
+  color: #f8faf7;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pc-category-card-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.pc-category-card-body h3,
+.pc-product-card-body h3,
+.pc-promo-card-copy h3,
+.pc-parallax-card-copy h3,
+.pc-campaign-product h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  line-height: 1.16;
+}
+
+.pc-category-card-body h3,
+.pc-product-card-body h3 a,
+.pc-campaign-product h3 {
+  color: #16212a;
+}
+
+.pc-category-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pc-category-card-chips span {
+  display: inline-flex;
+  min-height: 30px;
+  padding: 0 10px;
+  align-items: center;
+  border-radius: 999px;
+  background: #f4efe8;
+  color: rgba(22, 33, 42, 0.8);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pc-products-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.pc-products-sidebar {
+  position: sticky;
+  top: 176px;
+  display: grid;
+  gap: 12px;
+}
+
+.pc-sidebar-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.pc-sidebar-card h2 {
+  margin: 0;
+}
+
+.pc-sidebar-card.accent {
+  background: linear-gradient(135deg, #132028 0%, #1c353f 100%);
+  color: #f7faf7;
+}
+
+.pc-filter-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pc-filter-list button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(22, 33, 42, 0.08);
+  border-radius: 12px;
+  background: #f8f5ef;
+  color: #16212a;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pc-filter-list button.active {
+  background: #0f8c80;
+  border-color: #0f8c80;
+  color: #f7faf7;
+}
+
+.pc-products-main {
+  display: grid;
+  gap: 14px;
+}
+
+.pc-products-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.pc-products-toolbar h2 {
+  margin: 8px 0 0;
+}
+
+.pc-search-box {
+  min-width: min(360px, 100%);
+  display: grid;
+  gap: 6px;
+}
+
+.pc-search-box span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(22, 33, 42, 0.6);
+}
+
+.pc-search-box input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(22, 33, 42, 0.08);
+  border-radius: 14px;
+  background: #ffffff;
+  color: #16212a;
+  font-size: 13px;
+}
+
+.pc-product-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pc-product-card {
+  overflow: hidden;
+}
+
+.pc-product-card-media {
+  display: block;
+  aspect-ratio: 1 / 0.82;
+}
+
+.pc-product-card-media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.pc-product-card-body {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.pc-product-card-body h3 a {
+  text-decoration: none;
+}
+
+.pc-product-card-meta,
+.pc-product-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pc-product-card-meta span,
+.pc-product-card-meta small {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pc-product-card-meta .in-stock {
+  color: #0f8c80;
+}
+
+.pc-product-card-meta .out-stock {
+  color: #b94e32;
+}
+
+.pc-product-card-price {
+  display: grid;
+  gap: 6px;
+}
+
+.pc-product-card-price span,
+.pc-campaign-product-price small {
+  color: rgba(22, 33, 42, 0.48);
+  font-size: 12px;
+  text-decoration: line-through;
+}
+
+.pc-product-card-price strong,
+.pc-campaign-product-price strong {
+  font-size: 20px;
+  color: #16212a;
+}
+
+.pc-product-card-footer button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 12px;
+  background: #0f8c80;
+  color: #f7faf7;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pc-product-card-footer button:disabled {
+  background: #cad6d4;
+  color: rgba(22, 33, 42, 0.54);
+  cursor: not-allowed;
+}
+
+.pc-empty-state {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.pc-ribbon-banner {
+  position: relative;
+  min-height: 280px;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+.pc-ribbon-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(10, 18, 24, 0.84) 14%, rgba(10, 18, 24, 0.4) 62%, rgba(10, 18, 24, 0.74) 100%);
+}
+
+.pc-ribbon-banner-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  display: grid;
+  gap: 12px;
+  padding: 28px;
+  color: #f7faf7;
+}
+
+.pc-ribbon-banner-copy h2 {
+  margin: 0;
+  font-size: clamp(26px, 3.2vw, 38px);
+  line-height: 1.08;
+}
+
+.pc-promo-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pc-promo-card,
+.pc-parallax-card {
+  position: relative;
+  min-height: 320px;
+  overflow: hidden;
+}
+
+.pc-promo-card.featured {
+  grid-column: span 2;
+}
+
+.pc-promo-card img,
+.pc-parallax-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pc-promo-card-copy,
+.pc-parallax-card-copy {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: grid;
+  align-content: end;
+  gap: 10px;
+  padding: 18px;
+  color: #f7faf7;
+  background: linear-gradient(180deg, rgba(10, 18, 24, 0.1) 0%, rgba(10, 18, 24, 0.78) 100%);
+}
+
+.pc-campaign-products {
+  display: grid;
+  gap: 12px;
+}
+
+.pc-campaign-product {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 160px;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+}
+
+.pc-campaign-product img {
+  width: 100%;
+  height: 140px;
+  display: block;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.pc-campaign-product span {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: #0f8c80;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pc-campaign-product-price {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.pc-parallax-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pc-parallax-card.tall {
+  min-height: 400px;
+}
+
+.skeleton {
+  min-height: 220px;
+  background:
+    linear-gradient(90deg, rgba(228, 234, 232, 0.7) 0%, rgba(244, 247, 245, 0.95) 50%, rgba(228, 234, 232, 0.7) 100%);
+  background-size: 200% 100%;
+  animation: pc-skeleton 1.2s linear infinite;
+}
+
+@keyframes pc-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .pc-page-shell {
+    width: min(100% - 24px, 1180px);
+  }
+
+  .pc-page-hero-shell,
+  .pc-products-layout,
+  .pc-campaign-product {
+    grid-template-columns: 1fr;
+  }
+
+  .pc-products-sidebar {
+    position: static;
+  }
+
+  .pc-category-grid,
+  .pc-product-grid,
+  .pc-promo-grid,
+  .pc-parallax-grid,
+  .pc-stat-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .pc-promo-card.featured {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .pc-page-hero {
+    min-height: 560px;
+    border-radius: 24px;
+  }
+
+  .pc-page-hero-shell {
+    min-height: 560px;
+    padding: 22px;
+  }
+
+  .pc-page-hero-copy,
+  .pc-page-hero-summary,
+  .pc-category-card-body,
+  .pc-product-card-body,
+  .pc-sidebar-card,
+  .pc-campaign-product,
+  .pc-ribbon-banner-copy {
+    padding: 18px;
+  }
+
+  .pc-page-hero-copy h1 {
+    font-size: clamp(32px, 10vw, 44px);
+  }
+
+  .pc-products-toolbar,
+  .pc-section-head,
+  .pc-page-hero-actions,
+  .pc-category-card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pc-search-box {
+    min-width: 0;
+  }
+
+  .pc-category-card-media,
+  .pc-campaign-product img {
+    height: 200px;
+  }
+
+  .pc-campaign-product-price {
+    justify-items: stretch;
+  }
+
+  .pc-page-hero-actions a,
+  .pc-category-card-actions a,
+  .pc-section-head a,
+  .pc-ribbon-banner-copy a,
+  .pc-promo-card-copy a,
+  .pc-parallax-card-copy a,
+  .pc-campaign-product-price a,
+  .pc-empty-state button {
+    width: 100%;
+  }
+}

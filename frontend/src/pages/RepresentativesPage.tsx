@@ -26,6 +26,7 @@ export function RepresentativesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const fetchRepresentatives = async () => {
@@ -80,133 +81,134 @@ export function RepresentativesPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    setMessage(null);
+    try {
+      await api.delete(`/users/representatives/${id}`);
+      await fetchRepresentatives();
+      setMessage('Temsilci silindi.');
+      if (editingId === id) {
+        setEditingId(null);
+        setForm(defaultFormState);
+      }
+    } catch {
+      setMessage('Temsilci silinemedi.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   if (loading) {
-    return <section className="panel-card">Temsilci listesi yukleniyor...</section>;
+    return <section className="admin-panel">Temsilci listesi yukleniyor...</section>;
   }
 
   return (
-    <section className="panel-card">
-      <div className="panel-title-row">
-        <h3>Musteri Temsilcileri</h3>
-        <span>{isAdmin ? 'Olustur / Duzenle' : 'Liste'}</span>
-      </div>
-
-      {isAdmin ? (
-        <form className="grid-form wide-form" onSubmit={handleSubmit}>
-          <label>
-            Kullanici Adi
-            <input
-              value={form.username}
-              disabled={Boolean(editingId)}
-              onChange={(event) => setForm({ ...form, username: event.target.value })}
-              required
-            />
-          </label>
-
-          <label>
-            Durum
-            <select
-              value={form.isActive ? '1' : '0'}
-              onChange={(event) => setForm({ ...form, isActive: event.target.value === '1' })}
-            >
-              <option value="1">Aktif</option>
-              <option value="0">Pasif</option>
-            </select>
-          </label>
-
-          <label className="field-span-2">
-            Ad Soyad
-            <input
-              value={form.fullName}
-              onChange={(event) => setForm({ ...form, fullName: event.target.value })}
-              required
-            />
-          </label>
-
-          <label className="field-span-2">
-            {editingId ? 'Yeni Sifre (bos birakirsan degismez)' : 'Sifre'}
-            <input
-              type="password"
-              value={form.password}
-              onChange={(event) => setForm({ ...form, password: event.target.value })}
-              required={!editingId}
-            />
-          </label>
-
-          <div className="form-actions field-span-2">
-            <button type="submit" disabled={saving}>
-              {saving
-                ? 'Kaydediliyor...'
-                : editingId
-                  ? 'Temsilci Guncelle'
-                  : 'Temsilci Olustur'}
-            </button>
-            {editingId ? (
-              <button
-                className="tiny secondary"
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm(defaultFormState);
-                }}
-              >
-                Iptal
-              </button>
-            ) : null}
-          </div>
-        </form>
-      ) : null}
+    <div className="admin-page-stack">
+      <section className="admin-page-header">
+        <div>
+          <span className="admin-eyebrow">Operasyon / Temsilciler</span>
+          <h2>Musteri temsilcileri</h2>
+          <p>Siparis zimmeti yapilacak ekip hesaplarini ve aktiflik durumlarini yonetin.</p>
+        </div>
+      </section>
 
       {message ? <p className="message">{message}</p> : null}
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Ad Soyad</th>
-              <th>Kullanici</th>
-              <th>Rol</th>
-              <th>Durum</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {representatives.length === 0 ? (
-              <tr>
-                <td colSpan={5}>Temsilci bulunamadi.</td>
-              </tr>
-            ) : (
-              representatives.map((representative) => (
-                <tr key={representative.id}>
-                  <td>{representative.fullName}</td>
-                  <td>{representative.username}</td>
-                  <td>{representative.role}</td>
-                  <td>{representative.isActive ? 'Aktif' : 'Pasif'}</td>
-                  <td>
-                    {isAdmin ? (
-                      <button
-                        className="tiny secondary"
-                        type="button"
-                        onClick={() => {
-                          setEditingId(representative.id);
-                          setForm({
-                            username: representative.username,
-                            fullName: representative.fullName,
-                            password: '',
-                            isActive: representative.isActive,
-                          });
-                        }}
-                      >
+      <section className="admin-overview-grid">
+        {isAdmin ? (
+          <article className="admin-panel">
+            <div className="admin-panel-header">
+              <div>
+                <h3>{editingId ? 'Temsilci duzenle' : 'Yeni temsilci'}</h3>
+                <p>Yeni ekip hesabi olusturun veya mevcut kaydi duzenleyin.</p>
+              </div>
+            </div>
+
+            <form className="admin-form-grid" onSubmit={handleSubmit}>
+              <label className="admin-label">
+                <span>Kullanici adi</span>
+                <input className="admin-input" disabled={Boolean(editingId)} onChange={(event) => setForm({ ...form, username: event.target.value })} required value={form.username} />
+              </label>
+              <label className="admin-label">
+                <span>Durum</span>
+                <select className="admin-select" onChange={(event) => setForm({ ...form, isActive: event.target.value === '1' })} value={form.isActive ? '1' : '0'}>
+                  <option value="1">Aktif</option>
+                  <option value="0">Pasif</option>
+                </select>
+              </label>
+              <label className="admin-label admin-span-full">
+                <span>Ad soyad</span>
+                <input className="admin-input" onChange={(event) => setForm({ ...form, fullName: event.target.value })} required value={form.fullName} />
+              </label>
+              <label className="admin-label admin-span-full">
+                <span>{editingId ? 'Yeni sifre' : 'Sifre'}</span>
+                <input className="admin-input" onChange={(event) => setForm({ ...form, password: event.target.value })} required={!editingId} type="password" value={form.password} />
+              </label>
+
+              <div className="admin-form-actions admin-span-full">
+                <button className="admin-primary-button" disabled={saving} type="submit">
+                  {saving ? 'Kaydediliyor...' : editingId ? 'Guncelle' : 'Olustur'}
+                </button>
+                {editingId ? (
+                  <button className="admin-ghost-button" onClick={() => {
+                    setEditingId(null);
+                    setForm(defaultFormState);
+                  }} type="button">
+                    Iptal
+                  </button>
+                ) : null}
+              </div>
+            </form>
+          </article>
+        ) : null}
+
+        <article className="admin-panel">
+          <div className="admin-panel-header">
+            <div>
+              <h3>Ekip listesi</h3>
+              <p>{representatives.length} temsilci kaydi bulundu.</p>
+            </div>
+          </div>
+
+          {representatives.length === 0 ? (
+            <div className="admin-empty-state compact">
+              <strong>Temsilci yok</strong>
+              <p>Yeni bir ekip hesabi ekleyerek baslayin.</p>
+            </div>
+          ) : (
+            <div className="admin-stack-list">
+              {representatives.map((representative) => (
+                <article key={representative.id} className="admin-post-card">
+                  <div>
+                    <strong>{representative.fullName}</strong>
+                    <span>{representative.username}</span>
+                    <small>{representative.isActive ? 'Aktif' : 'Pasif'} - {representative.role}</small>
+                  </div>
+                  {isAdmin ? (
+                    <div className="admin-form-actions">
+                      <button className="admin-secondary-button" onClick={() => {
+                        setEditingId(representative.id);
+                        setForm({
+                          username: representative.username,
+                          fullName: representative.fullName,
+                          password: '',
+                          isActive: representative.isActive,
+                        });
+                      }} type="button">
                         Duzenle
                       </button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
+                      <button className="admin-danger-button" disabled={deletingId === representative.id} onClick={() => void handleDelete(representative.id)} type="button">
+                        {deletingId === representative.id ? 'Siliniyor...' : 'Sil'}
+                      </button>
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>
+    </div>
   );
 }

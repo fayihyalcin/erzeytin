@@ -4,16 +4,19 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { resolveProductGallery, resolveProductImage } from '../lib/product-images';
 import type { Product } from '../types/api';
+import { useToast } from './ToastContext';
 
 const STORAGE_KEY = 'zeytin_store_cart_v1';
 
 interface CartProductSnapshot {
   id: string;
+  sku: string;
   name: string;
   price: string;
   compareAtPrice: string | null;
@@ -47,6 +50,7 @@ function toProductSnapshot(product: Product): CartProductSnapshot {
 
   return {
     id: product.id,
+    sku: product.sku,
     name: product.name,
     price: String(product.price ?? '0'),
     compareAtPrice: product.compareAtPrice ?? null,
@@ -55,12 +59,16 @@ function toProductSnapshot(product: Product): CartProductSnapshot {
         id: product.id,
         name: product.name,
         categoryName,
+        featuredImage: product.featuredImage,
+        images: product.images,
       }) || null,
     images: resolveProductGallery(
       {
         id: product.id,
         name: product.name,
         categoryName,
+        featuredImage: product.featuredImage,
+        images: product.images,
       },
       4,
     ),
@@ -109,6 +117,8 @@ function loadInitialCart() {
             id: item.product.id,
             name: item.product.name,
             categoryName: item.product.categoryName,
+            featuredImage: item.product.featuredImage,
+            images: item.product.images,
           }) || null;
 
         return {
@@ -116,12 +126,15 @@ function loadInitialCart() {
           quantity,
           product: {
             ...item.product,
+            sku: String(item.product.sku ?? ''),
             featuredImage: normalizedFeaturedImage,
             images: resolveProductGallery(
               {
                 id: item.product.id,
                 name: item.product.name,
                 categoryName: item.product.categoryName,
+                featuredImage: item.product.featuredImage,
+                images: item.product.images,
               },
               4,
             ),
@@ -136,8 +149,12 @@ function loadInitialCart() {
 
 export function StoreCartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<StoreCartItem[]>(loadInitialCart);
+  const itemsRef = useRef(items);
+  const { showToast } = useToast();
 
   useEffect(() => {
+    itemsRef.current = items;
+
     if (typeof window === 'undefined') {
       return;
     }
@@ -146,56 +163,141 @@ export function StoreCartProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   const addProduct = useCallback((product: Product, quantity = 1) => {
-    const safeQuantity = Math.max(1, Math.floor(quantity));
-    const snapshot = toProductSnapshot(product);
-
-    setItems((current) => {
-      const existingIndex = current.findIndex((item) => item.productId === product.id);
-      if (existingIndex < 0) {
-        return [
-          ...current,
-          {
-            productId: product.id,
-            quantity: safeQuantity,
-            product: snapshot,
-          },
-        ];
-      }
-
-      const next = [...current];
-      const existing = next[existingIndex];
-      next[existingIndex] = {
-        ...existing,
-        quantity: existing.quantity + safeQuantity,
-        product: snapshot,
-      };
-      return next;
-    });
-  }, []);
-
-  const removeProduct = useCallback((productId: string) => {
-    setItems((current) => current.filter((item) => item.productId !== productId));
-  }, []);
-
-  const setQuantity = useCallback((productId: string, quantity: number) => {
-    const safeQuantity = Math.floor(quantity);
-    if (safeQuantity <= 0) {
-      setItems((current) => current.filter((item) => item.productId !== productId));
+    const maxStock = Math.max(Number(product.stock ?? 0), 0);
+    if (maxStock <= 0) {
+      showToast({
+        title: 'Bu ürün stokta yok',
+        description: 'Stok yenilendiğinde tekrar deneyebilirsiniz.',
+        tone: 'warning',
+      });
       return;
     }
 
-    setItems((current) =>
-      current.map((item) =>
-        item.productId === productId
-          ? { ...item, quantity: safeQuantity }
-          : item,
-      ),
+    const safeQuantity = Math.min(Math.max(1, Math.floor(quantity)), maxStock);
+    const snapshot = toProductSnapshot(product);
+    const currentItems = itemsRef.current;
+    const existingIndex = currentItems.findIndex((item) => item.productId === product.id);
+
+    if (existingIndex < 0) {
+      setItems([
+        ...currentItems,
+        {
+          productId: product.id,
+          quantity: safeQuantity,
+          product: snapshot,
+        },
+      ]);
+      showToast({
+        title: 'Sepete eklendi',
+        description: `${snapshot.name} sepete eklendi.`,
+        tone: 'success',
+      });
+      return;
+    }
+
+    const next = [...currentItems];
+    const existing = next[existingIndex];
+    const nextQuantity = Math.min(existing.quantity + safeQuantity, snapshot.stock);
+    next[existingIndex] = {
+      ...existing,
+      quantity: nextQuantity,
+      product: snapshot,
+    };
+
+    setItems(next);
+    showToast({
+      title: nextQuantity >= snapshot.stock ? 'Sepet stok limitine ulaştı' : 'Sepet güncellendi',
+      description:
+        nextQuantity >= snapshot.stock
+          ? `${snapshot.name} için maksimum stok adedine ulaşıldı.`
+          : `${snapshot.name} adedi güncellendi.`,
+      tone: nextQuantity >= snapshot.stock ? 'info' : 'success',
+    });
+  }, [showToast]);
+
+  const removeProduct = useCallback((productId: string) => {
+    const currentItems = itemsRef.current;
+    const removedItem = currentItems.find((item) => item.productId === productId);
+    if (!removedItem) {
+      return;
+    }
+
+    setItems(currentItems.filter((item) => item.productId !== productId));
+    showToast({
+      title: 'Sepetten kaldırıldı',
+      description: `${removedItem.product.name} sepetten çıkarıldı.`,
+      tone: 'info',
+    });
+  }, [showToast]);
+
+  const setQuantity = useCallback((productId: string, quantity: number) => {
+    const currentItems = itemsRef.current;
+    const targetItem = currentItems.find((item) => item.productId === productId);
+    if (!targetItem) {
+      return;
+    }
+
+    const safeQuantity = Math.floor(quantity);
+    if (safeQuantity <= 0) {
+      setItems(currentItems.filter((item) => item.productId !== productId));
+      showToast({
+        title: 'Sepetten kaldırıldı',
+        description: `${targetItem.product.name} artık sepetinizde değil.`,
+        tone: 'info',
+      });
+      return;
+    }
+
+    const maxStock = Math.max(targetItem.product.stock, 0);
+    if (maxStock <= 0) {
+      setItems(currentItems.filter((item) => item.productId !== productId));
+      showToast({
+        title: 'Stok tükendi görünüyor',
+        description: `${targetItem.product.name} sepette tutulamadı çünkü stok bilgisi güncellendi.`,
+        tone: 'warning',
+      });
+      return;
+    }
+
+    const nextQuantity = Math.min(safeQuantity, maxStock);
+    const nextItems = currentItems.map((item) =>
+      item.productId === productId
+        ? {
+            ...item,
+            quantity: nextQuantity,
+          }
+        : item,
     );
-  }, []);
+
+    setItems(nextItems);
+
+    if (nextQuantity === targetItem.quantity && safeQuantity <= maxStock) {
+      return;
+    }
+
+    showToast({
+      title: nextQuantity >= maxStock ? 'Sepet stok limitine ulaştı' : 'Sepet güncellendi',
+      description:
+        nextQuantity >= maxStock
+          ? `${targetItem.product.name} için en fazla ${maxStock} adet seçilebilir.`
+          : `${targetItem.product.name} miktarı ${nextQuantity} olarak güncellendi.`,
+      tone: nextQuantity >= maxStock ? 'info' : 'success',
+    });
+  }, [showToast]);
 
   const clearCart = useCallback(() => {
+    const currentItems = itemsRef.current;
+    if (currentItems.length === 0) {
+      return;
+    }
+
     setItems([]);
-  }, []);
+    showToast({
+      title: 'Sepet temizlendi',
+      description: 'Tüm ürünler sepetinizden kaldırıldı.',
+      tone: 'info',
+    });
+  }, [showToast]);
 
   const getQuantity = useCallback(
     (productId: string) => items.find((item) => item.productId === productId)?.quantity ?? 0,

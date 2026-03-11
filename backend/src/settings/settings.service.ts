@@ -12,6 +12,8 @@ const PUBLIC_SETTING_KEYS = [
   'timezone',
   'taxRate',
   'websiteConfig',
+  'blogPosts',
+  'paytrEnabled',
 ] as const;
 
 @Injectable()

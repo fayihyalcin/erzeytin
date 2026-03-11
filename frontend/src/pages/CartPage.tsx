@@ -1,16 +1,43 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { StorefrontWhatsAppButton } from '../components/StorefrontWhatsAppButton';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
+import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
-import type { Order, PublicSettingsDto, WebsiteConfig } from '../types/api';
+import type {
+  Order,
+  PaytrCheckoutSession,
+  PublicSettingsDto,
+  WebsiteConfig,
+} from '../types/api';
 import './StorefrontPage.css';
 import './CartPage.css';
 
 type CheckoutPaymentMethod = 'CARD' | 'CASH_ON_DELIVERY' | 'EFT_HAVALE';
+
+const CHECKOUT_PAYMENT_OPTIONS: Array<{
+  value: CheckoutPaymentMethod;
+  label: string;
+  note: string;
+}> = [
+  {
+    value: 'CARD',
+    label: 'Kredi Karti',
+    note: 'PAYTR iframe ile hızlı ve güvenli ödeme.',
+  },
+  {
+    value: 'CASH_ON_DELIVERY',
+    label: 'Kapıda Ödeme',
+    note: 'Teslimat sırasında nakit veya POS ile ödeme.',
+  },
+  {
+    value: 'EFT_HAVALE',
+    label: 'EFT / Havale',
+    note: 'Sipariş sonrası banka hesabı bilgisiyle tamamlanır.',
+  },
+];
 
 interface CheckoutFormState {
   fullName: string;
@@ -29,11 +56,15 @@ function resolveCartImage(product: {
   id: string;
   name: string;
   categoryName?: string | null;
+  featuredImage?: string | null;
+  images?: string[];
 }) {
   return resolveCatalogProductImage({
     id: product.id,
     name: product.name,
     categoryName: product.categoryName,
+    featuredImage: product.featuredImage,
+    images: product.images,
   });
 }
 
@@ -44,6 +75,14 @@ function parsePrice(value: string) {
   }
 
   return 0;
+}
+
+function parseBooleanSetting(value?: string) {
+  if (!value) {
+    return false;
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
 
 function resolveStorefrontHref(href: string) {
@@ -60,7 +99,7 @@ function resolveStorefrontHref(href: string) {
 
 function paymentMethodLabel(method: CheckoutPaymentMethod) {
   if (method === 'CASH_ON_DELIVERY') {
-    return 'Kapida Odeme';
+    return 'Kapıda Ödeme';
   }
 
   if (method === 'EFT_HAVALE') {
@@ -76,18 +115,22 @@ export function CartPage() {
   const {
     user: customerUser,
     isAuthenticated: isCustomerAuthenticated,
-    addOrderNumber,
+    ensureCheckoutAccount,
+    logout,
     linkOrderToEmail,
   } = useCustomerAuth();
+  const { showToast } = useToast();
 
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [currency, setCurrency] = useState('TRY');
+  const [paytrEnabled, setPaytrEnabled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
+  const [paytrSession, setPaytrSession] = useState<PaytrCheckoutSession | null>(null);
   const [checkoutForm, setCheckoutForm] = useState<CheckoutFormState>({
     fullName: '',
     email: '',
@@ -120,6 +163,7 @@ export function CartPage() {
         }
 
         setConfig(parseWebsiteConfig(response.data.websiteConfig));
+        setPaytrEnabled(parseBooleanSetting(response.data.paytrEnabled));
 
         if (response.data.currency) {
           setCurrency(response.data.currency.toUpperCase());
@@ -178,6 +222,17 @@ export function CartPage() {
     };
   }, [checkoutOpen]);
 
+  useEffect(() => {
+    if (paytrEnabled || checkoutForm.paymentMethod !== 'CARD') {
+      return;
+    }
+
+    setCheckoutForm((current) => ({
+      ...current,
+      paymentMethod: 'CASH_ON_DELIVERY',
+    }));
+  }, [checkoutForm.paymentMethod, paytrEnabled]);
+
   const formatter = useMemo(() => {
     try {
       return new Intl.NumberFormat('tr-TR', {
@@ -203,6 +258,48 @@ export function CartPage() {
   const navItems = config.navItems.length > 0 ? config.navItems : defaultConfig.navItems;
 
   const canCheckout = items.length > 0 && !checkoutLoading;
+  const checkoutPayload = {
+    customerName: checkoutForm.fullName.trim(),
+    customerEmail: checkoutForm.email.trim(),
+    customerPhone: checkoutForm.phone.trim(),
+    shippingAddress: {
+      fullName: checkoutForm.fullName.trim(),
+      phone: checkoutForm.phone.trim(),
+      country: 'Turkiye',
+      city: checkoutForm.city.trim(),
+      district: checkoutForm.district.trim(),
+      postalCode: checkoutForm.postalCode.trim(),
+      line1: checkoutForm.line1.trim(),
+      line2: checkoutForm.line2.trim(),
+    },
+    billingAddress: {
+      fullName: checkoutForm.fullName.trim(),
+      phone: checkoutForm.phone.trim(),
+      country: 'Turkiye',
+      city: checkoutForm.city.trim(),
+      district: checkoutForm.district.trim(),
+      postalCode: checkoutForm.postalCode.trim(),
+      line1: checkoutForm.line1.trim(),
+      line2: checkoutForm.line2.trim(),
+    },
+    items: items.map((item) => ({
+      productId: item.productId,
+      productName: item.product.name,
+      sku: item.product.sku || item.product.id,
+      quantity: item.quantity,
+      unitPrice: parsePrice(item.product.price),
+      imageUrl: resolveCartImage(item.product) || undefined,
+    })),
+    shippingFee: Number(shipping.toFixed(2)),
+    taxAmount: 0,
+    discountAmount: 0,
+    currency,
+    paymentMethod: checkoutForm.paymentMethod,
+    paymentStatus: 'PENDING' as const,
+    paymentProvider: checkoutForm.paymentMethod === 'CARD' ? 'PAYTR' : 'MANUAL',
+    shippingMethod: 'Standart Kargo',
+    customerNote: checkoutForm.note.trim(),
+  };
 
   const submitOrder = async () => {
     setCheckoutError('');
@@ -222,69 +319,84 @@ export function CartPage() {
     ];
     const isMissingRequired = requiredFields.some((field) => checkoutForm[field].trim().length === 0);
     if (isMissingRequired || !checkoutForm.email.includes('@')) {
-      setCheckoutError('Lutfen zorunlu teslimat ve iletisim alanlarini doldurun.');
+      setCheckoutError('Lütfen zorunlu teslimat ve iletişim alanlarını doldurun.');
       return;
     }
 
     setCheckoutLoading(true);
 
     try {
-      const payload = {
-        customerName: checkoutForm.fullName.trim(),
-        customerEmail: checkoutForm.email.trim(),
-        customerPhone: checkoutForm.phone.trim(),
-        shippingAddress: {
-          fullName: checkoutForm.fullName.trim(),
-          phone: checkoutForm.phone.trim(),
-          country: 'Turkiye',
-          city: checkoutForm.city.trim(),
-          district: checkoutForm.district.trim(),
-          postalCode: checkoutForm.postalCode.trim(),
-          line1: checkoutForm.line1.trim(),
-          line2: checkoutForm.line2.trim(),
-        },
-        billingAddress: {
-          fullName: checkoutForm.fullName.trim(),
-          phone: checkoutForm.phone.trim(),
-          country: 'Turkiye',
-          city: checkoutForm.city.trim(),
-          district: checkoutForm.district.trim(),
-          postalCode: checkoutForm.postalCode.trim(),
-          line1: checkoutForm.line1.trim(),
-          line2: checkoutForm.line2.trim(),
-        },
-        items: items.map((item) => ({
-          productId: item.productId,
-          productName: item.product.name,
-          sku: item.product.id,
-          quantity: item.quantity,
-          unitPrice: parsePrice(item.product.price),
-          imageUrl: resolveCartImage(item.product) || undefined,
-        })),
-        shippingFee: Number(shipping.toFixed(2)),
-        taxAmount: 0,
-        discountAmount: 0,
-        currency,
-        paymentMethod: checkoutForm.paymentMethod,
-        paymentStatus: 'PENDING' as const,
-        paymentProvider: checkoutForm.paymentMethod === 'CARD' ? 'PAYTR' : 'MANUAL',
-        shippingMethod: 'Standart Kargo',
-        customerNote: checkoutForm.note.trim(),
-      };
+      const accountResult = await ensureCheckoutAccount({
+        fullName: checkoutForm.fullName,
+        email: checkoutForm.email,
+        phone: checkoutForm.phone,
+        city: checkoutForm.city,
+        district: checkoutForm.district,
+        postalCode: checkoutForm.postalCode,
+        line1: checkoutForm.line1,
+        line2: checkoutForm.line2,
+      });
 
-      const response = await api.post<Order>('/shop/orders', payload);
+      if (!isCustomerAuthenticated) {
+        showToast(
+          accountResult.created
+            ? {
+                title: 'Hesabınız oluşturuldu',
+                description:
+                  'Bilgileriniz kaydedildi, oturumunuz açıldı ve ödeme adımına geçildi.',
+                tone: 'success',
+                durationMs: 3400,
+              }
+            : {
+                title: 'Hesabınız bulundu',
+                description:
+                  'Kayıtlı hesabınızla oturum açıldı. Ödeme adımına devam edebilirsiniz.',
+                tone: 'info',
+                durationMs: 3200,
+              },
+        );
+      }
+
+      if (checkoutForm.paymentMethod === 'CARD') {
+        if (!paytrEnabled) {
+          setCheckoutError('Kredi kartı ödemesi şu anda aktif değil.');
+          return;
+        }
+
+        const response = await api.post<PaytrCheckoutSession>(
+          '/shop/payments/paytr/checkout',
+          checkoutPayload,
+        );
+
+        linkOrderToEmail(response.data.orderNumber, checkoutForm.email);
+        setPaytrSession(response.data);
+        showToast({
+          title: 'Ödeme ekranı hazır',
+          description: 'PAYTR güvenli ödeme oturumu açıldı.',
+          tone: 'success',
+        });
+        return;
+      }
+
+      const response = await api.post<Order>('/shop/orders', checkoutPayload);
       const orderNumber = response.data.orderNumber;
       setCreatedOrderNumber(orderNumber);
       setCheckoutOpen(false);
+      setPaytrSession(null);
       clearCart();
 
       linkOrderToEmail(orderNumber, checkoutForm.email);
-      if (isCustomerAuthenticated) {
-        addOrderNumber(orderNumber);
-      }
+      showToast({
+        title: 'Siparişiniz alındı',
+        description: 'Siparişiniz hesabınıza işlendi. Panelden takip edebilirsiniz.',
+        tone: 'success',
+      });
     } catch (err) {
       const error = err as { response?: { data?: { message?: string } } };
-      setCheckoutError(error.response?.data?.message || 'Siparis olusturulamadi. Lutfen tekrar deneyin.');
+      setCheckoutError(
+        error.response?.data?.message ||
+          'Sipariş oluşturulamadı. Lütfen tekrar deneyin.',
+      );
     } finally {
       setCheckoutLoading(false);
     }
@@ -295,22 +407,24 @@ export function CartPage() {
       <div className="sf-top-strip">
         <div className="sf-container sf-top-inner">
           <div className="sf-top-left">
-            <span>Need Support?</span>
-            <strong>Call Us</strong>
-            <a href="tel:+902120000000">(+90 212-000-0103)</a>
+            <span>Desteğe mi ihtiyacınız var?</span>
+            <strong>Bizi Arayın</strong>
+            <a href="tel:+905305165498">0530 516 54 98</a>
           </div>
 
           <div className="sf-top-center">
-            <span>English</span>
+            <span>Türkçe</span>
             <span>{currency}</span>
-            <span className="sf-top-badge">%25 OFF</span>
+            <span className="sf-top-badge">%25 İndirim</span>
             <span>{config.announcement}</span>
           </div>
 
           <div className="sf-top-right">
-            <Link to="/customer/dashboard">Hesabim</Link>
-            <Link to="/satis-sozlesmesi">Satis Sozlesmesi</Link>
-            <Link to="/iletisim">Iletisim</Link>
+            <Link to={isCustomerAuthenticated ? '/customer/dashboard' : '/customer/login'}>
+              {isCustomerAuthenticated ? 'Hesab\u0131m' : 'M\u00fc\u015fteri Giri\u015fi'}
+            </Link>
+            <Link to="/satis-sozlesmesi">Satış Sözleşmesi</Link>
+            <Link to="/iletisim">İletişim</Link>
           </div>
         </div>
       </div>
@@ -333,11 +447,11 @@ export function CartPage() {
           >
             <input
               type="search"
-              placeholder="Search olive oil, olives, categories"
+              placeholder="Zeytinyağı, zeytin, kategoriler ara"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-            <button type="submit" aria-label="Search products">
+            <button type="submit" aria-label="Ürün ara">
               Ara
             </button>
           </form>
@@ -347,8 +461,26 @@ export function CartPage() {
               className="sf-customer-btn"
               to={isCustomerAuthenticated ? '/customer/dashboard' : '/customer/login'}
             >
-              {isCustomerAuthenticated ? 'Hesabim' : 'Musteri Giris'}
+              {isCustomerAuthenticated ? 'Hesab\u0131m' : 'M\u00fc\u015fteri Giri\u015fi'}
             </Link>
+            {isCustomerAuthenticated ? (
+              <button
+                className="sf-account-btn"
+                type="button"
+                onClick={() => {
+                  logout();
+                  setCheckoutOpen(false);
+                  setPaytrSession(null);
+                  showToast({
+                    title: 'Oturum kapat\u0131ld\u0131',
+                    description: 'M\u00fc\u015fteri hesab\u0131n\u0131zdan g\u00fcvenli \u00e7\u0131k\u0131\u015f yap\u0131ld\u0131.',
+                    tone: 'info',
+                  });
+                }}
+              >
+                \u00c7\u0131k\u0131\u015f
+              </button>
+            ) : null}
             <Link className="sf-cart-btn" to="/cart">
               Sepetim
               <span>{itemCount} ürün</span>
@@ -360,14 +492,14 @@ export function CartPage() {
             type="button"
             onClick={() => setMobileMenuOpen((current) => !current)}
           >
-            MENU
+            MENÜ
           </button>
         </div>
 
         <div className="sf-nav-row">
           <div className="sf-container sf-nav-inner">
             <a className="sf-all-categories" href="/#categories">
-              Explore All Categories
+              Tüm Kategorileri Keşfet
             </a>
 
             <nav className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}>
@@ -383,8 +515,8 @@ export function CartPage() {
             </nav>
 
             <div className="sf-support-right">
-              <span>24/7 Support</span>
-              <strong>888-777-999</strong>
+              <span>7/24 Destek</span>
+              <strong>0530 516 54 98</strong>
             </div>
           </div>
         </div>
@@ -392,20 +524,20 @@ export function CartPage() {
 
       <main className="sf-cart-page">
         <div className="sf-container">
-          <nav className="sf-cart-breadcrumb" aria-label="Breadcrumb">
-            <Link to="/">Home</Link>
+          <nav className="sf-cart-breadcrumb" aria-label="Sayfa yolu">
+            <Link to="/">Ana Sayfa</Link>
             <span>/</span>
             <span>Sepetim</span>
           </nav>
 
           {createdOrderNumber ? (
             <section className="sf-cart-order-success" aria-live="polite">
-              <h2>Siparisiniz alindi</h2>
+              <h2>Siparişiniz alındı</h2>
               <p>
-                Siparis numaraniz: <strong>{createdOrderNumber}</strong>
+                Sipariş numaranız: <strong>{createdOrderNumber}</strong>
               </p>
               <div className="sf-cart-order-success-actions">
-                <Link to="/customer/dashboard">Musteri Paneline Git</Link>
+                <Link to="/customer/dashboard">Müşteri Paneline Git</Link>
                 <button
                   type="button"
                   onClick={() => {
@@ -413,7 +545,7 @@ export function CartPage() {
                     setCreatedOrderNumber('');
                   }}
                 >
-                  Yeni Siparis Olustur
+                  Yeni Sipariş Oluştur
                 </button>
               </div>
             </section>
@@ -421,19 +553,19 @@ export function CartPage() {
 
           {items.length === 0 ? (
             <section className="sf-cart-empty">
-              <h1>Sepetiniz Bos</h1>
-              <p>Urunleri kesfetmek icin magaza sayfasina donun.</p>
-              <Link to="/">Alisverise Basla</Link>
+              <h1>Sepetiniz Boş</h1>
+              <p>Ürünleri keşfetmek için mağaza sayfasına dönün.</p>
+              <Link to="/">Alışverişe Başla</Link>
             </section>
           ) : (
             <>
               <section className="sf-cart-hero">
                 <div>
                   <h1>Sepetim</h1>
-                  <p>Sepetinizde {itemCount} urun bulunuyor.</p>
+                  <p>Sepetinizde {itemCount} ürün bulunuyor.</p>
                 </div>
                 <div className="sf-cart-head-actions">
-                  <Link to="/">Magazaya Don</Link>
+                  <Link to="/">Mağazaya Dön</Link>
                   <button type="button" onClick={clearCart}>
                     Sepeti Temizle
                   </button>
@@ -442,7 +574,7 @@ export function CartPage() {
 
               <div className="sf-cart-kpis">
                 <article>
-                  <span>Toplam Urun</span>
+                  <span>Toplam Ürün</span>
                   <strong>{itemCount}</strong>
                 </article>
                 <article>
@@ -451,17 +583,17 @@ export function CartPage() {
                 </article>
                 <article>
                   <span>Kargo Durumu</span>
-                  <strong>{shipping > 0 ? 'Standart' : 'Ucretsiz'}</strong>
+                  <strong>{shipping > 0 ? 'Standart' : 'Ücretsiz'}</strong>
                 </article>
               </div>
 
-              <section className="sf-cart-shipping-meter" aria-label="Free shipping progress">
+              <section className="sf-cart-shipping-meter" aria-label="Ücretsiz kargo ilerleme durumu">
                 {remainingForFreeShipping > 0 ? (
                   <p>
-                    Ucretsiz kargo icin <strong>{formatter.format(remainingForFreeShipping)}</strong> daha ekleyin.
+                    Ücretsiz kargo için <strong>{formatter.format(remainingForFreeShipping)}</strong> daha ekleyin.
                   </p>
                 ) : (
-                  <p>Ucretsiz kargo aktif. Siparisiniz avantajli sekilde hazirlandi.</p>
+                  <p>Ücretsiz kargo aktif. Siparişiniz avantajlı şekilde hazırlandı.</p>
                 )}
                 <div className="sf-cart-shipping-track">
                   <span style={{ width: `${freeShippingProgress}%` }} />
@@ -495,7 +627,7 @@ export function CartPage() {
                           <div className="sf-cart-item-actions">
                             <Link to={`/product/${item.productId}`}>Detay</Link>
                             <button type="button" onClick={() => removeProduct(item.productId)}>
-                              Kaldir
+                              Kaldır
                             </button>
                           </div>
                         </div>
@@ -503,7 +635,7 @@ export function CartPage() {
                         <div className="sf-cart-item-qty">
                           <button
                             type="button"
-                            aria-label="Miktari azalt"
+                            aria-label="Miktarı azalt"
                             onClick={() => setQuantity(item.productId, item.quantity - 1)}
                           >
                             -
@@ -511,7 +643,7 @@ export function CartPage() {
                           <span>{item.quantity}</span>
                           <button
                             type="button"
-                            aria-label="Miktari arttir"
+                            aria-label="Miktarı artır"
                             onClick={() => setQuantity(item.productId, item.quantity + 1)}
                           >
                             +
@@ -519,7 +651,7 @@ export function CartPage() {
                         </div>
 
                         <div className="sf-cart-item-total">
-                          <small>Satir Toplami</small>
+                          <small>Satır Toplamı</small>
                           <strong>{formatter.format(lineTotal)}</strong>
                         </div>
                       </article>
@@ -528,7 +660,7 @@ export function CartPage() {
                 </section>
 
                 <aside className="sf-cart-summary">
-                  <h2>Order Summary</h2>
+                  <h2>Sipariş Özeti</h2>
 
                   <div className="sf-cart-summary-row">
                     <span>Ara Toplam</span>
@@ -536,7 +668,7 @@ export function CartPage() {
                   </div>
                   <div className="sf-cart-summary-row">
                     <span>Kargo</span>
-                    <strong>{shipping > 0 ? formatter.format(shipping) : 'Ucretsiz'}</strong>
+                    <strong>{shipping > 0 ? formatter.format(shipping) : 'Ücretsiz'}</strong>
                   </div>
                   <div className="sf-cart-summary-row total">
                     <span>Genel Toplam</span>
@@ -550,19 +682,41 @@ export function CartPage() {
                       setCheckoutError('');
                     }}
                   >
-                    {checkoutOpen ? 'Odeme Paneli Acik' : 'Guvenli Odemeye Gec'}
+                    {paytrSession
+                      ? 'Bekleyen PAYTR Ödemesine Dön'
+                      : checkoutOpen
+                        ? 'Ödeme Paneli Açık'
+                        : 'Güvenli Ödemeye Geç'}
                   </button>
 
                   <Link to="/" className="sf-cart-summary-link">
-                    Alisverise Devam Et
+                    Alışverişe Devam Et
                   </Link>
-                  <small>{freeShippingThreshold} TL ve uzeri siparislerde kargo ucretsizdir.</small>
+                  <small>{freeShippingThreshold} TL ve üzeri siparişlerde kargo ücretsizdir.</small>
                 </aside>
               </div>
             </>
           )}
         </div>
       </main>
+
+      {items.length > 0 ? (
+        <div className="sf-cart-mobile-dock">
+          <div className="sf-cart-mobile-dock-meta">
+            <span>{itemCount} ürün</span>
+            <strong>{formatter.format(total)}</strong>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setCheckoutOpen(true);
+              setCheckoutError('');
+            }}
+          >
+            Ödemeye Geç
+          </button>
+        </div>
+      ) : null}
 
       {checkoutOpen ? (
         <div
@@ -581,11 +735,11 @@ export function CartPage() {
           >
             <header className="sf-cart-checkout-panel-head">
               <div>
-                <h3>Guvenli Odeme ve Teslimat</h3>
+                <h3>Güvenli Ödeme ve Teslimat</h3>
                 <p>
                   {isCustomerAuthenticated
-                    ? 'Hesap bilgilerinizle hizli siparis olusturuyorsunuz.'
-                    : 'Siparis olusturduktan sonra ayni e-posta ile kayit olursaniz bu siparisi panelinizde gorebilirsiniz.'}
+                    ? 'Hesap bilgilerinizle hızlı sipariş oluşturuyorsunuz.'
+                    : 'Bilgilerinizi tamamladığınız anda hızlı üyeliğiniz açılır ve ödeme adımına geçilir.'}
                 </p>
               </div>
               <button
@@ -599,189 +753,308 @@ export function CartPage() {
               </button>
             </header>
 
-            <div className="sf-cart-checkout-panel-grid">
-              <form
-                className="sf-cart-checkout-form sf-cart-checkout-form-wide"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void submitOrder();
-                }}
-              >
-                <label>
-                  Ad Soyad
-                  <input
-                    type="text"
-                    value={checkoutForm.fullName}
-                    onChange={(event) =>
-                      setCheckoutForm((current) => ({ ...current, fullName: event.target.value }))
-                    }
-                    required
+            <div className={paytrSession ? 'sf-cart-checkout-panel-grid paytr' : 'sf-cart-checkout-panel-grid'}>
+              {paytrSession ? (
+                <section className="sf-paytr-frame-shell">
+                  <div className="sf-paytr-frame-head">
+                    <div>
+                      <small>PAYTR Oturumu Hazır</small>
+                      <h4>{paytrSession.orderNumber} numaralı sipariş için ödeme ekranı</h4>
+                    </div>
+                    <a href={paytrSession.iframeUrl} target="_blank" rel="noreferrer">
+                      Yeni sekmede aç
+                    </a>
+                  </div>
+
+                  <iframe
+                    className="sf-paytr-iframe"
+                    src={paytrSession.iframeUrl}
+                    title="PAYTR güvenli ödeme"
                   />
-                </label>
 
-                <label>
-                  E-posta
-                  <input
-                    type="email"
-                    value={checkoutForm.email}
-                    onChange={(event) =>
-                      setCheckoutForm((current) => ({ ...current, email: event.target.value }))
-                    }
-                    required
-                  />
-                </label>
+                  <p className="sf-paytr-frame-note">
+                    Ödeme tamamlandığında sayfa otomatik olarak sonuç ekranına yönlendirilecektir.
+                  </p>
+                </section>
+              ) : (
+                <form
+                  className="sf-cart-checkout-form sf-cart-checkout-form-wide"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitOrder();
+                  }}
+                >
+                  <div className="sf-cart-checkout-steps" aria-label="Checkout adimlari">
+                    <span className="active">1 İletişim</span>
+                    <span className="active">2 Teslimat</span>
+                    <span className={paytrSession ? 'active' : ''}>3 Ödeme</span>
+                  </div>
 
-                <label>
-                  Telefon
-                  <input
-                    type="tel"
-                    value={checkoutForm.phone}
-                    onChange={(event) =>
-                      setCheckoutForm((current) => ({ ...current, phone: event.target.value }))
-                    }
-                    required
-                  />
-                </label>
+                  {!isCustomerAuthenticated ? (
+                    <div className="sf-cart-checkout-preview">
+                      <small>Hızlı üyelik</small>
+                      <strong>Formu tamamladığınızda hesabınız otomatik oluşturulur.</strong>
+                    </div>
+                  ) : null}
 
-                <div className="sf-cart-checkout-grid">
-                  <label>
-                    Sehir
-                    <input
-                      type="text"
-                      value={checkoutForm.city}
-                      onChange={(event) =>
-                        setCheckoutForm((current) => ({ ...current, city: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                  <label>
-                    Ilce
-                    <input
-                      type="text"
-                      value={checkoutForm.district}
-                      onChange={(event) =>
-                        setCheckoutForm((current) => ({ ...current, district: event.target.value }))
-                      }
-                      required
-                    />
-                  </label>
-                </div>
+                  <section className="sf-cart-form-section">
+                    <div className="sf-cart-form-section-head">
+                      <span>01</span>
+                      <div>
+                        <strong>İletişim bilgileri</strong>
+                        <p>Sipariş ve kargo bildirimleri bu alanlardan gider.</p>
+                      </div>
+                    </div>
 
-                <label>
-                  Adres
-                  <input
-                    type="text"
-                    value={checkoutForm.line1}
-                    onChange={(event) =>
-                      setCheckoutForm((current) => ({ ...current, line1: event.target.value }))
-                    }
-                    required
-                  />
-                </label>
+                    <div className="sf-cart-checkout-grid">
+                      <label>
+                        Ad Soyad
+                        <input
+                          type="text"
+                          value={checkoutForm.fullName}
+                          onChange={(event) =>
+                            setCheckoutForm((current) => ({ ...current, fullName: event.target.value }))
+                          }
+                          required
+                        />
+                      </label>
 
-                <label>
-                  Adres Satir 2 (Opsiyonel)
-                  <input
-                    type="text"
-                    value={checkoutForm.line2}
-                    onChange={(event) =>
-                      setCheckoutForm((current) => ({ ...current, line2: event.target.value }))
-                    }
-                  />
-                </label>
+                      <label>
+                        Telefon
+                        <input
+                          type="tel"
+                          value={checkoutForm.phone}
+                          onChange={(event) =>
+                            setCheckoutForm((current) => ({ ...current, phone: event.target.value }))
+                          }
+                          required
+                        />
+                      </label>
+                    </div>
 
-                <div className="sf-cart-checkout-grid">
-                  <label>
-                    Posta Kodu
-                    <input
-                      type="text"
-                      value={checkoutForm.postalCode}
-                      onChange={(event) =>
-                        setCheckoutForm((current) => ({ ...current, postalCode: event.target.value }))
-                      }
-                    />
-                  </label>
-                  <label>
-                    Odeme Yontemi
-                    <select
-                      value={checkoutForm.paymentMethod}
-                      onChange={(event) =>
-                        setCheckoutForm((current) => ({
-                          ...current,
-                          paymentMethod: event.target.value as CheckoutPaymentMethod,
-                        }))
-                      }
+                    <label>
+                      E-posta
+                      <input
+                        type="email"
+                        value={checkoutForm.email}
+                        onChange={(event) =>
+                          setCheckoutForm((current) => ({ ...current, email: event.target.value }))
+                        }
+                        required
+                      />
+                    </label>
+                  </section>
+
+                  <section className="sf-cart-form-section">
+                    <div className="sf-cart-form-section-head">
+                      <span>02</span>
+                      <div>
+                        <strong>Teslimat adresi</strong>
+                        <p>Kurye yönlendirmesi için açık ve kısa bir teslimat adresi girin.</p>
+                      </div>
+                    </div>
+
+                    <div className="sf-cart-checkout-grid">
+                      <label>
+                        Şehir
+                        <input
+                          type="text"
+                          value={checkoutForm.city}
+                          onChange={(event) =>
+                            setCheckoutForm((current) => ({ ...current, city: event.target.value }))
+                          }
+                          required
+                        />
+                      </label>
+                      <label>
+                        İlçe
+                        <input
+                          type="text"
+                          value={checkoutForm.district}
+                          onChange={(event) =>
+                            setCheckoutForm((current) => ({ ...current, district: event.target.value }))
+                          }
+                          required
+                        />
+                      </label>
+                    </div>
+
+                    <label>
+                      Adres
+                      <input
+                        type="text"
+                        value={checkoutForm.line1}
+                        onChange={(event) =>
+                          setCheckoutForm((current) => ({ ...current, line1: event.target.value }))
+                        }
+                        required
+                      />
+                    </label>
+
+                    <div className="sf-cart-checkout-grid">
+                      <label>
+                        Adres Satırı 2 (Opsiyonel)
+                        <input
+                          type="text"
+                          value={checkoutForm.line2}
+                          onChange={(event) =>
+                            setCheckoutForm((current) => ({ ...current, line2: event.target.value }))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Posta Kodu
+                        <input
+                          type="text"
+                          value={checkoutForm.postalCode}
+                          onChange={(event) =>
+                            setCheckoutForm((current) => ({ ...current, postalCode: event.target.value }))
+                          }
+                        />
+                      </label>
+                    </div>
+                  </section>
+
+                  <section className="sf-cart-form-section">
+                    <div className="sf-cart-form-section-head">
+                      <span>03</span>
+                      <div>
+                        <strong>Ödeme tercihi</strong>
+                        <p>Mobilde daha hızlı seçim için ödeme yöntemlerini kart olarak gösterdik.</p>
+                      </div>
+                    </div>
+
+                    <div className="sf-cart-payment-options" role="radiogroup" aria-label="Ödeme yöntemi seçimi">
+                      {CHECKOUT_PAYMENT_OPTIONS.map((option) => {
+                        const isDisabled = option.value === 'CARD' && !paytrEnabled;
+                        const isSelected = checkoutForm.paymentMethod === option.value;
+
+                        return (
+                          <label
+                            key={option.value}
+                            className={
+                              isSelected
+                                ? 'sf-cart-payment-card active'
+                                : isDisabled
+                                  ? 'sf-cart-payment-card disabled'
+                                  : 'sf-cart-payment-card'
+                            }
+                          >
+                            <input
+                              checked={isSelected}
+                              disabled={isDisabled}
+                              name="paymentMethod"
+                              type="radio"
+                              value={option.value}
+                              onChange={(event) =>
+                                setCheckoutForm((current) => ({
+                                  ...current,
+                                  paymentMethod: event.target.value as CheckoutPaymentMethod,
+                                }))
+                              }
+                            />
+                            <div>
+                              <strong>{option.label}</strong>
+                              <small>
+                                {option.value === 'CARD' && !paytrEnabled
+                                  ? 'PAYTR ayarlardan aktifleştirilmeden kullanılamaz.'
+                                  : option.note}
+                              </small>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <label>
+                      Sipariş Notu
+                      <textarea
+                        rows={4}
+                        value={checkoutForm.note}
+                        onChange={(event) =>
+                          setCheckoutForm((current) => ({ ...current, note: event.target.value }))
+                        }
+                      />
+                    </label>
+                  </section>
+
+                  <div className="sf-cart-checkout-preview">
+                    <small>Seçilen ödeme:</small>
+                    <strong>{paymentMethodLabel(checkoutForm.paymentMethod)}</strong>
+                  </div>
+
+                  {checkoutError ? <p className="sf-cart-checkout-error">{checkoutError}</p> : null}
+
+                  <div className="sf-cart-checkout-actions">
+                    <button type="submit" disabled={checkoutLoading || !canCheckout}>
+                      {checkoutLoading
+                        ? 'Ödeme Hazırlanıyor...'
+                        : checkoutForm.paymentMethod === 'CARD'
+                          ? 'PAYTR Ödeme Ekranını Aç'
+                          : 'Siparişi Oluştur'}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => {
+                        setCheckoutOpen(false);
+                      }}
                     >
-                      <option value="CARD">Kredi Karti (PAYTR)</option>
-                      <option value="CASH_ON_DELIVERY">Kapida Odeme</option>
-                      <option value="EFT_HAVALE">EFT / Havale</option>
-                    </select>
-                  </label>
-                </div>
-
-                <label>
-                  Siparis Notu
-                  <textarea
-                    rows={4}
-                    value={checkoutForm.note}
-                    onChange={(event) =>
-                      setCheckoutForm((current) => ({ ...current, note: event.target.value }))
-                    }
-                  />
-                </label>
-
-                <div className="sf-cart-checkout-preview">
-                  <small>Secilen odeme:</small>
-                  <strong>{paymentMethodLabel(checkoutForm.paymentMethod)}</strong>
-                </div>
-
-                {checkoutError ? <p className="sf-cart-checkout-error">{checkoutError}</p> : null}
-
-                <div className="sf-cart-checkout-actions">
-                  <button type="submit" disabled={checkoutLoading || !canCheckout}>
-                    {checkoutLoading ? 'Siparis Olusturuluyor...' : 'Siparisi Olustur'}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => {
-                      setCheckoutOpen(false);
-                    }}
-                  >
-                    Iptal
-                  </button>
-                </div>
-              </form>
+                      İptal
+                    </button>
+                  </div>
+                </form>
+              )}
 
               <aside className="sf-cart-checkout-side">
-                <h4>Odeme Ozeti</h4>
+                <h4>{paytrSession ? 'Ödeme Oturumu' : 'Ödeme Özeti'}</h4>
                 <div className="sf-cart-checkout-side-row">
                   <span>Ara Toplam</span>
                   <strong>{formatter.format(subtotal)}</strong>
                 </div>
                 <div className="sf-cart-checkout-side-row">
                   <span>Kargo</span>
-                  <strong>{shipping > 0 ? formatter.format(shipping) : 'Ucretsiz'}</strong>
+                  <strong>{shipping > 0 ? formatter.format(shipping) : 'Ücretsiz'}</strong>
                 </div>
                 <div className="sf-cart-checkout-side-row total">
                   <span>Genel Toplam</span>
                   <strong>{formatter.format(total)}</strong>
                 </div>
 
-                <div className="sf-cart-checkout-trust">
-                  <p>Guvenlik ve Uyumluluk</p>
-                  <ul>
-                    <li>PAYTR ve 3D Secure destekli odeme</li>
-                    <li>SSL ile sifrelenmis iletim</li>
-                    <li>KVKK ve gizlilik metinleri aktif</li>
-                  </ul>
-                </div>
+                {paytrSession ? (
+                  <div className="sf-cart-checkout-trust">
+                    <p>Sipariş Bilgisi</p>
+                    <ul>
+                      <li>Sipariş No: {paytrSession.orderNumber}</li>
+                      <li>Merchant OID: {paytrSession.merchantOid}</li>
+                      <li>Callback onayı gelmeden sipariş kesinleşmez</li>
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="sf-cart-checkout-trust">
+                    <p>Güvenlik ve Uyumluluk</p>
+                    <ul>
+                      <li>PAYTR ve 3D Secure destekli ödeme</li>
+                      <li>SSL ile şifrelenmiş iletim</li>
+                      <li>KVKK ve gizlilik metinleri aktif</li>
+                    </ul>
+                  </div>
+                )}
+
+                {paytrSession ? (
+                  <button
+                    type="button"
+                    className="sf-cart-secondary-button"
+                    onClick={() => setPaytrSession(null)}
+                  >
+                    Bilgileri düzenle
+                  </button>
+                ) : null}
 
                 <div className="sf-cart-checkout-legal">
                   <Link to="/kvkk">KVKK</Link>
                   <Link to="/gizlilik">Gizlilik</Link>
-                  <Link to="/satis-sozlesmesi">Satis Sozlesmesi</Link>
+                  <Link to="/satis-sozlesmesi">Satış Sözleşmesi</Link>
                 </div>
               </aside>
             </div>
@@ -791,25 +1064,27 @@ export function CartPage() {
 
       <footer className="sf-footer">
         <div className="sf-container sf-footer-legal-links">
-          <Link to="/satis-sozlesmesi">Satis Sozlesmesi</Link>
+          <Link to="/satis-sozlesmesi">Satış Sözleşmesi</Link>
           <Link to="/kvkk">KVKK</Link>
           <Link to="/gizlilik">Gizlilik</Link>
         </div>
 
         <div className="sf-container sf-footer-bottom">
           <span>
-            {config.theme.brandName} (c) {new Date().getFullYear()} - Tum haklari saklidir.
+            {config.theme.brandName} (c) {new Date().getFullYear()} - Tüm hakları saklıdır.
           </span>
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           >
-            Yukari Don
+            Yukarı Dön
           </button>
         </div>
       </footer>
 
-      <StorefrontWhatsAppButton />
     </div>
   );
 }
+
+
+

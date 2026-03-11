@@ -13,7 +13,7 @@ const DEFAULT_WEBSITE_CONFIG = JSON.stringify({
     tagline: 'Egeden Sofrana Dogal Lezzet',
     adminButtonLabel: 'Admin Giris',
   },
-  announcement: 'Yeni hasat soguk sikim zeytinyaglari stokta.',
+  announcement: 'Yeni hasat soğuk sıkım zeytinyağları stokta.',
   navItems: [
     { label: 'Ana Sayfa', href: '#hero' },
     { label: 'Kategoriler', href: '#categories' },
@@ -25,7 +25,7 @@ const DEFAULT_WEBSITE_CONFIG = JSON.stringify({
     {
       badge: 'Yeni Hasat',
       title: 'Erken Hasat Sizma Zeytinyagi',
-      subtitle: 'Tas degirmen - soguk sikim',
+      subtitle: 'Taş değirmen - soğuk sıkım',
       description:
         'Ayvalik ve Memecik zeytinlerinden uretilen premium seriyi hemen kesfedin.',
       ctaLabel: 'Urunleri Kesfet',
@@ -172,7 +172,7 @@ const SAMPLE_PRODUCTS = [
     weight: '5.000',
     shortDescription: 'Yuksek polifenol degerli premium erken hasat sizma zeytinyagi.',
     description:
-      'Ayvalik zeytinlerinden soguk sikim yontemiyle uretilen 5 litre ekonomik teneke ambalaj. Salata, soguk meze ve yemeklerde yogun aroma sunar.',
+      'Ayvalık zeytinlerinden soğuk sıkım yöntemiyle üretilen 5 litre ekonomik teneke ambalaj. Salata, soğuk meze ve yemeklerde yoğun aroma sunar.',
     tags: ['erken hasat', '5 litre', 'teneke', 'premium'],
     image:
       'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=1200&q=80',
@@ -399,6 +399,18 @@ export class SeedService implements OnModuleInit {
       currency: 'TRY',
       timezone: 'Europe/Istanbul',
       taxRate: '20',
+      siteUrl: 'http://localhost:5173',
+      apiBaseUrl: 'http://localhost:3000/api',
+      paytrEnabled: 'false',
+      paytrMerchantId: '',
+      paytrMerchantKey: '',
+      paytrMerchantSalt: '',
+      paytrTestMode: 'true',
+      paytrDebugOn: 'true',
+      paytrNoInstallment: '0',
+      paytrMaxInstallment: '0',
+      paytrTimeoutLimit: '30',
+      paytrLang: 'tr',
       websiteConfig: DEFAULT_WEBSITE_CONFIG,
     };
 

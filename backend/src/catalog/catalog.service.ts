@@ -160,6 +160,21 @@ export class CatalogService {
     return saved;
   }
 
+  async deleteCategory(id: string) {
+    const category = await this.categoriesRepository.findOne({ where: { id } });
+    if (!category) {
+      throw new NotFoundException('Kategori bulunamadi.');
+    }
+
+    await this.categoriesRepository.remove(category);
+
+    await this.realtimeEventsService.emit('catalog.category.deleted', {
+      categoryId: id,
+    });
+
+    return { success: true };
+  }
+
   findProducts() {
     return this.productsRepository.find({
       relations: ['category'],
@@ -481,6 +496,21 @@ export class CatalogService {
     });
 
     return withCategory ?? saved;
+  }
+
+  async deleteProduct(id: string) {
+    const product = await this.productsRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException('Urun bulunamadi.');
+    }
+
+    await this.productsRepository.remove(product);
+
+    await this.realtimeEventsService.emit('catalog.product.deleted', {
+      productId: id,
+    });
+
+    return { success: true };
   }
 
   private async resolveCategory(categoryId?: string) {

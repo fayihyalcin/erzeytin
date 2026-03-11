@@ -14,6 +14,7 @@ import { OrderQueryDto } from './dto/order-query.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderActivity } from './order-activity.entity';
 import { Order, OrderItem } from './order.entity';
+import { PaymentTransaction } from './payment-transaction.entity';
 
 type ActorContext = {
   id: string;
@@ -97,7 +98,7 @@ export class OrdersService {
   async findOne(id: string, actor: ActorContext) {
     const order = await this.ordersRepository.findOne({
       where: { id },
-      relations: ['assignedRepresentative'],
+      relations: ['assignedRepresentative', 'paymentTransactions'],
     });
     if (!order) {
       throw new NotFoundException('Siparis bulunamadi.');
@@ -228,7 +229,7 @@ export class OrdersService {
 
     return this.ordersRepository.findOne({
       where: { id: saved.id },
-      relations: ['assignedRepresentative'],
+      relations: ['assignedRepresentative', 'paymentTransactions'],
     });
   }
 
@@ -470,13 +471,206 @@ export class OrdersService {
     return this.findOne(saved.id, actor);
   }
 
+  async deleteOrder(id: string, actor: ActorContext) {
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Siparis silme islemi sadece admin tarafindan yapilabilir.');
+    }
+
+    const order = await this.findOne(id, actor);
+
+    await this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const activityRepository = manager.getRepository(OrderActivity);
+      const paymentTransactionsRepository = manager.getRepository(PaymentTransaction);
+      const productRepository = manager.getRepository(Product);
+
+      if (order.stockDeducted) {
+        await this.applyStockForOrderItems(order.items, productRepository, 'RESTORE');
+      }
+
+      await activityRepository.delete({ orderId: order.id });
+      await paymentTransactionsRepository.delete({ orderId: order.id });
+      await orderRepository.delete({ id: order.id });
+    });
+
+    await this.realtimeEventsService.emit('orders.deleted', {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+    });
+
+    return {
+      deleted: true,
+      id: order.id,
+      orderNumber: order.orderNumber,
+    };
+  }
+
   async findByOrderNumber(orderNumber: string) {
-    const order = await this.ordersRepository.findOne({ where: { orderNumber } });
+    const order = await this.ordersRepository.findOne({
+      where: { orderNumber },
+      relations: ['assignedRepresentative', 'paymentTransactions'],
+    });
     if (!order) {
       throw new NotFoundException('Siparis bulunamadi.');
     }
 
     return order;
+  }
+
+  async markOrderPaymentPaidBySystem(
+    orderId: string,
+    input: {
+      provider: string;
+      transactionId?: string | null;
+      message?: string;
+      meta?: Record<string, unknown>;
+    },
+  ) {
+    const order = await this.ordersRepository.findOne({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException('Siparis bulunamadi.');
+    }
+
+    if (order.paymentStatus === 'PAID') {
+      return this.findByOrderNumber(order.orderNumber);
+    }
+
+    const now = new Date();
+    const activities: ActivityInput[] = [];
+    const previousPaymentStatus = order.paymentStatus;
+    order.paymentStatus = 'PAID';
+    order.paidAt = now;
+    activities.push({
+      eventType: 'PAYMENT_STATUS_UPDATED',
+      message:
+        input.message ??
+        `Odeme durumu ${previousPaymentStatus} -> PAID olarak guncellendi.`,
+      meta: input.meta,
+    });
+
+    if (order.status === 'NEW') {
+      order.status = 'CONFIRMED';
+      order.confirmedAt = order.confirmedAt ?? now;
+      activities.push({
+        eventType: 'ORDER_STATUS_UPDATED',
+        message: 'PAYTR odemesi onaylandigi icin siparis durumu NEW -> CONFIRMED oldu.',
+        meta: input.meta,
+      });
+    }
+
+    order.paymentProvider = input.provider;
+    order.paymentTransactionId = input.transactionId?.trim() || order.paymentTransactionId;
+
+    await this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const activityRepository = manager.getRepository(OrderActivity);
+      const persisted = await orderRepository.save(order);
+
+      if (activities.length > 0) {
+        await this.addActivities(persisted.id, null, activities, activityRepository);
+      }
+    });
+
+    await this.realtimeEventsService.emit('orders.updated', {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      fulfillmentStatus: order.fulfillmentStatus,
+      assignedRepresentativeId: order.assignedRepresentativeId,
+    });
+
+    return this.findByOrderNumber(order.orderNumber);
+  }
+
+  async markOrderPaymentFailedBySystem(
+    orderId: string,
+    input: {
+      provider: string;
+      transactionId?: string | null;
+      reason?: string;
+      meta?: Record<string, unknown>;
+      cancelOrder?: boolean;
+    },
+  ) {
+    const order = await this.ordersRepository.findOne({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException('Siparis bulunamadi.');
+    }
+
+    if (order.paymentStatus === 'FAILED' && order.status === 'CANCELLED') {
+      return this.findByOrderNumber(order.orderNumber);
+    }
+
+    const previousStatus = order.status;
+    const activities: ActivityInput[] = [];
+    const shouldCancelOrder = input.cancelOrder !== false;
+
+    if (order.paymentStatus !== 'FAILED') {
+      const previousPaymentStatus = order.paymentStatus;
+      order.paymentStatus = 'FAILED';
+      order.paidAt = null;
+      activities.push({
+        eventType: 'PAYMENT_STATUS_UPDATED',
+        message:
+          input.reason ??
+          `Odeme durumu ${previousPaymentStatus} -> FAILED olarak guncellendi.`,
+        meta: input.meta,
+      });
+    }
+
+    if (shouldCancelOrder && order.status !== 'CANCELLED') {
+      order.status = 'CANCELLED';
+      order.cancelledAt = order.cancelledAt ?? new Date();
+      activities.push({
+        eventType: 'ORDER_STATUS_UPDATED',
+        message: 'Odeme basarisiz oldugu icin siparis iptal edildi.',
+        meta: input.meta,
+      });
+    }
+
+    order.paymentProvider = input.provider;
+    order.paymentTransactionId = input.transactionId?.trim() || order.paymentTransactionId;
+
+    const stockAction = this.resolveStockAction(
+      previousStatus,
+      order.status,
+      order.stockDeducted,
+    );
+
+    await this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const productRepository = manager.getRepository(Product);
+      const activityRepository = manager.getRepository(OrderActivity);
+      const transactionActivities = [...activities];
+
+      if (stockAction === 'RESTORE') {
+        await this.applyStockForOrderItems(order.items, productRepository, 'RESTORE');
+        order.stockDeducted = false;
+        transactionActivities.push({
+          eventType: 'STOCK_RESTORED',
+          message: 'Odeme basarisiz oldugu icin siparis stoklari geri yuklendi.',
+          meta: input.meta,
+        });
+      }
+
+      const persisted = await orderRepository.save(order);
+
+      if (transactionActivities.length > 0) {
+        await this.addActivities(persisted.id, null, transactionActivities, activityRepository);
+      }
+    });
+
+    await this.realtimeEventsService.emit('orders.updated', {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      fulfillmentStatus: order.fulfillmentStatus,
+      assignedRepresentativeId: order.assignedRepresentativeId,
+    });
+
+    return this.findByOrderNumber(order.orderNumber);
   }
 
   private applyOrderFilters(

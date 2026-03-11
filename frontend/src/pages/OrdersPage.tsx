@@ -139,6 +139,7 @@ export function OrdersPage() {
   const [representatives, setRepresentatives] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [paymentFilter, setPaymentFilter] = useState<string>('');
@@ -214,6 +215,29 @@ export function OrdersPage() {
   const handleFilterSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await refresh();
+  };
+
+  const handleDelete = async (order: Order) => {
+    const confirmed = window.confirm(
+      `${order.orderNumber} numarali siparisi silmek istediginize emin misiniz?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(order.id);
+    setMessage(null);
+
+    try {
+      await api.delete(`/orders/${order.id}`);
+      await refresh();
+      setMessage('Siparis silindi.');
+    } catch {
+      setMessage('Siparis silinemedi.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (loading) {
@@ -353,31 +377,31 @@ export function OrdersPage() {
 
                 return (
                   <tr key={order.id}>
-                    <td>{order.orderNumber}</td>
-                    <td>
+                    <td data-label="Siparis No">{order.orderNumber}</td>
+                    <td data-label="Musteri">
                       <div>{order.customerName}</div>
                       <small>{order.customerEmail}</small>
                     </td>
-                    <td>{order.assignedRepresentative?.fullName ?? 'Zimmet Yok'}</td>
-                    <td>{formatCurrency(order.grandTotal, order.currency)}</td>
-                    <td>
+                    <td data-label="Temsilci">{order.assignedRepresentative?.fullName ?? 'Zimmet Yok'}</td>
+                    <td data-label="Tutar">{formatCurrency(order.grandTotal, order.currency)}</td>
+                    <td data-label="Siparis">
                       <span className={badgeClass(order.status)}>
                         {STATUS_LABELS[order.status] ?? order.status}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Odeme">
                       <span className={badgeClass(order.paymentStatus)}>
                         {STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus}
                       </span>
                     </td>
-                    <td>{STATUS_LABELS[order.paymentMethod] ?? order.paymentMethod}</td>
-                    <td>
+                    <td data-label="Yontem">{STATUS_LABELS[order.paymentMethod] ?? order.paymentMethod}</td>
+                    <td data-label="Kargo">
                       <span className={badgeClass(order.fulfillmentStatus)}>
                         {STATUS_LABELS[order.fulfillmentStatus] ?? order.fulfillmentStatus}
                       </span>
                     </td>
-                    <td>{formatDate(order.placedAt)}</td>
-                    <td>
+                    <td data-label="Tarih">{formatDate(order.placedAt)}</td>
+                    <td data-label="WhatsApp">
                       {whatsappLink ? (
                         <a
                           className="tiny whatsapp"
@@ -391,14 +415,26 @@ export function OrdersPage() {
                         '-'
                       )}
                     </td>
-                    <td>
-                      <button
-                        className="tiny secondary"
-                        type="button"
-                        onClick={() => navigate(`/dashboard/orders/${order.id}`)}
-                      >
-                        Detay
-                      </button>
+                    <td data-label="Detay">
+                      <div className="admin-form-actions">
+                        <button
+                          className="tiny secondary"
+                          type="button"
+                          onClick={() => navigate(`/dashboard/orders/${order.id}`)}
+                        >
+                          Detay
+                        </button>
+                        {isAdmin ? (
+                          <button
+                            className="admin-danger-button"
+                            disabled={deletingId === order.id}
+                            onClick={() => void handleDelete(order)}
+                            type="button"
+                          >
+                            {deletingId === order.id ? 'Siliniyor...' : 'Sil'}
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );

@@ -18,7 +18,7 @@ export function LoginPage() {
 
     try {
       await login(username, password);
-      navigate('/dashboard/website');
+      navigate('/dashboard');
     } catch {
       setError('Giris basarisiz. Bilgileri kontrol et.');
     } finally {

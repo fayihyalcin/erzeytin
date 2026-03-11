@@ -16,6 +16,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { SeedService } from './seed/seed.service';
 import { Order } from './orders/order.entity';
 import { OrderActivity } from './orders/order-activity.entity';
+import { PaymentTransaction } from './orders/payment-transaction.entity';
 import { OrdersModule } from './orders/orders.module';
 import { UsersModule } from './users/users.module';
 
@@ -37,7 +38,15 @@ import { UsersModule } from './users/users.module';
         username: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_NAME', 'zeytin_admin'),
-        entities: [AdminUser, Setting, Category, Product, Order, OrderActivity],
+        entities: [
+          AdminUser,
+          Setting,
+          Category,
+          Product,
+          Order,
+          OrderActivity,
+          PaymentTransaction,
+        ],
         synchronize: configService.get<string>('DB_SYNC', 'true') === 'true',
         ssl:
           configService.get<string>('DB_SSL', 'false') === 'true'

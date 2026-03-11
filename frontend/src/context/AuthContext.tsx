@@ -40,30 +40,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(localStorage.getItem(STORAGE_TOKEN_KEY)));
 
   useEffect(() => {
-    if (!token || (user && user.role)) {
+    if (!token) {
+      setLoading(false);
       return;
     }
 
+    let mounted = true;
     setLoading(true);
     api
       .get<AdminUser>('/auth/me')
       .then((response) => {
+        if (!mounted) {
+          return;
+        }
+
         setUser(response.data);
         localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(response.data));
       })
       .catch(() => {
+        if (!mounted) {
+          return;
+        }
+
         localStorage.removeItem(STORAGE_TOKEN_KEY);
         localStorage.removeItem(STORAGE_USER_KEY);
         setToken(null);
         setUser(null);
       })
       .finally(() => {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       });
-  }, [token, user]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
 
   const login = useCallback(async (username: string, password: string) => {
     const response = await api.post<LoginResponse>('/auth/login', {

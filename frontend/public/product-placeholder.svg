@@ -1,0 +1,20 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1200" fill="#F6F1E7"/>
+  <rect x="80" y="80" width="1040" height="1040" rx="52" fill="url(#paint0_linear)"/>
+  <circle cx="600" cy="460" r="170" fill="#E0D3B7"/>
+  <path d="M520 360C560 300 640 280 706 310C660 332 624 364 604 416C640 398 690 394 738 408C700 462 630 492 560 478C512 468 468 434 450 384C474 390 500 384 520 360Z" fill="#6C7A4B"/>
+  <rect x="350" y="610" width="500" height="300" rx="36" fill="#FFF9EF"/>
+  <rect x="394" y="664" width="412" height="32" rx="16" fill="#DCCCAA"/>
+  <rect x="394" y="724" width="322" height="24" rx="12" fill="#E8DCC2"/>
+  <rect x="394" y="772" width="248" height="24" rx="12" fill="#E8DCC2"/>
+  <rect x="394" y="820" width="284" height="24" rx="12" fill="#E8DCC2"/>
+  <text x="600" y="985" text-anchor="middle" fill="#7E6A47" font-family="Arial, sans-serif" font-size="54" font-weight="700" letter-spacing="6">
+    URUN GORSELI YOK
+  </text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="120" y1="120" x2="1080" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBF7EE"/>
+      <stop offset="1" stop-color="#EEE1C7"/>
+    </linearGradient>
+  </defs>
+</svg>

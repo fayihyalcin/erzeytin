@@ -362,6 +362,69 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.sf-payment-security-note {
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(15, 143, 134, 0.08), rgba(242, 223, 103, 0.16));
+  padding: 14px;
+}
+
+.sf-payment-security-note strong {
+  color: #17304d;
+  font-size: 18px;
+}
+
+.sf-payment-security-note p {
+  margin: 8px 0 0;
+  color: #5c6a80;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.sf-payment-history-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sf-payment-history-grid article {
+  border: 1px solid #dce5f1;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.sf-payment-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sf-payment-history-head strong {
+  color: #1f304b;
+  font-size: 17px;
+}
+
+.sf-payment-history-grid p,
+.sf-payment-history-grid small {
+  margin: 0;
+}
+
+.sf-payment-history-grid p {
+  color: #50627d;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sf-payment-history-grid small {
+  color: #708097;
+  font-size: 12px;
+}
+
 .sf-payment-cards article {
   border: 1px solid #dce5f1;
   border-radius: 12px;
@@ -540,6 +603,7 @@
   .sf-simple-grid,
   .sf-receipt-grid,
   .sf-payment-cards,
+  .sf-payment-history-grid,
   .sf-customer-address-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -557,6 +621,7 @@
   .sf-simple-grid,
   .sf-receipt-grid,
   .sf-payment-cards,
+  .sf-payment-history-grid,
   .sf-customer-address-grid,
   .sf-customer-account-form {
     grid-template-columns: 1fr;

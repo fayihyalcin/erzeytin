@@ -17,8 +17,11 @@ import { AdminUser } from '../users/admin-user.entity';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET', 'dev_jwt_secret'),
+        // jsonwebtoken treats numeric strings as milliseconds, so coerce to number.
         signOptions: {
-          expiresIn: configService.get<number>('JWT_EXPIRES_IN_SECONDS', 28800),
+          expiresIn: Number(
+            configService.get<string>('JWT_EXPIRES_IN_SECONDS', '28800'),
+          ),
         },
       }),
     }),

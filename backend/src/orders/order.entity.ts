@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { AdminUser } from '../users/admin-user.entity';
 import { OrderActivity } from './order-activity.entity';
+import { PaymentTransaction } from './payment-transaction.entity';
 
 export type OrderStatus =
   | 'NEW'
@@ -195,6 +196,9 @@ export class Order {
 
   @OneToMany(() => OrderActivity, (activity) => activity.order)
   activities: OrderActivity[];
+
+  @OneToMany(() => PaymentTransaction, (paymentTransaction) => paymentTransaction.order)
+  paymentTransactions: PaymentTransaction[];
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;

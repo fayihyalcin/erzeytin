@@ -87,11 +87,28 @@ interface UpdateProfileInput {
   phone: string;
 }
 
+interface CheckoutAccountInput {
+  fullName: string;
+  email: string;
+  phone: string;
+  city: string;
+  district: string;
+  postalCode: string;
+  line1: string;
+  line2: string;
+}
+
+interface CheckoutAccountResult {
+  created: boolean;
+  generatedPassword: string | null;
+}
+
 interface CustomerAuthContextValue {
   user: CustomerSessionUser | null;
   loading: boolean;
   isAuthenticated: boolean;
   register: (input: RegisterInput) => Promise<void>;
+  ensureCheckoutAccount: (input: CheckoutAccountInput) => Promise<CheckoutAccountResult>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   updateProfile: (input: UpdateProfileInput) => void;
@@ -163,6 +180,66 @@ function normalizeAddress(input: CustomerAddressInput): CustomerAddress {
     line1: sanitizeText(input.line1),
     line2: sanitizeText(input.line2),
   };
+}
+
+function createCheckoutPassword(phone: string, email: string) {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length >= 6) {
+    return digits.slice(-6);
+  }
+
+  const localPart = normalizeEmail(email)
+    .split('@')[0]
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 6);
+
+  return (localPart || '123456').padEnd(6, '0');
+}
+
+function createCheckoutAddress(input: CheckoutAccountInput): CustomerAddress | null {
+  const city = sanitizeText(input.city);
+  const district = sanitizeText(input.district);
+  const line1 = sanitizeText(input.line1);
+
+  if (!city || !district || !line1) {
+    return null;
+  }
+
+  return normalizeAddress({
+    title: 'Teslimat Adresi',
+    fullName: input.fullName,
+    phone: input.phone,
+    city,
+    district,
+    postalCode: input.postalCode,
+    line1,
+    line2: input.line2,
+  });
+}
+
+function mergeCheckoutAddress(addresses: CustomerAddress[], nextAddress: CustomerAddress | null) {
+  if (!nextAddress) {
+    return addresses;
+  }
+
+  const matchingIndex = addresses.findIndex(
+    (address) =>
+      address.line1 === nextAddress.line1 &&
+      address.city === nextAddress.city &&
+      address.district === nextAddress.district,
+  );
+
+  if (matchingIndex >= 0) {
+    const next = [...addresses];
+    next[matchingIndex] = {
+      ...next[matchingIndex],
+      ...nextAddress,
+      id: next[matchingIndex].id,
+    };
+    return next;
+  }
+
+  return [nextAddress, ...addresses];
 }
 
 function normalizeCard(input: CustomerPaymentCardInput): CustomerPaymentCard {
@@ -376,18 +453,18 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     const password = input.password;
 
     if (fullName.length < 2) {
-      throw new Error('Ad soyad en az 2 karakter olmalidir.');
+      throw new Error('Ad soyad en az 2 karakter olmalıdır.');
     }
     if (!email || !email.includes('@')) {
-      throw new Error('Gecerli bir e-posta adresi giriniz.');
+      throw new Error('Geçerli bir e-posta adresi giriniz.');
     }
     if (password.length < 6) {
-      throw new Error('Sifre en az 6 karakter olmalidir.');
+      throw new Error('Şifre en az 6 karakter olmalıdır.');
     }
 
     const exists = accounts.some((account) => normalizeEmail(account.email) === email);
     if (exists) {
-      throw new Error('Bu e-posta ile kayitli bir hesap zaten var.');
+      throw new Error('Bu e-posta ile kayıtlı bir hesap zaten var.');
     }
 
     const now = new Date().toISOString();
@@ -409,12 +486,88 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     setSessionUserId(next.id);
   }, [accounts]);
 
+  const ensureCheckoutAccount = useCallback(
+    async (input: CheckoutAccountInput) => {
+      const fullName = sanitizeText(input.fullName);
+      const email = normalizeEmail(input.email);
+      const phone = sanitizeText(input.phone);
+      const checkoutAddress = createCheckoutAddress({
+        ...input,
+        fullName,
+        email,
+        phone,
+      });
+
+      if (fullName.length < 2) {
+        throw new Error('Ad soyad en az 2 karakter olmal\u0131d\u0131r.');
+      }
+
+      if (!email || !email.includes('@')) {
+        throw new Error('Ge\u00e7erli bir e-posta adresi giriniz.');
+      }
+
+      if (phone.replace(/\D/g, '').length < 10) {
+        throw new Error('Ge\u00e7erli bir telefon numaras\u0131 giriniz.');
+      }
+
+      const existingAccount = accounts.find((account) => normalizeEmail(account.email) === email);
+      if (existingAccount) {
+        setAccounts((current) =>
+          current.map((entry) => {
+            if (entry.id !== existingAccount.id) {
+              return entry;
+            }
+
+            return {
+              ...entry,
+              fullName,
+              phone,
+              addresses: mergeCheckoutAddress(entry.addresses, checkoutAddress),
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        );
+        setSessionUserId(existingAccount.id);
+
+        return {
+          created: false,
+          generatedPassword: null,
+        } satisfies CheckoutAccountResult;
+      }
+
+      const now = new Date().toISOString();
+      const generatedPassword = createCheckoutPassword(phone, email);
+      const next: CustomerAccount = {
+        id: createId(),
+        fullName,
+        email,
+        phone,
+        password: generatedPassword,
+        createdAt: now,
+        updatedAt: now,
+        addresses: checkoutAddress ? [checkoutAddress] : [],
+        paymentCards: [],
+        orderNumbers: [],
+        preferences: { ...DEFAULT_PREFERENCES },
+      };
+
+      setAccounts((current) => [...current, next]);
+      setSessionUserId(next.id);
+
+      return {
+        created: true,
+        generatedPassword,
+      } satisfies CheckoutAccountResult;
+    },
+    [accounts],
+  );
+
   const login = useCallback(async (email: string, password: string) => {
     const normalizedEmail = normalizeEmail(email);
     const normalizedPassword = password;
     const account = accounts.find((entry) => entry.email === normalizedEmail);
     if (!account || account.password !== normalizedPassword) {
-      throw new Error('E-posta veya sifre hatali.');
+      throw new Error('E-posta veya şifre hatalı.');
     }
 
     setSessionUserId(account.id);
@@ -452,7 +605,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       const fullName = sanitizeText(input.fullName);
       const phone = sanitizeText(input.phone);
       if (fullName.length < 2) {
-        throw new Error('Ad soyad en az 2 karakter olmalidir.');
+        throw new Error('Ad soyad en az 2 karakter olmalıdır.');
       }
 
       withCurrentAccount((current) => ({
@@ -610,6 +763,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       loading,
       isAuthenticated: Boolean(user),
       register,
+      ensureCheckoutAccount,
       login,
       logout,
       updateProfile,
@@ -625,6 +779,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       register,
+      ensureCheckoutAccount,
       login,
       logout,
       updateProfile,
@@ -644,7 +799,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 export function useCustomerAuth() {
   const context = useContext(CustomerAuthContext);
   if (!context) {
-    throw new Error('useCustomerAuth sadece CustomerAuthProvider icinde kullanilabilir.');
+    throw new Error('useCustomerAuth sadece CustomerAuthProvider içinde kullanılabilir.');
   }
 
   return context;

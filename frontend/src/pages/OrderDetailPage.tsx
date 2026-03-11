@@ -403,6 +403,24 @@ export function OrderDetailPage() {
           </ul>
         </div>
 
+        {order.paymentTransactions.length > 0 ? (
+          <div className="order-items">
+            <small>Odeme Kayitlari</small>
+            <ul>
+              {order.paymentTransactions.map((payment) => (
+                <li key={payment.id}>
+                  <span>
+                    {payment.provider} / {payment.status} / {payment.merchantOid}
+                  </span>
+                  <span>
+                    {formatCurrency(payment.paidAmount || payment.requestAmount, payment.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <form className="orders-update-form" onSubmit={handleStatusUpdate}>
           {isAdmin ? (
             <label>

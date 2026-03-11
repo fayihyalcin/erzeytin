@@ -1,52 +1,31 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { StorefrontWhatsAppButton } from '../components/StorefrontWhatsAppButton';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
+import { parseBlogPosts } from '../lib/admin-content';
+import { resolveStoreNavItemHref } from '../lib/public-site';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
+  BlogPost,
   Category,
   Product,
   PublicSettingsDto,
   WebsiteConfig,
   WebsiteFeatureItem,
+  WebsiteHeroSlide,
   WebsitePromoCard,
 } from '../types/api';
 import './StorefrontPage.css';
-
-const PARALLAX_CARDS = [
-  {
-    title: 'Erken Hasat Özel Seçki',
-    subtitle: 'Ayvalık bahçelerinden soğuk sıkım tazelik',
-    cta: 'Koleksiyonu İncele',
-    href: '#products',
-    imageUrl:
-      'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=1800&q=80',
-  },
-  {
-    title: 'Butik Üretim Siyah Zeytin',
-    subtitle: 'Geleneksel fermantasyon, doğal aroma',
-    cta: 'Lezzetleri Keşfet',
-    href: '#best-sellers',
-    imageUrl:
-      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1800&q=80',
-  },
-];
-const PARALLAX_STRIP_IMAGE =
-  'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=2000&q=80';
-const FOOTER_PROMO_IMAGES = [
-  '/product/zeytinyagi-2025-2026-premium-erken-has-a30-83.webp',
-  '/product/gurme-setler-2025-2026-premium-erken-h--e280-.webp',
-  '/product/zeytinyagi-erken-hasat-1l-naturel-sizm-fb4-60.webp',
-];
 
 function resolveProductImage(product: Product) {
   return resolveCatalogProductImage({
     id: product.id,
     name: product.name,
     categoryName: product.category?.name,
+    featuredImage: product.featuredImage,
+    images: product.images,
   });
 }
 
@@ -86,6 +65,14 @@ function countDownParts(ms: number) {
   };
 }
 
+function isVideoMedia(url: string) {
+  return /\.(mp4|webm|ogg|mov|m4v)$/i.test(url) || url.startsWith('data:video/');
+}
+
+function resolveHeroPoster(slide: WebsiteHeroSlide) {
+  return slide.posterUrl || slide.imageUrl || '';
+}
+
 function ProductShowcaseCard({
   product,
   formatter,
@@ -98,6 +85,7 @@ function ProductShowcaseCard({
   const price = Number(product.price ?? 0);
   const compare = Number(product.compareAtPrice ?? 0);
   const hasDiscount = compare > price && price > 0;
+  const inStock = product.stock > 0;
   const discountPercent = hasDiscount
     ? Math.round(((compare - price) / compare) * 100)
     : 0;
@@ -124,20 +112,39 @@ function ProductShowcaseCard({
         </Link>
       </h4>
 
+      <div className="sf-product-inline-meta">
+        <span className={inStock ? 'in-stock' : 'out-of-stock'}>
+          {inStock ? 'Stokta' : 'Tükendi'}
+        </span>
+        <span>{inStock ? 'Hızlı teslimat' : 'Stok yenileniyor'}</span>
+      </div>
+
       {hasDiscount ? (
         <p className="sf-product-discount-tag">%{discountPercent} indirim</p>
       ) : null}
 
       <p className="sf-product-shipping-note">{formatter.format(2000)} üzeri kargo bedava</p>
 
-      <div className="sf-price-row">
-        {hasDiscount ? <span className="sf-price-old">{formatter.format(compare)}</span> : null}
-        <strong>{formatter.format(price)}</strong>
-      </div>
+      <div className="sf-product-card-footer">
+        <div className="sf-price-row">
+          {hasDiscount ? <span className="sf-price-old">{formatter.format(compare)}</span> : null}
+          <strong>{formatter.format(price)}</strong>
+        </div>
 
-      <button className="sf-add-cart" type="button" onClick={() => onAdd(product.id)}>
-        Sepete Ekle
-      </button>
+        <div className="sf-product-card-actions">
+          <Link className="sf-product-detail-link" to={`/product/${product.id}`}>
+            Incele
+          </Link>
+          <button
+            className="sf-add-cart"
+            disabled={!inStock}
+            type="button"
+            onClick={() => onAdd(product.id)}
+          >
+            {inStock ? 'Hızlı Ekle' : 'Tükendi'}
+          </button>
+        </div>
+      </div>
     </article>
   );
 }
@@ -199,8 +206,8 @@ function FeaturedProductCard({
       </div>
 
       <div className="sf-featured-actions">
-        <button className="primary" type="button" onClick={() => onAdd(product.id)}>
-          Sepete Ekle
+        <button className="primary" disabled={!inStock} type="button" onClick={() => onAdd(product.id)}>
+          {inStock ? 'Sepete Ekle' : 'Tükendi'}
         </button>
         <button className="ghost" type="button" onClick={() => onPreview(product)}>
           Ön İzleme
@@ -229,6 +236,7 @@ function BestSellerCard({
   const discountPercent = hasDiscount
     ? Math.round(((compare - price) / compare) * 100)
     : 0;
+  const inStock = product.stock > 0;
 
   let badgeLabel = '';
   let badgeClass = 'discount';
@@ -296,8 +304,8 @@ function BestSellerCard({
       <p className="sf-best-delivery">2 Günde Teslimat</p>
 
       <div className="sf-best-footer">
-        <button type="button" onClick={() => onAdd(product.id)}>
-          Sepete Ekle
+        <button disabled={!inStock} type="button" onClick={() => onAdd(product.id)}>
+          {inStock ? 'Sepete Ekle' : 'Tükendi'}
         </button>
         <button
           className="preview"
@@ -331,6 +339,7 @@ function MostPopularCard({
     ? Math.round(((compare - price) / compare) * 100)
     : 0;
   const rating = 3 + (index % 3);
+  const inStock = product.stock > 0;
 
   return (
     <article className="sf-most-card">
@@ -368,8 +377,8 @@ function MostPopularCard({
       </div>
 
       <div className="sf-most-actions">
-        <button type="button" onClick={() => onAdd(product.id)}>
-          Sepete Ekle
+        <button disabled={!inStock} type="button" onClick={() => onAdd(product.id)}>
+          {inStock ? 'Sepete Ekle' : 'Tükendi'}
         </button>
         <button className="ghost" type="button" onClick={() => onPreview(product)}>
           Ön İzleme
@@ -444,27 +453,77 @@ function resolveFooterLink(linkLabel: string) {
     return '/gizlilik';
   }
   if (normalized.includes('uretim') || normalized.includes('surec') || normalized.includes('kampanya')) {
-    return '#campaigns';
+    return '/kampanyalar';
   }
   if (normalized.includes('hakkimizda')) {
-    return '#hero';
+    return '/';
   }
   if (normalized.includes('urun') || normalized.includes('magaza') || normalized.includes('kategori')) {
-    return '#products';
+    return '/urunler';
   }
 
-  return '#footer';
+  return '/iletisim';
+}
+
+function isInternalRoute(href: string) {
+  return href.startsWith('/') && !href.startsWith('//');
+}
+
+function BlogPreviewCard({ post }: { post: BlogPost }) {
+  const publishedLabel = new Date(post.publishedAt ?? post.updatedAt).toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return (
+    <article className="sf-blog-card">
+      <Link className="sf-blog-media" to={`/blog/${post.slug}`}>
+        {post.coverImageUrl ? (
+          <img src={post.coverImageUrl} alt={post.title} />
+        ) : (
+          <span>{post.category || 'Blog'}</span>
+        )}
+      </Link>
+
+      <div className="sf-blog-body">
+        <div className="sf-blog-meta">
+          <span>{post.category || 'Genel'}</span>
+          <time dateTime={post.publishedAt ?? post.updatedAt}>{publishedLabel}</time>
+        </div>
+
+        <h4>
+          <Link to={`/blog/${post.slug}`}>{post.title}</Link>
+        </h4>
+
+        <p>{post.excerpt || post.seoDescription || 'Bu yazı için özet içerik yakında eklenecek.'}</p>
+
+        {post.tags.length > 0 ? (
+          <div className="sf-blog-tags">
+            {post.tags.slice(0, 3).map((tag) => (
+              <span key={`${post.id}-${tag}`}>{tag}</span>
+            ))}
+          </div>
+        ) : null}
+
+        <Link className="sf-blog-link" to={`/blog/${post.slug}`}>
+          Yazıyı Oku
+        </Link>
+      </div>
+    </article>
+  );
 }
 
 export function StorefrontPage() {
-  const { addProduct, itemCount: cartCount } = useStoreCart();
-  const { isAuthenticated: isCustomerAuthenticated } = useCustomerAuth();
+  const { addProduct, itemCount: cartCount, subtotal: cartSubtotal } = useStoreCart();
+  const { isAuthenticated: isCustomerAuthenticated, logout: logoutCustomer } =
+    useCustomerAuth();
   const defaultConfig = useMemo(() => createDefaultWebsiteConfig(), []);
   const [settings, setSettings] = useState<PublicSettingsDto | null>(null);
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [slideIndex, setSlideIndex] = useState(0);
   const [search, setSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -478,6 +537,7 @@ export function StorefrontPage() {
     () => Date.now() + 1000 * ((2 * 24 + 9) * 60 * 60 + 12 * 60 + 30),
   );
   const [clockNow, setClockNow] = useState(Date.now());
+  const heroVideoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
 
   useEffect(() => {
     document.body.classList.add('storefront-body');
@@ -585,11 +645,20 @@ export function StorefrontPage() {
 
   const heroSlides = config.heroSlides.length > 0 ? config.heroSlides : defaultConfig.heroSlides;
   const navItems = config.navItems.length > 0 ? config.navItems : defaultConfig.navItems;
+  const parallaxCards =
+    config.parallaxCards.length > 0 ? config.parallaxCards : defaultConfig.parallaxCards;
   const promoCards = config.promoCards.length > 0 ? config.promoCards : defaultConfig.promoCards;
   const featureItems =
     config.featureItems.length > 0 ? config.featureItems : defaultConfig.featureItems;
   const footerColumns =
     config.footerColumns.length > 0 ? config.footerColumns : defaultConfig.footerColumns;
+  const blogPosts = useMemo(
+    () => parseBlogPosts(settings?.blogPosts).filter((item) => item.isPublished).slice(0, 3),
+    [settings?.blogPosts],
+  );
+  const ribbon = config.ribbon.title ? config.ribbon : defaultConfig.ribbon;
+  const contact = config.contact.phoneDisplay ? config.contact : defaultConfig.contact;
+  const homeSections = config.homeSections;
 
   useEffect(() => {
     if (heroSlides.length <= 1) {
@@ -598,12 +667,12 @@ export function StorefrontPage() {
 
     const interval = window.setInterval(() => {
       setSlideIndex((current) => (current + 1) % heroSlides.length);
-    }, 5200);
+    }, isVideoMedia(heroSlides[slideIndex]?.videoUrl ?? '') ? 8200 : 5600);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [heroSlides.length]);
+  }, [heroSlides, slideIndex]);
 
   useEffect(() => {
     if (slideIndex < heroSlides.length) {
@@ -612,6 +681,23 @@ export function StorefrontPage() {
 
     setSlideIndex(0);
   }, [slideIndex, heroSlides.length]);
+
+  useEffect(() => {
+    Object.entries(heroVideoRefs.current).forEach(([key, video]) => {
+      if (!video) {
+        return;
+      }
+
+      const isActive = Number(key) === slideIndex;
+      if (isActive) {
+        void video.play().catch(() => undefined);
+        return;
+      }
+
+      video.pause();
+      video.currentTime = 0;
+    });
+  }, [slideIndex]);
 
   const currency = settings?.currency?.toUpperCase() || 'TRY';
   const formatter = useMemo(() => {
@@ -758,6 +844,7 @@ export function StorefrontPage() {
   }, [mostPopularProducts, popularStart, popularVisibleCount]);
 
   const highlightedSlide = heroSlides[slideIndex] ?? heroSlides[0];
+  const highlightedSlideHasVideo = Boolean(highlightedSlide?.videoUrl) && isVideoMedia(highlightedSlide.videoUrl);
   const promoPrimary = promoCards[0];
   const promoSecondary = promoCards[1] ?? promoCards[0];
   const promoTertiary = promoCards[2] ?? promoCards[0];
@@ -766,6 +853,8 @@ export function StorefrontPage() {
     () => countDownParts(dealDeadline - clockNow),
     [dealDeadline, clockNow],
   );
+  const previewMaxQuantity = previewProduct ? Math.max(previewProduct.stock, 0) : 0;
+  const previewCanPurchase = previewMaxQuantity > 0;
 
   const addToCart = (productId: string) => {
     const product = products.find((item) => item.id === productId);
@@ -788,7 +877,7 @@ export function StorefrontPage() {
 
   const openPreview = (product: Product) => {
     setPreviewProduct(product);
-    setPreviewQty(1);
+    setPreviewQty(product.stock > 0 ? 1 : 0);
   };
 
   const closePreview = () => {
@@ -838,18 +927,14 @@ export function StorefrontPage() {
     );
   };
 
-  if (loading) {
-    return <div className="storefront-loading">Site yükleniyor...</div>;
-  }
-
   return (
     <div className="storefront-page">
       <div className="sf-top-strip">
         <div className="sf-container sf-top-inner">
           <div className="sf-top-left">
-            <span>Desteğe mi ihtiyacın var?</span>
+            <span>Destek ve sipariş hattı</span>
             <strong>Bizi Ara</strong>
-            <a href="tel:+902120000000">(+90 212-000-0103)</a>
+            <a href={contact.phoneLink}>{contact.phoneDisplay}</a>
           </div>
 
           <div className="sf-top-center">
@@ -860,8 +945,10 @@ export function StorefrontPage() {
           </div>
 
           <div className="sf-top-right">
-            <Link to="/customer/dashboard">Hesabim</Link>
-            <Link to="/satis-sozlesmesi">Satis Sozlesmesi</Link>
+            <Link to={isCustomerAuthenticated ? '/customer/dashboard' : '/customer/login'}>
+              {isCustomerAuthenticated ? 'Hesabım' : 'Müşteri Girişi'}
+            </Link>
+            <Link to="/satis-sozlesmesi">Satış Sözleşmesi</Link>
             <Link to="/iletisim">İletişim</Link>
           </div>
         </div>
@@ -869,13 +956,13 @@ export function StorefrontPage() {
 
       <header className="sf-main-header">
         <div className="sf-container sf-brand-row">
-          <a className="sf-logo" href="#hero">
+          <Link className="sf-logo" to="/">
             <span className="sf-logo-mark">Z</span>
             <span className="sf-logo-text">
               <strong>{config.theme.brandName}</strong>
               <small>{config.theme.tagline}</small>
             </span>
-          </a>
+          </Link>
 
           <form
             className="sf-search-form"
@@ -901,6 +988,11 @@ export function StorefrontPage() {
             >
               {isCustomerAuthenticated ? 'Hesabım' : 'Müşteri Girişi'}
             </Link>
+            {isCustomerAuthenticated ? (
+              <button className="sf-account-btn" type="button" onClick={() => logoutCustomer()}>
+                Çıkış
+              </button>
+            ) : null}
             <Link className="sf-cart-btn" to="/cart">
               Sepetim
               <span>{cartCount} ürün</span>
@@ -918,25 +1010,33 @@ export function StorefrontPage() {
 
         <div className="sf-nav-row">
           <div className="sf-container sf-nav-inner">
-            <a className="sf-all-categories" href="#categories">
+            <Link className="sf-all-categories" to="/kategoriler">
               Tüm Kategorileri Keşfet
-            </a>
+            </Link>
 
             <nav className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}>
-              {navItems.map((item) => (
-                <a
-                  key={`${item.label}-${item.href}`}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </a>
-              ))}
+              {navItems.map((item) => {
+                const href = resolveStoreNavItemHref(item);
+
+                if (isInternalRoute(href)) {
+                  return (
+                    <Link key={`${item.label}-${href}`} onClick={() => setMobileMenuOpen(false)} to={href}>
+                      {item.label}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <a key={`${item.label}-${href}`} href={href} onClick={() => setMobileMenuOpen(false)}>
+                    {item.label}
+                  </a>
+                );
+              })}
             </nav>
 
             <div className="sf-support-right">
-              <span>24/7 Support</span>
-              <strong>888-777-999</strong>
+              <span>{contact.workingHours}</span>
+              <strong>{contact.phoneDisplay}</strong>
             </div>
           </div>
         </div>
@@ -946,6 +1046,134 @@ export function StorefrontPage() {
         <section className="sf-hero-section" id="hero">
           {highlightedSlide ? (
             <article className="sf-hero-card">
+              <div className="sf-hero-modern">
+                <div className="sf-hero-slides">
+                  {heroSlides.map((slide, index) => {
+                    const isActive = index === slideIndex;
+                    const hasVideo = Boolean(slide.videoUrl) && isVideoMedia(slide.videoUrl);
+                    const posterUrl = resolveHeroPoster(slide);
+
+                    return (
+                      <section
+                        key={`hero-modern-${slide.title}-${index}`}
+                        className={isActive ? 'sf-hero-slide active' : 'sf-hero-slide'}
+                        aria-hidden={!isActive}
+                      >
+                        <div className="sf-hero-slide-media" aria-hidden="true">
+                          {hasVideo ? (
+                            <video
+                              ref={(node) => {
+                                heroVideoRefs.current[index] = node;
+                              }}
+                              autoPlay={isActive}
+                              className="sf-hero-slide-video"
+                              loop
+                              muted
+                              playsInline
+                              poster={posterUrl || undefined}
+                              preload={isActive ? 'auto' : 'metadata'}
+                            >
+                              <source src={slide.videoUrl} />
+                            </video>
+                          ) : (
+                            <img
+                              alt={slide.title}
+                              className="sf-hero-slide-image"
+                              src={posterUrl || resolveHeroPoster(highlightedSlide)}
+                            />
+                          )}
+                        </div>
+                        <div className="sf-hero-slide-overlay" aria-hidden="true" />
+                      </section>
+                    );
+                  })}
+                </div>
+
+                <div className="sf-hero-modern-shell">
+                  <div className="sf-hero-copy">
+                    <div className="sf-hero-copy-topline">
+                      <p className="sf-hero-pretitle">{highlightedSlide.badge || 'Yeni Sezon'}</p>
+                      <span className="sf-hero-media-chip">
+                        {highlightedSlideHasVideo ? 'Video sunum' : 'Kurumsal vitrin'}
+                      </span>
+                    </div>
+                    <h1>{highlightedSlide.title}</h1>
+                    <p>{highlightedSlide.subtitle || 'Ayvalık ve Memecik seçkileriyle doğal tatlar'}</p>
+                    <small>{highlightedSlide.description}</small>
+                    <div className="sf-hero-actions">
+                      <a href={highlightedSlide.ctaHref}>{highlightedSlide.ctaLabel}</a>
+                      <a className="ghost" href="#products">
+                        Ürünleri Keşfet
+                      </a>
+                    </div>
+                  </div>
+
+                <aside className="sf-hero-spotlight" aria-label="Slider özeti">
+                    <span className="sf-hero-spotlight-index">
+                      {String(slideIndex + 1).padStart(2, '0')}
+                    </span>
+                    <strong>{highlightedSlide.badge || 'Kurumsal Sunum'}</strong>
+                    <h2>{highlightedSlide.title}</h2>
+                    <p>
+                      {highlightedSlideHasVideo
+                        ? 'Video, kapak görseli ve çağrılarla daha güçlü bir vitrin sunumu.'
+                        : 'Her slide kendi görseliyle ürünleri ve kampanyaları net şekilde anlatır.'}
+                    </p>
+                    <ul className="sf-hero-spotlight-list">
+                    <li>Admin panelinden yönetilebilir medya alanları</li>
+                      <li>
+                        {highlightedSlideHasVideo
+                          ? 'Video ve poster görsel destekli sunum'
+                          : 'Responsive görsel geçiş ve net tipografi'}
+                      </li>
+                    <li>Sepet ve ödeme akışına hızlı yönlendirme</li>
+                    </ul>
+                  </aside>
+                </div>
+
+                <button
+                    aria-label="Önceki slide"
+                  className="sf-hero-modern-arrow left"
+                  type="button"
+                  onClick={goToPrevSlide}
+                >
+                  {'<'}
+                </button>
+                <button
+                    aria-label="Sonraki slide"
+                  className="sf-hero-modern-arrow right"
+                  type="button"
+                  onClick={goToNextSlide}
+                >
+                  {'>'}
+                </button>
+
+                <div className="sf-hero-bottom-rail">
+                  {heroSlides.map((slide, index) => {
+                    const posterUrl = resolveHeroPoster(slide);
+
+                    return (
+                      <button
+                        key={`hero-rail-${slide.title}-${index}`}
+                        className={index === slideIndex ? 'sf-hero-rail-item active' : 'sf-hero-rail-item'}
+                        type="button"
+                        onClick={() => setSlideIndex(index)}
+                      >
+                        <span className="sf-hero-rail-thumb" aria-hidden="true">
+                          {posterUrl ? <img src={posterUrl} alt="" /> : <span>SL</span>}
+                        </span>
+                        <span className="sf-hero-rail-copy">
+                          <small>{slide.badge || 'Slide'}</small>
+                          <strong>{slide.title}</strong>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  <span className="sf-hero-count">
+                    {String(slideIndex + 1).padStart(2, '0')} / {String(heroSlides.length).padStart(2, '0')}
+                  </span>
+                </div>
+              </div>
               <div className="sf-hero-media-stack" aria-hidden="true">
                 {heroSlides.map((slide, index) => (
                   <img
@@ -1034,7 +1262,7 @@ export function StorefrontPage() {
         <section className="sf-parallax-gallery" aria-label="Parallax campaign cards">
           <div className="sf-container">
             <div className="sf-parallax-grid">
-              {PARALLAX_CARDS.map((item) => (
+              {parallaxCards.map((item) => (
                 <article
                   key={item.title}
                   className="sf-parallax-card"
@@ -1043,7 +1271,7 @@ export function StorefrontPage() {
                   <div className="sf-parallax-content">
                     <p>{item.subtitle}</p>
                     <h3>{item.title}</h3>
-                    <a href={item.href}>{item.cta}</a>
+                    <a href={item.ctaHref}>{item.ctaLabel}</a>
                   </div>
                 </article>
               ))}
@@ -1054,7 +1282,10 @@ export function StorefrontPage() {
         <section className="sf-hot-picks" id="products">
           <div className="sf-container">
             <div className="sf-section-head">
-              <h2>Günün Sıcak Fırsatları</h2>
+              <div>
+                <h2>{homeSections.hotDealsTitle}</h2>
+                <p>{homeSections.hotDealsDescription}</p>
+              </div>
               <div className="sf-head-right">
                 <div className="sf-deal-clock">
                   Bitmesine: {dealClock.days}:{dealClock.hours}:{dealClock.mins}:{dealClock.secs}
@@ -1087,8 +1318,8 @@ export function StorefrontPage() {
           <div className="sf-container">
             <div className="sf-featured-head">
               <div>
-                <h2>Öne Çıkan Ürünler</h2>
-                <p>Ayın en çok tercih edilen zeytin ve zeytinyağı ürünleri</p>
+                <h2>{homeSections.featuredTitle}</h2>
+                <p>{homeSections.featuredDescription}</p>
               </div>
               <a href="#products">Tümünü Gör</a>
             </div>
@@ -1116,14 +1347,14 @@ export function StorefrontPage() {
           <div className="sf-container">
             <article
               className="sf-parallax-ribbon-shell"
-              style={{ backgroundImage: `url(${PARALLAX_STRIP_IMAGE})` }}
+              style={{ backgroundImage: `url(${ribbon.imageUrl})` }}
             >
               <div className="sf-parallax-ribbon-inner">
                 <div>
-                  <p>Doğadan sofraya özel seri</p>
-                  <h3>Zeytinyağı ve zeytinlerde taze dolum kampanyaları</h3>
+                  <p>{ribbon.eyebrow}</p>
+                  <h3>{ribbon.title}</h3>
                 </div>
-                <a href="#campaigns">Kampanyayı Aç</a>
+                <a href={ribbon.ctaHref}>{ribbon.ctaLabel}</a>
               </div>
             </article>
           </div>
@@ -1132,7 +1363,10 @@ export function StorefrontPage() {
         <section className="sf-best-sellers" id="best-sellers">
           <div className="sf-container">
             <div className="sf-best-head">
-              <h2>Çok Satanlar</h2>
+              <div>
+                <h2>{homeSections.bestSellersTitle}</h2>
+                <p>{homeSections.bestSellersDescription}</p>
+              </div>
               <a href="#product-list">Tümünü Gör</a>
             </div>
 
@@ -1158,8 +1392,8 @@ export function StorefrontPage() {
         <section className="sf-most-popular" id="most-popular">
           <div className="sf-container">
             <div className="sf-most-head">
-              <h2>En Popüler</h2>
-              <p>Yeni gelen ürünleri özenle seçilmiş koleksiyonda keşfedin</p>
+              <h2>{homeSections.popularTitle}</h2>
+              <p>{homeSections.popularDescription}</p>
             </div>
 
             <div className="sf-most-panel">
@@ -1232,26 +1466,37 @@ export function StorefrontPage() {
           <div className="sf-container">
             <div className="sf-mosaic-grid">
               {promoPrimary ? (
-                <PromoCta
-                  card={{ ...promoPrimary, imageUrl: FOOTER_PROMO_IMAGES[0] }}
-                  className="sf-promo-tone-rose"
-                />
+                <PromoCta card={promoPrimary} className="sf-promo-tone-rose" />
               ) : null}
               {promoSecondary ? (
-                <PromoCta
-                  card={{ ...promoSecondary, imageUrl: FOOTER_PROMO_IMAGES[1] }}
-                  className="sf-promo-tone-gold"
-                />
+                <PromoCta card={promoSecondary} className="sf-promo-tone-gold" />
               ) : null}
               {promoTertiary ? (
-                <PromoCta
-                  card={{ ...promoTertiary, imageUrl: FOOTER_PROMO_IMAGES[2] }}
-                  className="sf-promo-tone-aqua"
-                />
+                <PromoCta card={promoTertiary} className="sf-promo-tone-aqua" />
               ) : null}
             </div>
           </div>
         </section>
+
+        {blogPosts.length > 0 ? (
+          <section className="sf-blog-section" id="blog">
+            <div className="sf-container">
+              <div className="sf-featured-head">
+                <div>
+                  <h2>{homeSections.blogTitle}</h2>
+                  <p>{homeSections.blogDescription}</p>
+                </div>
+                <Link to={`/blog/${blogPosts[0].slug}`}>Son Yazıyı Aç</Link>
+              </div>
+
+              <div className="sf-blog-grid">
+                {blogPosts.map((post) => (
+                  <BlogPreviewCard key={post.id} post={post} />
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="sf-features">
           <div className="sf-container sf-features-grid">
@@ -1284,6 +1529,16 @@ export function StorefrontPage() {
           </div>
         </section>
       </main>
+
+      {cartCount > 0 ? (
+        <div className="sf-mobile-cart-dock">
+          <div className="sf-mobile-cart-dock-meta">
+            <span>{cartCount} ürün sepette</span>
+            <strong>{formatter.format(cartSubtotal)}</strong>
+          </div>
+          <Link to="/cart">Sepete Git</Link>
+        </div>
+      ) : null}
 
       {previewProduct ? (
         <div className="sf-preview-modal" role="dialog" aria-modal="true" onClick={closePreview}>
@@ -1327,8 +1582,9 @@ export function StorefrontPage() {
                   Adet
                   <input
                     type="number"
-                    min={1}
-                    max={Math.max(previewProduct.stock, 1)}
+                    disabled={!previewCanPurchase}
+                    min={previewCanPurchase ? 1 : 0}
+                    max={previewMaxQuantity}
                     value={previewQty}
                     onChange={(event) => {
                       const nextValue = Number(event.target.value);
@@ -1336,19 +1592,26 @@ export function StorefrontPage() {
                         return;
                       }
 
-                      const maxStock = Math.max(previewProduct.stock, 1);
-                      setPreviewQty(Math.min(Math.max(Math.floor(nextValue), 1), maxStock));
+                      if (!previewCanPurchase) {
+                        setPreviewQty(0);
+                        return;
+                      }
+
+                      setPreviewQty(
+                        Math.min(Math.max(Math.floor(nextValue), 1), previewMaxQuantity),
+                      );
                     }}
                   />
                 </label>
                 <button
+                  disabled={!previewCanPurchase}
                   type="button"
                   onClick={() => {
                     addToCartWithQty(previewProduct.id, previewQty);
                     closePreview();
                   }}
                 >
-                  Sepete Ekle
+                  {previewCanPurchase ? 'Sepete Ekle' : 'Stokta Yok'}
                 </button>
               </div>
 
@@ -1368,8 +1631,6 @@ export function StorefrontPage() {
         </div>
       ) : null}
 
-      <StorefrontWhatsAppButton />
-
       <footer className="sf-footer" id="footer">
         <div className="sf-container sf-footer-grid">
           {footerColumns.map((column) => (
@@ -1377,12 +1638,25 @@ export function StorefrontPage() {
               <h5>{column.title}</h5>
               <ul>
                 {column.links.map((link) => {
-                  const href = resolveFooterLink(link);
+                  const href = (link.href || '').trim() || resolveFooterLink(link.label);
                   const isSectionLink = href.startsWith('#');
+                  const isRouteLink = isInternalRoute(href);
 
                   return (
-                    <li key={`${column.title}-${link}`}>
-                      {isSectionLink ? <a href={href}>{link}</a> : <Link to={href}>{link}</Link>}
+                    <li key={`${column.title}-${link.label}-${href}`}>
+                      {isSectionLink ? (
+                        <a href={href}>{link.label}</a>
+                      ) : isRouteLink ? (
+                        <Link to={href}>{link.label}</Link>
+                      ) : (
+                        <a
+                          href={href}
+                          rel={href.startsWith('http') ? 'noreferrer' : undefined}
+                          target={href.startsWith('http') ? '_blank' : undefined}
+                        >
+                          {link.label}
+                        </a>
+                      )}
                     </li>
                   );
                 })}
@@ -1393,17 +1667,22 @@ export function StorefrontPage() {
           <div className="sf-footer-column">
             <h5>İletişim</h5>
             <ul>
-              <li>{settings?.supportEmail || 'destek@erzeytin.com'}</li>
-              <li>+90 850 000 00 00</li>
-              <li>Ayvalik / Balikesir</li>
+              <li>
+                <a href={`mailto:${contact.email}`}>{contact.email}</a>
+              </li>
+              <li>
+                <a href={contact.phoneLink}>{contact.phoneDisplay}</a>
+              </li>
+              <li>{contact.address}</li>
+              <li>{contact.workingHours}</li>
             </ul>
           </div>
         </div>
 
         <div className="sf-container sf-footer-legal-links">
-          <Link to="/kvkk">KVKK Aydinlatma Metni</Link>
-          <Link to="/gizlilik">Gizlilik Politikasi</Link>
-          <Link to="/satis-sozlesmesi">Mesafeli Satis Sozlesmesi</Link>
+          <Link to="/kvkk">{config.legalPages.kvkk.title}</Link>
+          <Link to="/gizlilik">{config.legalPages.privacy.title}</Link>
+          <Link to="/satis-sozlesmesi">{config.legalPages.sales.title}</Link>
           <Link to="/iletisim">İletişim</Link>
         </div>
 
@@ -1422,3 +1701,4 @@ export function StorefrontPage() {
     </div>
   );
 }
+

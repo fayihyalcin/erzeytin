@@ -18,3 +18,22 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('zeytin_admin_token');
+      localStorage.removeItem('zeytin_admin_user');
+
+      if (
+        typeof window !== 'undefined' &&
+        window.location.pathname.startsWith('/dashboard')
+      ) {
+        window.location.assign('/admin');
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
+

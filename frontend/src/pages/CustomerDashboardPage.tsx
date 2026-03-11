@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { StorefrontWhatsAppButton } from '../components/StorefrontWhatsAppButton';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
@@ -110,8 +109,6 @@ export function CustomerDashboardPage() {
     updateProfile,
     upsertAddress,
     removeAddress,
-    upsertPaymentCard,
-    removePaymentCard,
     updatePreferences,
   } = useCustomerAuth();
 
@@ -137,14 +134,6 @@ export function CustomerDashboardPage() {
     postalCode: '',
     line1: '',
     line2: '',
-  });
-  const [cardForm, setCardForm] = useState({
-    label: '',
-    holderName: '',
-    number: '',
-    provider: 'VISA',
-    expiresAt: '',
-    isDefault: false,
   });
   const [preferencesForm, setPreferencesForm] = useState({
     newsletter: true,
@@ -253,6 +242,51 @@ export function CustomerDashboardPage() {
   const navItems = config.navItems.length > 0 ? config.navItems : defaultConfig.navItems;
   const selectedTrackingOrder = orders.find((item) => item.orderNumber === trackingOrderNo) || orders[0] || null;
   const totalSpent = orders.reduce((acc, order) => acc + parsePrice(order.grandTotal), 0);
+  const paymentRows = useMemo(
+    () =>
+      orders
+        .flatMap((order) => {
+          if (order.paymentTransactions.length > 0) {
+            return order.paymentTransactions.map((payment) => ({ order, payment }));
+          }
+
+          return [
+            {
+              order,
+              payment: {
+                id: `fallback-${order.id}`,
+                orderId: order.id,
+                provider: order.paymentProvider || 'MANUAL',
+                merchantOid: order.paymentTransactionId || order.orderNumber,
+                status: order.paymentStatus,
+                requestAmount: order.grandTotal,
+                paidAmount: order.paymentStatus === 'PAID' ? order.grandTotal : null,
+                currency: order.currency,
+                iframeToken: null,
+                paymentType: order.paymentMethod,
+                providerTransactionId: order.paymentTransactionId,
+                failureCode: null,
+                failureMessage: null,
+                callbackCount: 0,
+                isTest: false,
+                rawRequest: {},
+                rawResponse: {},
+                rawCallback: {},
+                paidAt: order.paidAt,
+                failedAt: order.paymentStatus === 'FAILED' ? order.updatedAt : null,
+                createdAt: order.placedAt,
+                updatedAt: order.updatedAt,
+              },
+            },
+          ];
+        })
+        .sort(
+          (left, right) =>
+            new Date(right.payment.createdAt).getTime() - new Date(left.payment.createdAt).getTime(),
+        ),
+    [orders],
+  );
+  const paidPaymentsCount = paymentRows.filter((item) => item.payment.status === 'PAID').length;
 
   if (!user) {
     return null;
@@ -265,7 +299,7 @@ export function CustomerDashboardPage() {
           <div className="sf-top-left">
             <span>Need Support?</span>
             <strong>Call Us</strong>
-            <a href="tel:+902120000000">(+90 212-000-0103)</a>
+            <a href="tel:+905305165498">0530 516 54 98</a>
           </div>
           <div className="sf-top-center">
             <span>English</span>
@@ -314,7 +348,7 @@ export function CustomerDashboardPage() {
                 </a>
               ))}
             </nav>
-            <div className="sf-support-right"><span>24/7 Support</span><strong>888-777-999</strong></div>
+            <div className="sf-support-right"><span>24/7 Support</span><strong>0530 516 54 98</strong></div>
           </div>
         </div>
       </header>
@@ -349,7 +383,7 @@ export function CustomerDashboardPage() {
                 <article><small>Toplam Siparis</small><strong>{orders.length}</strong></article>
                 <article><small>Toplam Harcama</small><strong>{formatter.format(totalSpent)}</strong></article>
                 <article><small>Kayitli Adres</small><strong>{user.addresses.length}</strong></article>
-                <article><small>Kayitli Kart</small><strong>{user.paymentCards.length}</strong></article>
+                <article><small>Basarili Odeme</small><strong>{paidPaymentsCount}</strong></article>
               </div> : null}
 
               {tab === 'orders' ? <div className="sf-customer-panel">
@@ -412,26 +446,32 @@ export function CustomerDashboardPage() {
               </div></div> : null}
 
               {tab === 'payments' ? <div className="sf-customer-panel">
-                <div className="sf-payment-cards">
-                  {user.paymentCards.map((card) => <article key={card.id} className={card.isDefault ? 'default' : ''}><strong>{card.label}</strong><p>{card.maskedNumber}</p><small>{card.provider} / {card.expiresAt}</small><button type="button" onClick={() => { removePaymentCard(card.id); setMessage('Kart silindi.'); }}>Sil</button></article>)}
+                <article className="sf-payment-security-note">
+                  <strong>Guvenli kart islemleri</strong>
+                  <p>
+                    Kart bilgileriniz sitemizde tutulmaz. Kredi karti odemeleri PAYTR guvenli iframe
+                    ekrani uzerinden alinur ve tum sonuc kayitlari asagida listelenir.
+                  </p>
+                </article>
+
+                <div className="sf-payment-history-grid">
+                  {paymentRows.length > 0 ? paymentRows.map(({ order, payment }) => {
+                    const paymentBadge = paymentMeta(payment.status);
+                    return (
+                      <article key={payment.id}>
+                        <div className="sf-payment-history-head">
+                          <strong>{order.orderNumber}</strong>
+                          <span className={`sf-payment-badge ${paymentBadge.className}`}>{paymentBadge.label}</span>
+                        </div>
+                        <p>{payment.provider} / {paymentMethodLabel(order.paymentMethod)}</p>
+                        <small>OID: {payment.merchantOid}</small>
+                        <small>Tarih: {formatDate(payment.createdAt)}</small>
+                        <small>Tutar: {formatter.format(parsePrice(payment.paidAmount || payment.requestAmount))}</small>
+                        {payment.failureMessage ? <small>Hata: {payment.failureMessage}</small> : null}
+                      </article>
+                    );
+                  }) : <p className="sf-customer-empty">Heniz odeme kaydiniz bulunmuyor.</p>}
                 </div>
-                <form className="sf-payment-card-form" onSubmit={(event) => {
-                  event.preventDefault();
-                  upsertPaymentCard(cardForm);
-                  setCardForm({ label: '', holderName: '', number: '', provider: 'VISA', expiresAt: '', isDefault: false });
-                  setMessage('Kart eklendi.');
-                }}>
-                  <h3>Yeni Kart</h3>
-                  <input placeholder="Kart etiketi" value={cardForm.label} onChange={(event) => setCardForm((current) => ({ ...current, label: event.target.value }))} required />
-                  <input placeholder="Kart sahibi" value={cardForm.holderName} onChange={(event) => setCardForm((current) => ({ ...current, holderName: event.target.value }))} required />
-                  <input placeholder="Kart numarasi" value={cardForm.number} onChange={(event) => setCardForm((current) => ({ ...current, number: event.target.value }))} required />
-                  <div className="sf-payment-card-grid">
-                    <input placeholder="VISA" value={cardForm.provider} onChange={(event) => setCardForm((current) => ({ ...current, provider: event.target.value }))} required />
-                    <input placeholder="12/28" value={cardForm.expiresAt} onChange={(event) => setCardForm((current) => ({ ...current, expiresAt: event.target.value }))} required />
-                  </div>
-                  <label className="sf-checkbox-row"><input type="checkbox" checked={cardForm.isDefault} onChange={(event) => setCardForm((current) => ({ ...current, isDefault: event.target.checked }))} />Varsayilan kart</label>
-                  <button type="submit">Kaydet</button>
-                </form>
               </div> : null}
 
               {tab === 'addresses' ? <div className="sf-customer-panel">
@@ -500,7 +540,6 @@ export function CustomerDashboardPage() {
         </div>
       </footer>
 
-      <StorefrontWhatsAppButton />
     </div>
   );
 }

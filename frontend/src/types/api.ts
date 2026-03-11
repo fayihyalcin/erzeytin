@@ -4,6 +4,8 @@ export interface AdminUser {
   fullName: string;
   role: 'ADMIN' | 'REPRESENTATIVE';
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LoginResponse {
@@ -17,6 +19,18 @@ export interface SettingsDto {
   currency: string;
   timezone: string;
   taxRate: string;
+  siteUrl: string;
+  apiBaseUrl: string;
+  paytrEnabled: string;
+  paytrMerchantId: string;
+  paytrMerchantKey: string;
+  paytrMerchantSalt: string;
+  paytrTestMode: string;
+  paytrDebugOn: string;
+  paytrNoInstallment: string;
+  paytrMaxInstallment: string;
+  paytrTimeoutLimit: string;
+  paytrLang: string;
 }
 
 export interface WebsiteThemeConfig {
@@ -38,9 +52,19 @@ export interface WebsiteHeroSlide {
   ctaLabel: string;
   ctaHref: string;
   imageUrl: string;
+  videoUrl: string;
+  posterUrl: string;
 }
 
 export interface WebsitePromoCard {
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  ctaHref: string;
+  imageUrl: string;
+}
+
+export interface WebsiteParallaxCard {
   title: string;
   subtitle: string;
   ctaLabel: string;
@@ -54,9 +78,96 @@ export interface WebsiteFeatureItem {
   description: string;
 }
 
+export interface WebsiteFooterLink {
+  label: string;
+  href: string;
+}
+
 export interface WebsiteFooterColumn {
   title: string;
-  links: string[];
+  links: WebsiteFooterLink[];
+}
+
+export interface WebsiteRibbonConfig {
+  eyebrow: string;
+  title: string;
+  ctaLabel: string;
+  ctaHref: string;
+  imageUrl: string;
+}
+
+export interface WebsiteContactInfo {
+  phoneDisplay: string;
+  phoneLink: string;
+  whatsappLink: string;
+  email: string;
+  address: string;
+  workingHours: string;
+  mapsEmbedUrl: string;
+}
+
+export interface WebsiteHomeSections {
+  hotDealsTitle: string;
+  hotDealsDescription: string;
+  featuredTitle: string;
+  featuredDescription: string;
+  bestSellersTitle: string;
+  bestSellersDescription: string;
+  popularTitle: string;
+  popularDescription: string;
+  blogTitle: string;
+  blogDescription: string;
+}
+
+export interface WebsiteContactPageContent {
+  badge: string;
+  title: string;
+  description: string;
+  quickInfoTitle: string;
+  mapTitle: string;
+  mapDescription: string;
+  formTitle: string;
+  formDescription: string;
+  footerDescription: string;
+}
+
+export interface WebsiteManagedPageContent {
+  badge: string;
+  title: string;
+  description: string;
+  primaryCtaLabel: string;
+  primaryCtaHref: string;
+  secondaryCtaLabel: string;
+  secondaryCtaHref: string;
+  mediaUrl: string;
+  videoUrl: string;
+  posterUrl: string;
+  summaryTitle: string;
+  summaryText: string;
+  highlights: string[];
+}
+
+export interface WebsiteManagedPagesConfig {
+  categories: WebsiteManagedPageContent;
+  products: WebsiteManagedPageContent;
+  campaigns: WebsiteManagedPageContent;
+}
+
+export interface WebsiteLegalSection {
+  heading: string;
+  body: string;
+}
+
+export interface WebsiteLegalDocument {
+  title: string;
+  subtitle: string;
+  sections: WebsiteLegalSection[];
+}
+
+export interface WebsiteLegalPagesConfig {
+  kvkk: WebsiteLegalDocument;
+  privacy: WebsiteLegalDocument;
+  sales: WebsiteLegalDocument;
 }
 
 export interface WebsiteConfig {
@@ -64,15 +175,57 @@ export interface WebsiteConfig {
   announcement: string;
   navItems: WebsiteNavItem[];
   heroSlides: WebsiteHeroSlide[];
+  parallaxCards: WebsiteParallaxCard[];
   promoCards: WebsitePromoCard[];
+  ribbon: WebsiteRibbonConfig;
   featureItems: WebsiteFeatureItem[];
   newsletterTitle: string;
   newsletterDescription: string;
+  contact: WebsiteContactInfo;
+  homeSections: WebsiteHomeSections;
+  contactPage: WebsiteContactPageContent;
+  pages: WebsiteManagedPagesConfig;
+  legalPages: WebsiteLegalPagesConfig;
   footerColumns: WebsiteFooterColumn[];
 }
 
 export interface PublicSettingsDto extends Partial<SettingsDto> {
   websiteConfig?: string;
+  blogPosts?: string;
+  paytrEnabled?: string;
+}
+
+export type MediaItemType = 'image' | 'video' | 'document';
+
+export interface MediaItem {
+  id: string;
+  title: string;
+  url: string;
+  type: MediaItemType;
+  folder: string;
+  alt: string;
+  description: string;
+  thumbnailUrl: string;
+  mimeType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  coverImageUrl: string;
+  category: string;
+  tags: string[];
+  isPublished: boolean;
+  publishedAt: string | null;
+  seoTitle: string;
+  seoDescription: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Category {
@@ -86,6 +239,7 @@ export interface Category {
   seoDescription: string | null;
   seoKeywords: string[];
   isActive: boolean;
+  products?: Product[];
   createdAt: string;
   updatedAt: string;
 }
@@ -177,6 +331,31 @@ export type OrderStatus =
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 
+export interface PaymentTransaction {
+  id: string;
+  orderId: string;
+  provider: string;
+  merchantOid: string;
+  status: PaymentStatus;
+  requestAmount: string;
+  paidAmount: string | null;
+  currency: string;
+  iframeToken: string | null;
+  paymentType: string | null;
+  providerTransactionId: string | null;
+  failureCode: string | null;
+  failureMessage: string | null;
+  callbackCount: number;
+  isTest: boolean;
+  rawRequest: Record<string, unknown>;
+  rawResponse: Record<string, unknown>;
+  rawCallback: Record<string, unknown>;
+  paidAt: string | null;
+  failedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type PaymentMethod =
   | 'CARD'
   | 'CASH_ON_DELIVERY'
@@ -233,6 +412,7 @@ export interface Order {
   paymentMethod: PaymentMethod;
   paymentProvider: string | null;
   paymentTransactionId: string | null;
+  paymentTransactions: PaymentTransaction[];
   fulfillmentStatus: FulfillmentStatus;
   customerNote: string | null;
   adminNote: string | null;
@@ -253,6 +433,15 @@ export interface Order {
   deliveredAt: string | null;
   cancelledAt: string | null;
   updatedAt: string;
+}
+
+export interface PaytrCheckoutSession {
+  orderId: string;
+  orderNumber: string;
+  merchantOid: string;
+  paymentId: string;
+  iframeToken: string;
+  iframeUrl: string;
 }
 
 export interface OrderActivity {

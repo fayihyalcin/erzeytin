@@ -1,4 +1,4 @@
-﻿import {
+import {
   createContext,
   useCallback,
   useContext,
@@ -7,7 +7,14 @@
   useState,
   type ReactNode,
 } from 'react';
-import { api } from '../lib/api';
+import {
+  ADMIN_AUTH_CLEARED_EVENT,
+  ADMIN_TOKEN_STORAGE_KEY,
+  ADMIN_USER_STORAGE_KEY,
+  api,
+  clearAdminAuthStorage,
+  isUnauthorizedResponse,
+} from '../lib/api';
 import type { AdminUser, LoginResponse } from '../types/api';
 
 interface AuthContextValue {
@@ -21,15 +28,12 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const STORAGE_TOKEN_KEY = 'zeytin_admin_token';
-const STORAGE_USER_KEY = 'zeytin_admin_user';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(
-    localStorage.getItem(STORAGE_TOKEN_KEY),
+    localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY),
   );
   const [user, setUser] = useState<AdminUser | null>(() => {
-    const raw = localStorage.getItem(STORAGE_USER_KEY);
+    const raw = localStorage.getItem(ADMIN_USER_STORAGE_KEY);
     if (!raw) {
       return null;
     }
@@ -40,7 +44,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   });
-  const [loading, setLoading] = useState(Boolean(localStorage.getItem(STORAGE_TOKEN_KEY)));
+  const [loading, setLoading] = useState(
+    Boolean(localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY)),
+  );
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      const nextToken = localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
+      const rawUser = localStorage.getItem(ADMIN_USER_STORAGE_KEY);
+
+      setToken(nextToken);
+
+      if (!rawUser) {
+        setUser(null);
+        return;
+      }
+
+      try {
+        setUser(JSON.parse(rawUser) as AdminUser);
+      } catch {
+        setUser(null);
+      }
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (
+        event.key === null ||
+        event.key === ADMIN_TOKEN_STORAGE_KEY ||
+        event.key === ADMIN_USER_STORAGE_KEY
+      ) {
+        syncFromStorage();
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(ADMIN_AUTH_CLEARED_EVENT, syncFromStorage);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(ADMIN_AUTH_CLEARED_EVENT, syncFromStorage);
+    };
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -51,24 +95,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     setLoading(true);
     api
-      .get<AdminUser>('/auth/me')
+      .get<AdminUser>('/auth/me', { requiresAdminAuth: false })
       .then((response) => {
         if (!mounted) {
           return;
         }
 
         setUser(response.data);
-        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(response.data));
+        localStorage.setItem(
+          ADMIN_USER_STORAGE_KEY,
+          JSON.stringify(response.data),
+        );
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!mounted) {
           return;
         }
 
-        localStorage.removeItem(STORAGE_TOKEN_KEY);
-        localStorage.removeItem(STORAGE_USER_KEY);
-        setToken(null);
-        setUser(null);
+        if (isUnauthorizedResponse(error)) {
+          clearAdminAuthStorage();
+          setToken(null);
+          setUser(null);
+        }
       })
       .finally(() => {
         if (mounted) {
@@ -90,15 +138,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const nextToken = response.data.accessToken;
     const nextUser = response.data.user;
 
-    localStorage.setItem(STORAGE_TOKEN_KEY, nextToken);
-    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(nextUser));
+    localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, nextToken);
+    localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(nextUser));
     setToken(nextToken);
     setUser(nextUser);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_TOKEN_KEY);
-    localStorage.removeItem(STORAGE_USER_KEY);
+    clearAdminAuthStorage();
     setToken(null);
     setUser(null);
   }, []);
@@ -126,4 +173,3 @@ export function useAuth() {
 
   return context;
 }
-

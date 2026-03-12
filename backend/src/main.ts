@@ -1,11 +1,17 @@
+import { static as expressStatic } from 'express';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { ensureUploadRoot } from './media/media.utils';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const uploadRoot = ensureUploadRoot(process.env.UPLOAD_DIR);
 
+  app.set('trust proxy', true);
   app.setGlobalPrefix('api');
+  app.use('/uploads', expressStatic(uploadRoot));
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

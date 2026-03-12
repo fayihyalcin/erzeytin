@@ -1,6 +1,5 @@
-import { isAxiosError } from 'axios';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { api } from '../lib/api';
+import { api, extractApiError } from '../lib/api';
 import type { SettingsDto } from '../types/api';
 import type { AdminWizardStep } from '../components/admin/AdminFormWizard';
 
@@ -82,6 +81,14 @@ function normalizeSettings(settings: Partial<SettingsDto> = {}): SettingsDto {
   };
 }
 
+function hasPaytrSettings(settings: Partial<SettingsDto>) {
+  return (
+    'paytrEnabled' in settings ||
+    'paytrMerchantId' in settings ||
+    'paytrTestMode' in settings
+  );
+}
+
 export function SettingsPage() {
   const [form, setForm] = useState<SettingsDto>(defaultSettings);
   const [loading, setLoading] = useState(true);
@@ -100,6 +107,11 @@ export function SettingsPage() {
         }
 
         setForm(normalizeSettings(response.data));
+        if (!hasPaytrSettings(response.data)) {
+          setMessage(
+            'PAYTR alanlari backend yanitinda yok. Canli backend eski deploy olabilir; backend build/restart edilmeden bu ayarlar kalici kaydolmaz.',
+          );
+        }
       })
       .finally(() => {
         if (mounted) {
@@ -134,18 +146,17 @@ export function SettingsPage() {
       });
 
       setForm(normalizeSettings(response.data));
-      setMessage('Ayarlar kaydedildi.');
+      setMessage(
+        hasPaytrSettings(response.data)
+          ? 'Ayarlar kaydedildi.'
+          : 'Ayarlar kaydedildi gorunuyor fakat backend PAYTR alanlarini donmedi. Canli backend deployunu kontrol edin.',
+      );
     } catch (error) {
-      if (isAxiosError<{ message?: string | string[] }>(error)) {
-        const details = error.response?.data?.message;
-        const reason = Array.isArray(details) ? details.join(', ') : details;
-
-        setMessage(
-          reason ? `Ayarlar kaydedilemedi: ${reason}` : 'Ayarlar kaydedilemedi.',
-        );
-      } else {
-        setMessage('Ayarlar kaydedilemedi.');
-      }
+      const message = extractApiError(error, 'Ayarlar kaydedilemedi.');
+      const compatibilityHint = /should not exist|forbidden|whitelist/i.test(message)
+        ? ' Backend eskiyse PAYTR alanlarini tanimiyor olabilir.'
+        : '';
+      setMessage(`Ayarlar kaydedilemedi: ${message}${compatibilityHint}`);
     } finally {
       setSaving(false);
     }

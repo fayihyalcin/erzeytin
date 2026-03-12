@@ -30,12 +30,15 @@ cp frontend/.env.example frontend/.env
 - `DB_SYNC=false`
 - `JWT_SECRET=<guclu_ve_uzun_bir_deger>`
 - `CORS_ORIGIN=https://alanadiniz.com`
+- `UPLOAD_DIR=uploads`
 - `ADMIN_PASSWORD=<guclu_admin_sifresi>`
 - `REP_PASSWORD=<guclu_temsilci_sifresi>`
 
 `frontend/.env`:
 
 - `VITE_API_URL=/api`
+
+Not: Upload edilen medya dosyalari varsayilan olarak `backend/uploads` altina yazilir. PM2 ile backend'i calistiran kullanicinin bu klasore yazma izni oldugundan emin olun.
 
 ## 4) PostgreSQL ve Redis Servislerini Ac
 
@@ -82,6 +85,7 @@ Notlar:
 
 - `server_name` alanini kendi domaininizle degistirin.
 - `root` yolunu repo konumunuza gore guncelleyin.
+- `/uploads/` blogu backend'e proxy edilmelidir; ornek konfigurasyonda bu hazir.
 
 ## 8) SSL (Lets Encrypt)
 

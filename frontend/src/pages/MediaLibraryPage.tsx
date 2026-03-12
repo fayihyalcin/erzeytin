@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createEmptyMediaItem, parseMediaLibrary } from '../lib/admin-content';
-import { fetchSettingsRecord, updateSettingsRecord } from '../lib/admin-settings';
+import { updateMediaLibrary, fetchSettingsRecord } from '../lib/admin-settings';
+import { extractApiError } from '../lib/api';
+import {
+  createMediaItemFromUpload,
+  mergeMediaItems,
+  uploadMediaFiles,
+} from '../lib/media-library';
 import type { MediaItem, MediaItemType } from '../types/api';
 
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
+const UPLOAD_ACCEPT =
+  'image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt';
 
 function isImage(url: string) {
-  return /\.(png|jpe?g|gif|webp|svg)$/i.test(url) || url.startsWith('data:image/');
+  return /\.(png|jpe?g|gif|webp|svg)$/i.test(url);
 }
 
 function isVideo(url: string) {
-  return /\.(mp4|webm|ogg)$/i.test(url) || url.startsWith('data:video/');
+  return /\.(mp4|webm|ogg)$/i.test(url);
 }
 
 const TYPE_OPTIONS: Array<{ value: MediaItemType; label: string }> = [
@@ -32,6 +32,7 @@ export function MediaLibraryPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [folderFilter, setFolderFilter] = useState('Tum klasorler');
@@ -71,9 +72,10 @@ export function MediaLibraryPage() {
   }, []);
 
   const folderOptions = useMemo(() => {
-    const options = Array.from(new Set(items.map((item) => item.folder.trim() || 'Genel'))).sort(
-      (left, right) => left.localeCompare(right, 'tr'),
-    );
+    const options = Array.from(
+      new Set(items.map((item) => item.folder.trim() || 'Genel')),
+    ).sort((left, right) => left.localeCompare(right, 'tr'));
+
     return ['Tum klasorler', ...options];
   }, [items]);
 
@@ -92,8 +94,8 @@ export function MediaLibraryPage() {
         return true;
       }
 
-      return [item.title, item.alt, item.description, item.folder, item.url].some((value) =>
-        value.toLocaleLowerCase('tr-TR').includes(keyword),
+      return [item.title, item.alt, item.description, item.folder, item.url].some(
+        (value) => value.toLocaleLowerCase('tr-TR').includes(keyword),
       );
     });
   }, [folderFilter, items, search, typeFilter]);
@@ -102,13 +104,11 @@ export function MediaLibraryPage() {
     setSaving(true);
     setMessage(null);
     try {
-      await updateSettingsRecord({
-        mediaLibrary: JSON.stringify(nextItems),
-      });
+      await updateMediaLibrary(nextItems);
       setItems(nextItems);
       setMessage(nextMessage);
-    } catch {
-      setMessage('Medya kutuphanesi kaydedilemedi.');
+    } catch (error) {
+      setMessage(extractApiError(error, 'Medya kutuphanesi kaydedilemedi.'));
     } finally {
       setSaving(false);
     }
@@ -169,24 +169,36 @@ export function MediaLibraryPage() {
     setForm(nextItems[0] ?? createEmptyMediaItem());
   };
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (fileList: FileList | null) => {
+    if (!fileList?.length) {
+      return;
+    }
+
+    setUploading(true);
     setMessage(null);
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      const timestamp = new Date().toISOString();
-      setForm((current) => ({
-        ...current,
-        title: current.title || file.name.replace(/\.[^.]+$/, ''),
-        url: dataUrl,
-        thumbnailUrl: dataUrl,
-        mimeType: file.type,
-        type: file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : 'document',
-        updatedAt: timestamp,
-      }));
-      setMessage('Dosya forma yerlestirildi. Kaydet diyerek kutuphaneye ekleyebilirsiniz.');
-    } catch {
-      setMessage('Dosya okunamadi. Lutfen farkli bir dosya deneyin.');
+      const uploadedAssets = await uploadMediaFiles(fileList, {
+        folder: form.folder || 'Genel',
+      });
+      const uploadedItems = uploadedAssets.map(createMediaItemFromUpload);
+      const nextItems = mergeMediaItems(items, uploadedItems);
+      await persistItems(
+        nextItems,
+        `${uploadedItems.length} dosya kutuphaneye eklendi.`,
+      );
+
+      const firstUploaded = uploadedItems[0];
+      if (firstUploaded) {
+        const selected =
+          nextItems.find((item) => item.url === firstUploaded.url) ?? firstUploaded;
+        setEditingId(selected.id);
+        setForm(selected);
+      }
+    } catch (error) {
+      setMessage(extractApiError(error, 'Dosyalar yuklenemedi.'));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -350,7 +362,7 @@ export function MediaLibraryPage() {
               <input
                 className="admin-input"
                 onChange={(event) => setForm({ ...form, url: event.target.value })}
-                placeholder="https:// veya data:"
+                placeholder="https://"
                 value={form.url}
               />
             </label>
@@ -387,22 +399,24 @@ export function MediaLibraryPage() {
 
           <div className="admin-upload-box">
             <div>
-              <strong>Cihazdan ekle</strong>
-              <p>Kucuk boyutlu dosyalari dogrudan data URL olarak kutuphaneye kaydedebilirsiniz.</p>
+              <strong>Hizli coklu yukleme</strong>
+              <p>
+                Dosyalari dogrudan sunucuya yukleyin. Sectikten sonra aninda kutuphaneye eklenir;
+                ayrica tek tek kaydetmenize gerek kalmaz.
+              </p>
             </div>
             <label className="admin-upload-trigger">
               <input
+                accept={UPLOAD_ACCEPT}
                 hidden
+                multiple
                 onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    void handleUpload(file);
-                  }
+                  void handleUpload(event.target.files);
                   event.target.value = '';
                 }}
                 type="file"
               />
-              Dosya sec
+              {uploading ? 'Yukleniyor...' : 'Dosya sec'}
             </label>
           </div>
 
@@ -422,11 +436,21 @@ export function MediaLibraryPage() {
           ) : null}
 
           <div className="admin-form-actions">
-            <button className="admin-primary-button" disabled={saving} onClick={() => void handleSave()} type="button">
+            <button
+              className="admin-primary-button"
+              disabled={saving || uploading}
+              onClick={() => void handleSave()}
+              type="button"
+            >
               {saving ? 'Kaydediliyor...' : editingId ? 'Kaydi guncelle' : 'Kutuphane kaydi ekle'}
             </button>
             {editingId ? (
-              <button className="admin-danger-button" disabled={saving} onClick={() => void handleDelete()} type="button">
+              <button
+                className="admin-danger-button"
+                disabled={saving || uploading}
+                onClick={() => void handleDelete()}
+                type="button"
+              >
                 Sil
               </button>
             ) : null}

@@ -19,6 +19,7 @@ import { OrderActivity } from './orders/order-activity.entity';
 import { PaymentTransaction } from './orders/payment-transaction.entity';
 import { OrdersModule } from './orders/orders.module';
 import { UsersModule } from './users/users.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { UsersModule } from './users/users.module';
     RealtimeModule,
     AuthModule,
     UsersModule,
+    MediaModule,
     SettingsModule,
     CatalogModule,
     OrdersModule,

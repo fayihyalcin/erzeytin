@@ -3,8 +3,13 @@ import { AdminFormWizard, type AdminWizardStep } from '../components/admin/Admin
 import { useNavigate, useParams } from 'react-router-dom';
 import { MediaBrowser } from '../components/admin/MediaBrowser';
 import { parseMediaLibrary } from '../lib/admin-content';
-import { fetchSettingsRecord } from '../lib/admin-settings';
-import { api } from '../lib/api';
+import { fetchSettingsRecord, updateMediaLibrary } from '../lib/admin-settings';
+import { api, extractApiError } from '../lib/api';
+import {
+  createMediaItemFromUpload,
+  mergeMediaItems,
+  uploadMediaFiles,
+} from '../lib/media-library';
 import type {
   Category,
   MediaItem,
@@ -168,6 +173,8 @@ const csv = (value: string) =>
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
 
+const PRODUCT_IMAGE_ACCEPT = 'image/*';
+
 const policyFromForm = (policy: PolicyForm): ProductPricingPolicy => ({
   targetMarginPercent: round2(asPercent(policy.targetMarginPercent, 30)),
   platformCommissionPercent: round2(asPercent(policy.platformCommissionPercent)),
@@ -289,6 +296,7 @@ export function ProductFormPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [galleryBrowserOpen, setGalleryBrowserOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<ProductStepId>('identity');
@@ -359,27 +367,97 @@ export function ProductFormPage() {
     };
   }, [productId]);
 
-  const addImageToGallery = (imageUrl: string) => {
-    const value = imageUrl.trim();
-    if (!value || form.images.includes(value)) {
+  const addImagesToGallery = (imageUrls: string[]) => {
+    const normalized = imageUrls
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+
+    if (normalized.length === 0) {
       return;
     }
 
-    const images = [...form.images, value];
-    setForm({
-      ...form,
-      images,
-      featuredImage: form.featuredImage || value,
+    setForm((current) => {
+      const nextImages = [...current.images];
+      for (const imageUrl of normalized) {
+        if (!nextImages.includes(imageUrl)) {
+          nextImages.push(imageUrl);
+        }
+      }
+
+      return {
+        ...current,
+        featuredImage: current.featuredImage || nextImages[0] || '',
+        images: nextImages,
+      };
     });
   };
 
+  const addImageToGallery = (imageUrl: string) => {
+    addImagesToGallery([imageUrl]);
+  };
+
   const setFeaturedImage = (imageUrl: string) => {
-    const images = form.images.includes(imageUrl) ? form.images : [imageUrl, ...form.images];
-    setForm({
-      ...form,
-      images,
-      featuredImage: imageUrl,
+    setForm((current) => {
+      const images = current.images.includes(imageUrl)
+        ? current.images
+        : [imageUrl, ...current.images];
+
+      return {
+        ...current,
+        featuredImage: imageUrl,
+        images,
+      };
     });
+  };
+
+  const removeImageFromGallery = (imageUrl: string) => {
+    setForm((current) => {
+      const images = current.images.filter((item) => item !== imageUrl);
+      return {
+        ...current,
+        featuredImage:
+          current.featuredImage === imageUrl ? images[0] ?? '' : current.featuredImage,
+        images,
+      };
+    });
+  };
+
+  const handleGalleryUpload = async (fileList: FileList | null) => {
+    if (!fileList?.length) {
+      return;
+    }
+
+    setUploadingGallery(true);
+    setMessage(null);
+
+    try {
+      const uploadedAssets = await uploadMediaFiles(fileList, {
+        folder: 'Urunler',
+      });
+      const uploadedItems = uploadedAssets.map(createMediaItemFromUpload);
+      const uploadedUrls = uploadedItems.map((item) => item.url);
+
+      addImagesToGallery(uploadedUrls);
+
+      const nextLibrary = mergeMediaItems(mediaItems, uploadedItems);
+      setMediaItems(nextLibrary);
+
+      try {
+        await updateMediaLibrary(nextLibrary);
+        setMessage(`${uploadedItems.length} gorsel yuklendi ve galeriye eklendi.`);
+      } catch (libraryError) {
+        setMessage(
+          extractApiError(
+            libraryError,
+            `${uploadedItems.length} gorsel yuklendi, fakat medya kutuphanesi guncellenemedi.`,
+          ),
+        );
+      }
+    } catch (error) {
+      setMessage(extractApiError(error, 'Gorseller yuklenemedi.'));
+    } finally {
+      setUploadingGallery(false);
+    }
   };
 
   const goToPreviousStep = () => {
@@ -622,7 +700,7 @@ export function ProductFormPage() {
             </div>
           </div>
 
-          <div className="image-upload-box">
+            <div className="image-upload-box">
             <div className="variant-header">
               <div>
                 <div className="media-title">Galeri</div>
@@ -633,6 +711,26 @@ export function ProductFormPage() {
                   Kutuphaneden ekle
                 </button>
               </div>
+            </div>
+
+            <div className="admin-upload-box" style={{ marginTop: 12 }}>
+              <div>
+                <strong>Hizli coklu yukleme</strong>
+                <p>Birden fazla urun gorseli secin; yukleme biter bitmez galeriye otomatik eklenir.</p>
+              </div>
+              <label className="admin-upload-trigger">
+                <input
+                  accept={PRODUCT_IMAGE_ACCEPT}
+                  hidden
+                  multiple
+                  onChange={(event) => {
+                    void handleGalleryUpload(event.target.files);
+                    event.target.value = '';
+                  }}
+                  type="file"
+                />
+                {uploadingGallery ? 'Yukleniyor...' : 'Resim sec'}
+              </label>
             </div>
 
             <div className="media-row" style={{ marginTop: 12 }}>
@@ -671,14 +769,7 @@ export function ProductFormPage() {
                       </button>
                       <button
                         className="tiny secondary"
-                        onClick={() => {
-                          const images = form.images.filter((item) => item !== image);
-                          setForm({
-                            ...form,
-                            images,
-                            featuredImage: form.featuredImage === image ? images[0] ?? '' : form.featuredImage,
-                          });
-                        }}
+                        onClick={() => removeImageFromGallery(image)}
                         type="button"
                       >
                         Sil

@@ -21,6 +21,7 @@ lerna-debug.log*
 root-dev.log
 backend/backend-dev.log
 frontend/frontend-dev.log
+backend/uploads/
 
 # Local environment files
 .env

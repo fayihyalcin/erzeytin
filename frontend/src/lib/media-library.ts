@@ -41,11 +41,6 @@ export async function uploadMediaFiles(
     return [] as UploadedMediaAsset[];
   }
 
-  const formData = new FormData();
-  for (const file of uploadFiles) {
-    formData.append('files', file);
-  }
-
   const params = new URLSearchParams();
   if (options?.folder?.trim()) {
     params.set('folder', options.folder.trim());
@@ -53,14 +48,22 @@ export async function uploadMediaFiles(
 
   const endpoint =
     params.size > 0 ? `/media/upload?${params.toString()}` : '/media/upload';
+  const uploadedItems: UploadedMediaAsset[] = [];
 
-  const response = await api.post<UploadMediaResponse>(endpoint, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  for (const file of uploadFiles) {
+    const formData = new FormData();
+    formData.append('files', file);
 
-  return response.data.items;
+    const response = await api.post<UploadMediaResponse>(endpoint, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    uploadedItems.push(...response.data.items);
+  }
+
+  return uploadedItems;
 }
 
 export function createMediaItemFromUpload(asset: UploadedMediaAsset): MediaItem {

@@ -91,6 +91,10 @@ export function extractApiError(error: unknown, fallback: string) {
     return fallback;
   }
 
+  if (error.response?.status === 413) {
+    return 'Yukleme reddedildi: dosya boyutu sunucu limitini asiyor.';
+  }
+
   const message = error.response?.data?.message;
   if (typeof message === 'string' && message.trim()) {
     return message;

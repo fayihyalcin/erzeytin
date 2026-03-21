@@ -409,6 +409,57 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.pc-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(22, 33, 42, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.pc-pagination p {
+  margin: 0;
+  color: rgba(22, 33, 42, 0.7);
+  font-size: 13px;
+}
+
+.pc-pagination strong {
+  color: #16212a;
+}
+
+.pc-pagination-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pc-pagination-actions button {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(22, 33, 42, 0.08);
+  border-radius: 12px;
+  background: #f8f5ef;
+  color: #16212a;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pc-pagination-actions button.active {
+  background: #0f8c80;
+  border-color: #0f8c80;
+  color: #f7faf7;
+}
+
+.pc-pagination-actions button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .pc-product-card {
   overflow: hidden;
 }
@@ -686,7 +737,8 @@
   .pc-products-toolbar,
   .pc-section-head,
   .pc-page-hero-actions,
-  .pc-category-card-actions {
+  .pc-category-card-actions,
+  .pc-pagination {
     flex-direction: column;
     align-items: stretch;
   }

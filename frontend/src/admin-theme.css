@@ -490,6 +490,25 @@ td {
   gap: 8px;
 }
 
+.admin-pagination {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-pagination-summary {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.admin-pagination-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .admin-media-inline-preview,
 .admin-media-preview {
   border-radius: 14px;
@@ -502,6 +521,119 @@ td {
 .admin-media-field {
   display: grid;
   gap: 8px;
+}
+
+.admin-accordion-section {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-accordion-toggle {
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid rgba(215, 222, 233, 0.9);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 253, 0.96));
+  box-shadow: var(--admin-shadow-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+  color: var(--admin-ink);
+}
+
+.admin-accordion-toggle.active {
+  border-color: rgba(23, 95, 88, 0.22);
+  box-shadow: 0 18px 32px rgba(12, 23, 38, 0.08);
+}
+
+.admin-accordion-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.admin-accordion-copy strong {
+  font-family: 'Sora', sans-serif;
+  font-size: 17px;
+  letter-spacing: -0.03em;
+}
+
+.admin-accordion-copy small {
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.admin-accordion-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-accordion-arrow {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #edf3fa;
+  color: var(--admin-muted-strong);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.admin-accordion-panel {
+  padding: 18px;
+}
+
+.admin-accordion-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.admin-accordion-body {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-media-browser-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-media-dropzone {
+  padding: 14px 16px;
+  border: 1px dashed rgba(23, 95, 88, 0.24);
+  border-radius: 16px;
+  background: rgba(228, 243, 239, 0.32);
+  display: grid;
+  gap: 4px;
+}
+
+.admin-media-dropzone.active,
+.admin-upload-box-active {
+  border-color: rgba(23, 95, 88, 0.5);
+  background: rgba(228, 243, 239, 0.62);
+}
+
+.admin-media-dropzone strong {
+  font-size: 13px;
+}
+
+.admin-media-dropzone p,
+.admin-media-dropzone small {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .admin-wizard-shell,
@@ -1004,6 +1136,54 @@ td {
   padding: 18px;
 }
 
+.admin-ai-seo-box {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-ai-seo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-ai-seo-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(23, 95, 88, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(240, 247, 245, 0.96));
+}
+
+.admin-ai-seo-card strong,
+.admin-ai-seo-card p {
+  margin: 0;
+  color: var(--admin-ink);
+  line-height: 1.6;
+}
+
+.admin-ai-seo-card small {
+  color: var(--admin-muted);
+}
+
+.admin-ai-seo-card button {
+  justify-self: flex-start;
+}
+
+.admin-ai-seo-card-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-ai-seo-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted-strong);
+}
+
 @media (max-width: 1180px) {
   .admin-wizard-shell,
   .admin-workbench {
@@ -1021,6 +1201,14 @@ td {
 
   .admin-settings-step-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-ai-seo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-ai-seo-card-wide {
+    grid-column: auto;
   }
 }
 
@@ -1086,7 +1274,10 @@ td {
 
   .admin-stage-actions,
   .admin-stage-actions-group,
-  .dashboard-sidebar-tags {
+  .dashboard-sidebar-tags,
+  .admin-accordion-toggle,
+  .admin-accordion-meta,
+  .admin-media-browser-header-actions {
     flex-direction: column;
     align-items: stretch;
   }

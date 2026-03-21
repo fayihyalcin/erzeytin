@@ -118,7 +118,10 @@ export function PublicStorefrontLayout({
               Tüm Kategorileri Keşfet
             </Link>
 
-            <nav className={mobileMenuOpen ? 'ps-nav ps-nav-open' : 'ps-nav'}>
+            <nav
+              aria-label="Magaza gezinme"
+              className={mobileMenuOpen ? 'ps-nav ps-nav-open' : 'ps-nav'}
+            >
               {config.navItems.map((item) => {
                 const href = resolveStoreNavItemHref(item);
                 const active = isActiveStoreHref(activePath, href);
@@ -185,7 +188,7 @@ export function PublicStorefrontLayout({
           <span>
             {config.theme.brandName} - {new Date().getFullYear()} Tüm hakları saklıdır.
           </span>
-          <div className="ps-footer-legal">
+          <div className="ps-footer-legal" aria-label="Yasal baglantilar">
             {[
               { label: config.legalPages.kvkk.title, href: '/kvkk' },
               { label: config.legalPages.privacy.title, href: '/gizlilik' },

@@ -16,6 +16,7 @@ const STORAGE_KEY = 'zeytin_store_cart_v1';
 
 interface CartProductSnapshot {
   id: string;
+  slug: string | null;
   sku: string;
   name: string;
   price: string;
@@ -50,6 +51,7 @@ function toProductSnapshot(product: Product): CartProductSnapshot {
 
   return {
     id: product.id,
+    slug: product.slug ?? null,
     sku: product.sku,
     name: product.name,
     price: String(product.price ?? '0'),
@@ -127,6 +129,10 @@ function loadInitialCart() {
           product: {
             ...item.product,
             sku: String(item.product.sku ?? ''),
+            slug:
+              typeof item.product.slug === 'string' && item.product.slug.trim().length > 0
+                ? item.product.slug
+                : null,
             featuredImage: normalizedFeaturedImage,
             images: resolveProductGallery(
               {

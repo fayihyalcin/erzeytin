@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { PublicBreadcrumbs } from '../components/public/PublicBreadcrumbs';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
 import {
   resolveProductGallery as resolveCatalogProductGallery,
   resolveProductImage as resolveCatalogProductImage,
 } from '../lib/product-images';
+import {
+  resolvePublicCategoryFilterPath,
+  resolvePublicProductPath,
+} from '../lib/public-site';
+import {
+  buildBreadcrumbSchema,
+  buildPageTitle,
+  buildProductSchema,
+  buildWebPageSchema,
+  summarizeText,
+  toAbsoluteSiteUrl,
+} from '../lib/public-seo';
+import { useSeo } from '../lib/seo';
 import type { Product, PublicSettingsDto } from '../types/api';
 import './StorefrontPage.css';
 import './ProductDetailPage.css';
@@ -115,11 +129,11 @@ function RelatedProductCard({
 
   return (
     <article className="sf-related-card">
-      <Link to={`/product/${product.id}`} className="sf-related-media">
+      <Link to={resolvePublicProductPath(product)} className="sf-related-media">
         <img src={resolveProductImage(product)} alt={product.name} />
       </Link>
       <h4>
-        <Link to={`/product/${product.id}`}>{product.name}</Link>
+        <Link to={resolvePublicProductPath(product)}>{product.name}</Link>
       </h4>
       <p>{product.category?.name || 'Zeytin ve Zeytinyağı'}</p>
       <div className="sf-related-price">
@@ -136,7 +150,7 @@ function RelatedProductCard({
 
 interface DetailContentProps {
   product: Product;
-  products: Product[];
+  relatedProducts: Product[];
   formatter: Intl.NumberFormat;
   onAddProduct: (product: Product, quantity?: number) => void;
   onBuyNow: (product: Product, quantity: number) => void;
@@ -144,7 +158,7 @@ interface DetailContentProps {
 
 function ProductDetailContent({
   product,
-  products,
+  relatedProducts,
   formatter,
   onAddProduct,
   onBuyNow,
@@ -173,23 +187,6 @@ function ProductDetailContent({
     product.shortDescription ||
     product.description ||
     `${product.name} için taze dolum ve güvenli teslimat seçeneği.`;
-
-  const relatedProducts = useMemo(() => {
-    const sameCategory = products.filter(
-      (candidate) =>
-        candidate.id !== product.id &&
-        candidate.category?.id &&
-        product.category?.id &&
-        candidate.category.id === product.category.id,
-    );
-
-    if (sameCategory.length >= 6) {
-      return sameCategory.slice(0, 12);
-    }
-
-    const fallback = products.filter((candidate) => candidate.id !== product.id);
-    return [...sameCategory, ...fallback].slice(0, 12);
-  }, [product, products]);
 
   const safeRelatedStart =
     relatedProducts.length > 0 ? ((relatedStart % relatedProducts.length) + relatedProducts.length) % relatedProducts.length : 0;
@@ -318,6 +315,21 @@ function ProductDetailContent({
   return (
     <div className="storefront-page sf-pd-page">
       <div className="sf-container">
+        <PublicBreadcrumbs
+          items={[
+            { label: 'Ana Sayfa', href: '/' },
+            { label: 'Urunler', href: '/urunler' },
+            ...(product.category
+              ? [
+                  {
+                    label: product.category.name,
+                    href: resolvePublicCategoryFilterPath(product.category.slug),
+                  },
+                ]
+              : []),
+            { label: product.name },
+          ]}
+        />
         <header className="sf-pd-head">
           <h1>{product.name}</h1>
           <p>{shortSummary}</p>
@@ -350,7 +362,13 @@ function ProductDetailContent({
                 <span>Zoom</span>
               </button>
 
-              <img src={selectedImage} alt={product.name} onClick={openZoom} />
+              <img
+                src={selectedImage}
+                alt={product.name}
+                decoding="async"
+                fetchPriority="high"
+                onClick={openZoom}
+              />
 
               {galleryImages.length > 1 ? (
                 <button className="sf-pd-main-arrow right" type="button" onClick={goToNextImage} aria-label="Sonraki görsel">
@@ -618,13 +636,17 @@ function ProductDetailContent({
 }
 
 export function ProductDetailPage() {
-  const { productId } = useParams();
+  const { productId, productSlug } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { addProduct } = useStoreCart();
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [settings, setSettings] = useState<PublicSettingsDto | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [currency, setCurrency] = useState('TRY');
+  const productReference = productSlug ?? productId ?? '';
 
   useEffect(() => {
     document.body.classList.add('storefront-body');
@@ -634,32 +656,63 @@ export function ProductDetailPage() {
   }, []);
 
   useEffect(() => {
+    if (!productReference) {
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
 
-    Promise.all([
-      api.get<PublicSettingsDto>('/settings/public'),
-      api.get<Product[]>('/catalog/public/products'),
-    ])
-      .then(([settingsResponse, productsResponse]) => {
+    const load = async () => {
+      setLoading(true);
+
+      try {
+        const [settingsResponse, productResponse] = await Promise.all([
+          api.get<PublicSettingsDto>('/settings/public'),
+          api.get<Product>(
+            `/catalog/public/products/resolve/${encodeURIComponent(productReference)}`,
+          ),
+        ]);
+
+        const relatedResponse = await api.get<Product[]>(
+          `/catalog/public/products/${productResponse.data.id}/related`,
+          {
+            params: {
+              limit: 12,
+            },
+          },
+        );
+
         if (!mounted) {
           return;
         }
 
-        setProducts(productsResponse.data);
+        setSettings(settingsResponse.data);
+        setProduct(productResponse.data);
+        setRelatedProducts(relatedResponse.data);
         if (settingsResponse.data.currency) {
           setCurrency(settingsResponse.data.currency.toUpperCase());
         }
-      })
-      .finally(() => {
+      } catch {
+        if (!mounted) {
+          return;
+        }
+
+        setProduct(null);
+        setRelatedProducts([]);
+      } finally {
         if (mounted) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    void load();
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [productReference]);
 
   const formatter = useMemo(() => {
     try {
@@ -677,10 +730,78 @@ export function ProductDetailPage() {
     }
   }, [currency]);
 
-  const product = useMemo(
-    () => products.find((item) => item.id === productId) ?? null,
-    [products, productId],
+  useEffect(() => {
+    if (!product) {
+      return;
+    }
+
+    const canonicalPath = resolvePublicProductPath(product);
+    if (location.pathname !== canonicalPath) {
+      navigate(canonicalPath, { replace: true });
+    }
+  }, [location.pathname, navigate, product]);
+
+  const siteUrl = settings?.siteUrl ?? null;
+  const siteName = settings?.storeName?.trim() || 'Er Zeytincilik';
+  const pageDescription = summarizeText(
+    product?.seoDescription ||
+      product?.shortDescription ||
+      product?.description ||
+      'Urun detayi ve satin alma bilgileri.',
+    155,
   );
+  const canonicalUrl = product
+    ? toAbsoluteSiteUrl(siteUrl, resolvePublicProductPath(product))
+    : toAbsoluteSiteUrl(siteUrl, '/urunler');
+  const productImageUrls = product
+    ? uniqueGalleryImages(product).map((image) => toAbsoluteSiteUrl(siteUrl, image))
+    : [];
+
+  useSeo({
+    title: buildPageTitle(product?.seoTitle || product?.name || 'Urun detayi', siteName),
+    description: pageDescription,
+    canonicalUrl,
+    robots: product ? 'index,follow,max-image-preview:large' : 'noindex,follow',
+    keywords: product?.seoKeywords ?? [],
+    siteName,
+    type: 'product',
+    imageUrl: productImageUrls[0],
+    jsonLd: product
+      ? [
+          buildWebPageSchema({
+            siteUrl,
+            path: resolvePublicProductPath(product),
+            title: product.name,
+            description: pageDescription,
+          }),
+          buildProductSchema({
+            siteUrl,
+            path: resolvePublicProductPath(product),
+            product,
+            brandName: siteName,
+            description: pageDescription,
+            currency,
+            imageUrls: productImageUrls,
+          }),
+          buildBreadcrumbSchema(siteUrl, [
+            { name: 'Ana Sayfa', path: '/' },
+            { name: 'Urunler', path: '/urunler' },
+            ...(product.category
+              ? [
+                  {
+                    name: product.category.name,
+                    path: resolvePublicCategoryFilterPath(product.category.slug),
+                  },
+                ]
+              : []),
+            {
+              name: product.name,
+              path: resolvePublicProductPath(product),
+            },
+          ]),
+        ]
+      : undefined,
+  });
 
   if (loading) {
     return <div className="storefront-loading">Ürün detayı yükleniyor...</div>;
@@ -702,7 +823,7 @@ export function ProductDetailPage() {
     <ProductDetailContent
       key={product.id}
       product={product}
-      products={products}
+      relatedProducts={relatedProducts}
       formatter={formatter}
       onAddProduct={addProduct}
       onBuyNow={(target, quantity) => {

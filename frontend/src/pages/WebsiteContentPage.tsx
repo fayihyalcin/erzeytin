@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AdminAccordionSection } from '../components/admin/AdminAccordionSection';
 import { MediaPickerField } from '../components/admin/MediaPickerField';
 import { parseMediaLibrary } from '../lib/admin-content';
 import { fetchSettingsRecord, updateSettingsRecord } from '../lib/admin-settings';
@@ -51,6 +52,29 @@ const emptyFooterColumn = (): WebsiteFooterColumn => ({ title: '', links: [empty
 const emptyLegalSection = (): WebsiteLegalSection => ({ heading: '', body: '' });
 const emptyManagedHighlight = () => '';
 
+type WebsiteSectionId =
+  | 'branding'
+  | 'nav'
+  | 'hero'
+  | 'pages'
+  | 'campaigns'
+  | 'home'
+  | 'ribbonContact'
+  | 'footer'
+  | 'legal';
+
+const WEBSITE_SECTION_TITLES: Record<WebsiteSectionId, string> = {
+  branding: 'Marka ve iletisim',
+  nav: 'Ust menu',
+  hero: 'Hero slider',
+  pages: 'Magaza sayfalari',
+  campaigns: 'Kampanya kartlari',
+  home: 'Bolum basliklari ve avantajlar',
+  ribbonContact: 'Ribbon ve iletisim sayfasi',
+  footer: 'Footer linkleri',
+  legal: 'Yasal sayfalar',
+};
+
 function replaceAtIndex<T>(list: T[], index: number, value: T) {
   return list.map((item, itemIndex) => (itemIndex === index ? value : item));
 }
@@ -63,12 +87,143 @@ function cloneLegalDocument(document: WebsiteLegalDocument): WebsiteLegalDocumen
   };
 }
 
+function cloneManagedPage(page: WebsiteManagedPageContent): WebsiteManagedPageContent {
+  return {
+    ...page,
+    highlights: [...page.highlights],
+  };
+}
+
+function cloneFooterColumns(columns: WebsiteFooterColumn[]): WebsiteFooterColumn[] {
+  return columns.map((column) => ({
+    ...column,
+    links: column.links.map((link) => ({ ...link })),
+  }));
+}
+
+function readSectionSnapshot(config: WebsiteConfig, sectionId: WebsiteSectionId) {
+  switch (sectionId) {
+    case 'branding':
+      return {
+        announcement: config.announcement,
+        contact: { ...config.contact },
+        theme: { ...config.theme },
+      };
+    case 'nav':
+      return config.navItems.map((item) => ({ ...item }));
+    case 'hero':
+      return config.heroSlides.map((slide) => ({ ...slide }));
+    case 'pages':
+      return {
+        campaigns: cloneManagedPage(config.pages.campaigns),
+        categories: cloneManagedPage(config.pages.categories),
+        products: cloneManagedPage(config.pages.products),
+      };
+    case 'campaigns':
+      return {
+        parallaxCards: config.parallaxCards.map((card) => ({ ...card })),
+        promoCards: config.promoCards.map((card) => ({ ...card })),
+      };
+    case 'home':
+      return {
+        featureItems: config.featureItems.map((item) => ({ ...item })),
+        homeSections: { ...config.homeSections },
+        newsletterDescription: config.newsletterDescription,
+        newsletterTitle: config.newsletterTitle,
+      };
+    case 'ribbonContact':
+      return {
+        contactPage: { ...config.contactPage },
+        ribbon: { ...config.ribbon },
+      };
+    case 'footer':
+      return cloneFooterColumns(config.footerColumns);
+    case 'legal':
+      return {
+        kvkk: cloneLegalDocument(config.legalPages.kvkk),
+        privacy: cloneLegalDocument(config.legalPages.privacy),
+        sales: cloneLegalDocument(config.legalPages.sales),
+      };
+  }
+}
+
+function mergeSavedSection(
+  baseConfig: WebsiteConfig,
+  currentConfig: WebsiteConfig,
+  sectionId: WebsiteSectionId,
+): WebsiteConfig {
+  switch (sectionId) {
+    case 'branding':
+      return {
+        ...baseConfig,
+        announcement: currentConfig.announcement,
+        contact: { ...currentConfig.contact },
+        theme: { ...currentConfig.theme },
+      };
+    case 'nav':
+      return {
+        ...baseConfig,
+        navItems: currentConfig.navItems.map((item) => ({ ...item })),
+      };
+    case 'hero':
+      return {
+        ...baseConfig,
+        heroSlides: currentConfig.heroSlides.map((slide) => ({ ...slide })),
+      };
+    case 'pages':
+      return {
+        ...baseConfig,
+        pages: {
+          campaigns: cloneManagedPage(currentConfig.pages.campaigns),
+          categories: cloneManagedPage(currentConfig.pages.categories),
+          products: cloneManagedPage(currentConfig.pages.products),
+        },
+      };
+    case 'campaigns':
+      return {
+        ...baseConfig,
+        parallaxCards: currentConfig.parallaxCards.map((card) => ({ ...card })),
+        promoCards: currentConfig.promoCards.map((card) => ({ ...card })),
+      };
+    case 'home':
+      return {
+        ...baseConfig,
+        featureItems: currentConfig.featureItems.map((item) => ({ ...item })),
+        homeSections: { ...currentConfig.homeSections },
+        newsletterDescription: currentConfig.newsletterDescription,
+        newsletterTitle: currentConfig.newsletterTitle,
+      };
+    case 'ribbonContact':
+      return {
+        ...baseConfig,
+        contactPage: { ...currentConfig.contactPage },
+        ribbon: { ...currentConfig.ribbon },
+      };
+    case 'footer':
+      return {
+        ...baseConfig,
+        footerColumns: cloneFooterColumns(currentConfig.footerColumns),
+      };
+    case 'legal':
+      return {
+        ...baseConfig,
+        legalPages: {
+          kvkk: cloneLegalDocument(currentConfig.legalPages.kvkk),
+          privacy: cloneLegalDocument(currentConfig.legalPages.privacy),
+          sales: cloneLegalDocument(currentConfig.legalPages.sales),
+        },
+      };
+  }
+}
+
 export function WebsiteContentPage() {
   const [form, setForm] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
+  const [savedForm, setSavedForm] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingSection, setSavingSection] = useState<WebsiteSectionId | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [openSection, setOpenSection] = useState<WebsiteSectionId | null>('branding');
 
   useEffect(() => {
     let mounted = true;
@@ -81,7 +236,9 @@ export function WebsiteContentPage() {
           return;
         }
 
-        setForm(parseWebsiteConfig(settings.websiteConfig));
+        const parsedConfig = parseWebsiteConfig(settings.websiteConfig);
+        setForm(parsedConfig);
+        setSavedForm(parsedConfig);
         setMediaItems(parseMediaLibrary(settings.mediaLibrary));
       } catch {
         if (mounted) {
@@ -114,20 +271,34 @@ export function WebsiteContentPage() {
     }));
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSaving(true);
+  const sectionDirtyMap = useMemo(
+    () =>
+      (Object.keys(WEBSITE_SECTION_TITLES) as WebsiteSectionId[]).reduce<
+        Record<WebsiteSectionId, boolean>
+      >((accumulator, sectionId) => {
+        accumulator[sectionId] =
+          JSON.stringify(readSectionSnapshot(form, sectionId)) !==
+          JSON.stringify(readSectionSnapshot(savedForm, sectionId));
+        return accumulator;
+      }, {} as Record<WebsiteSectionId, boolean>),
+    [form, savedForm],
+  );
+
+  const handleSectionSave = async (sectionId: WebsiteSectionId) => {
+    setSavingSection(sectionId);
     setMessage(null);
 
     try {
+      const nextSavedForm = mergeSavedSection(savedForm, form, sectionId);
       await updateSettingsRecord({
-        websiteConfig: JSON.stringify(form),
+        websiteConfig: JSON.stringify(nextSavedForm),
       });
-      setMessage('Website icerigi kaydedildi.');
+      setSavedForm(nextSavedForm);
+      setMessage(`${WEBSITE_SECTION_TITLES[sectionId]} guncellendi.`);
     } catch {
-      setMessage('Website icerigi kaydedilemedi.');
+      setMessage(`${WEBSITE_SECTION_TITLES[sectionId]} kaydedilemedi.`);
     } finally {
-      setSaving(false);
+      setSavingSection(null);
     }
   };
 
@@ -136,7 +307,7 @@ export function WebsiteContentPage() {
   }
 
   return (
-    <form className="admin-page-stack" onSubmit={handleSubmit}>
+    <div className="admin-page-stack">
       <section className="admin-page-header">
         <div>
           <span className="admin-eyebrow">CMS / Site icerigi</span>
@@ -147,14 +318,16 @@ export function WebsiteContentPage() {
 
       {message ? <p className="message">{message}</p> : null}
 
-      <section className="admin-panel">
-        <div className="admin-panel-header">
-          <div>
-            <h3>Marka ve iletisim</h3>
-            <p>Header, top bar ve iletisim sayfasinda kullanilan alanlar.</p>
-          </div>
-        </div>
-
+      <AdminAccordionSection
+        description="Header, top bar ve iletisim sayfasinda kullanilan alanlar."
+        dirty={sectionDirtyMap.branding}
+        isOpen={openSection === 'branding'}
+        onSave={() => void handleSectionSave('branding')}
+        onToggle={() => setOpenSection((current) => (current === 'branding' ? null : 'branding'))}
+        saveDisabled={!sectionDirtyMap.branding}
+        saving={savingSection === 'branding'}
+        title="Marka ve iletisim"
+      >
         <div className="admin-form-grid">
           <label className="admin-label">
             <span>Marka adi</span>
@@ -201,18 +374,27 @@ export function WebsiteContentPage() {
             <input className="admin-input" onChange={(event) => setForm({ ...form, contact: { ...form.contact, mapsEmbedUrl: event.target.value } })} value={form.contact.mapsEmbedUrl} />
           </label>
         </div>
-      </section>
+      </AdminAccordionSection>
 
-      <section className="admin-panel">
-        <div className="admin-panel-header">
-          <div>
-            <h3>Ust menu</h3>
-            <p>Header navigasyonunda gosterilecek baglantilar.</p>
-          </div>
-          <button className="admin-secondary-button" onClick={() => setForm({ ...form, navItems: [...form.navItems, emptyNavItem()] })} type="button">
+      <AdminAccordionSection
+        actions={
+          <button
+            className="admin-secondary-button"
+            onClick={() => setForm({ ...form, navItems: [...form.navItems, emptyNavItem()] })}
+            type="button"
+          >
             Link ekle
           </button>
-        </div>
+        }
+        description="Header navigasyonunda gosterilecek baglantilar."
+        dirty={sectionDirtyMap.nav}
+        isOpen={openSection === 'nav'}
+        onSave={() => void handleSectionSave('nav')}
+        onToggle={() => setOpenSection((current) => (current === 'nav' ? null : 'nav'))}
+        saveDisabled={!sectionDirtyMap.nav}
+        saving={savingSection === 'nav'}
+        title="Ust menu"
+      >
         <div className="variant-list">
           {form.navItems.map((item, index) => (
             <div className="variant-item" key={`${item.label}-${index}`}>
@@ -230,18 +412,27 @@ export function WebsiteContentPage() {
             </div>
           ))}
         </div>
-      </section>
+      </AdminAccordionSection>
 
-      <section className="admin-panel">
-        <div className="admin-panel-header">
-          <div>
-            <h3>Hero slider</h3>
-            <p>Anasayfadaki ana vitrin alanlari.</p>
-          </div>
-          <button className="admin-secondary-button" onClick={() => setForm({ ...form, heroSlides: [...form.heroSlides, emptyHeroSlide()] })} type="button">
+      <AdminAccordionSection
+        actions={
+          <button
+            className="admin-secondary-button"
+            onClick={() => setForm({ ...form, heroSlides: [...form.heroSlides, emptyHeroSlide()] })}
+            type="button"
+          >
             Slide ekle
           </button>
-        </div>
+        }
+        description="Anasayfadaki ana vitrin alanlari."
+        dirty={sectionDirtyMap.hero}
+        isOpen={openSection === 'hero'}
+        onSave={() => void handleSectionSave('hero')}
+        onToggle={() => setOpenSection((current) => (current === 'hero' ? null : 'hero'))}
+        saveDisabled={!sectionDirtyMap.hero}
+        saving={savingSection === 'hero'}
+        title="Hero slider"
+      >
         <div className="variant-list">
           {form.heroSlides.map((slide, index) => (
             <div className="admin-panel" key={`${slide.title}-${index}`}>
@@ -272,6 +463,7 @@ export function WebsiteContentPage() {
                 </label>
                 <MediaPickerField
                   items={mediaItems}
+                  onItemsChange={setMediaItems}
                   label="Hero gorseli"
                   onChange={(value) =>
                     setForm({
@@ -285,6 +477,7 @@ export function WebsiteContentPage() {
                   allowedTypes={['video']}
                   helperText="Bu alan doluysa slide gorsel yerine video olarak oynatilir."
                   items={mediaItems}
+                  onItemsChange={setMediaItems}
                   label="Hero videosu (opsiyonel)"
                   onChange={(value) =>
                     setForm({
@@ -298,6 +491,7 @@ export function WebsiteContentPage() {
                   allowedTypes={['image']}
                   helperText="Video kullanildiginda ilk acilista gosterilecek kapak gorseli."
                   items={mediaItems}
+                  onItemsChange={setMediaItems}
                   label="Video kapak gorseli (opsiyonel)"
                   onChange={(value) =>
                     setForm({
@@ -316,16 +510,18 @@ export function WebsiteContentPage() {
             </div>
           ))}
         </div>
-      </section>
+      </AdminAccordionSection>
 
-      <section className="admin-panel">
-        <div className="admin-panel-header">
-          <div>
-            <h3>Magaza sayfalari</h3>
-            <p>Kategoriler, urunler ve kampanyalar sayfalarinin hero, CTA ve medya alanlari.</p>
-          </div>
-        </div>
-
+      <AdminAccordionSection
+        description="Kategoriler, urunler ve kampanyalar sayfalarinin hero, CTA ve medya alanlari."
+        dirty={sectionDirtyMap.pages}
+        isOpen={openSection === 'pages'}
+        onSave={() => void handleSectionSave('pages')}
+        onToggle={() => setOpenSection((current) => (current === 'pages' ? null : 'pages'))}
+        saveDisabled={!sectionDirtyMap.pages}
+        saving={savingSection === 'pages'}
+        title="Magaza sayfalari"
+      >
         <div className="variant-list">
           {([
             ['categories', 'Kategoriler sayfasi'],
@@ -446,6 +642,7 @@ export function WebsiteContentPage() {
                   </label>
                   <MediaPickerField
                     items={mediaItems}
+                    onItemsChange={setMediaItems}
                     label="Sayfa gorseli"
                     onChange={(value) => updateManagedPage(key, { ...page, mediaUrl: value })}
                     value={page.mediaUrl}
@@ -454,6 +651,7 @@ export function WebsiteContentPage() {
                     allowedTypes={['video']}
                     helperText="Dilerseniz sayfa hero alaninda video oynatabilirsiniz."
                     items={mediaItems}
+                    onItemsChange={setMediaItems}
                     label="Sayfa videosu (opsiyonel)"
                     onChange={(value) => updateManagedPage(key, { ...page, videoUrl: value })}
                     value={page.videoUrl}
@@ -462,6 +660,7 @@ export function WebsiteContentPage() {
                     allowedTypes={['image']}
                     helperText="Video icin kapak gorseli."
                     items={mediaItems}
+                    onItemsChange={setMediaItems}
                     label="Video poster (opsiyonel)"
                     onChange={(value) => updateManagedPage(key, { ...page, posterUrl: value })}
                     value={page.posterUrl}
@@ -506,32 +705,36 @@ export function WebsiteContentPage() {
             );
           })}
         </div>
-      </section>
+      </AdminAccordionSection>
 
-      <section className="admin-overview-grid">
-        <article className="admin-panel">
-          <div className="admin-panel-header">
-            <div>
-              <h3>Kampanya kartlari</h3>
-              <p>Parallax ve promo alanlarinda kullanilan gorsel bloklar.</p>
-            </div>
-            <div className="admin-form-actions">
-              <button
-                className="admin-secondary-button"
-                onClick={() => setForm({ ...form, parallaxCards: [...form.parallaxCards, emptyParallaxCard()] })}
-                type="button"
-              >
-                Parallax kart ekle
-              </button>
-              <button
-                className="admin-secondary-button"
-                onClick={() => setForm({ ...form, promoCards: [...form.promoCards, emptyPromoCard()] })}
-                type="button"
-              >
-                Promo kart ekle
-              </button>
-            </div>
-          </div>
+      <AdminAccordionSection
+        actions={
+          <>
+            <button
+              className="admin-secondary-button"
+              onClick={() => setForm({ ...form, parallaxCards: [...form.parallaxCards, emptyParallaxCard()] })}
+              type="button"
+            >
+              Parallax kart ekle
+            </button>
+            <button
+              className="admin-secondary-button"
+              onClick={() => setForm({ ...form, promoCards: [...form.promoCards, emptyPromoCard()] })}
+              type="button"
+            >
+              Promo kart ekle
+            </button>
+          </>
+        }
+        description="Parallax ve promo alanlarinda kullanilan gorsel bloklar."
+        dirty={sectionDirtyMap.campaigns}
+        isOpen={openSection === 'campaigns'}
+        onSave={() => void handleSectionSave('campaigns')}
+        onToggle={() => setOpenSection((current) => (current === 'campaigns' ? null : 'campaigns'))}
+        saveDisabled={!sectionDirtyMap.campaigns}
+        saving={savingSection === 'campaigns'}
+        title="Kampanya kartlari"
+      >
 
           <div className="variant-list">
             {form.parallaxCards.map((card, index) => (
@@ -553,7 +756,7 @@ export function WebsiteContentPage() {
                     <span>Link</span>
                     <input className="admin-input" onChange={(event) => setForm({ ...form, parallaxCards: replaceAtIndex(form.parallaxCards, index, { ...card, ctaHref: event.target.value }) })} value={card.ctaHref} />
                   </label>
-                  <MediaPickerField items={mediaItems} label="Gorsel" onChange={(value) => setForm({ ...form, parallaxCards: replaceAtIndex(form.parallaxCards, index, { ...card, imageUrl: value }) })} value={card.imageUrl} />
+                  <MediaPickerField items={mediaItems} label="Gorsel" onItemsChange={setMediaItems} onChange={(value) => setForm({ ...form, parallaxCards: replaceAtIndex(form.parallaxCards, index, { ...card, imageUrl: value }) })} value={card.imageUrl} />
                 </div>
                 <div className="admin-form-actions" style={{ marginTop: 12 }}>
                   <button
@@ -591,7 +794,7 @@ export function WebsiteContentPage() {
                     <span>Link</span>
                     <input className="admin-input" onChange={(event) => setForm({ ...form, promoCards: replaceAtIndex(form.promoCards, index, { ...card, ctaHref: event.target.value }) })} value={card.ctaHref} />
                   </label>
-                  <MediaPickerField items={mediaItems} label="Promo gorseli" onChange={(value) => setForm({ ...form, promoCards: replaceAtIndex(form.promoCards, index, { ...card, imageUrl: value }) })} value={card.imageUrl} />
+                  <MediaPickerField items={mediaItems} label="Promo gorseli" onItemsChange={setMediaItems} onChange={(value) => setForm({ ...form, promoCards: replaceAtIndex(form.promoCards, index, { ...card, imageUrl: value }) })} value={card.imageUrl} />
                 </div>
                 <div className="admin-form-actions" style={{ marginTop: 12 }}>
                   <button
@@ -610,22 +813,27 @@ export function WebsiteContentPage() {
               </div>
             ))}
           </div>
-        </article>
+      </AdminAccordionSection>
 
-        <article className="admin-panel">
-          <div className="admin-panel-header">
-            <div>
-              <h3>Bolum basliklari ve avantajlar</h3>
-              <p>Anasayfadaki urun bloklari, newsletter ve avantaj kartlari.</p>
-            </div>
-            <button
-              className="admin-secondary-button"
-              onClick={() => setForm({ ...form, featureItems: [...form.featureItems, emptyFeatureItem()] })}
-              type="button"
-            >
-              Avantaj karti ekle
-            </button>
-          </div>
+      <AdminAccordionSection
+        actions={
+          <button
+            className="admin-secondary-button"
+            onClick={() => setForm({ ...form, featureItems: [...form.featureItems, emptyFeatureItem()] })}
+            type="button"
+          >
+            Avantaj karti ekle
+          </button>
+        }
+        description="Anasayfadaki urun bloklari, newsletter ve avantaj kartlari."
+        dirty={sectionDirtyMap.home}
+        isOpen={openSection === 'home'}
+        onSave={() => void handleSectionSave('home')}
+        onToggle={() => setOpenSection((current) => (current === 'home' ? null : 'home'))}
+        saveDisabled={!sectionDirtyMap.home}
+        saving={savingSection === 'home'}
+        title="Bolum basliklari ve avantajlar"
+      >
 
           <div className="admin-form-grid">
             <label className="admin-label">
@@ -692,17 +900,20 @@ export function WebsiteContentPage() {
               </div>
             ))}
           </div>
-        </article>
-      </section>
+      </AdminAccordionSection>
 
-      <section className="admin-overview-grid">
-        <article className="admin-panel">
-          <div className="admin-panel-header">
-            <div>
-              <h3>Ribbon ve iletisim sayfasi</h3>
-              <p>Kampanya seridi ve iletisim sayfasinin metinleri.</p>
-            </div>
-          </div>
+      <AdminAccordionSection
+        description="Kampanya seridi ve iletisim sayfasinin metinleri."
+        dirty={sectionDirtyMap.ribbonContact}
+        isOpen={openSection === 'ribbonContact'}
+        onSave={() => void handleSectionSave('ribbonContact')}
+        onToggle={() =>
+          setOpenSection((current) => (current === 'ribbonContact' ? null : 'ribbonContact'))
+        }
+        saveDisabled={!sectionDirtyMap.ribbonContact}
+        saving={savingSection === 'ribbonContact'}
+        title="Ribbon ve iletisim sayfasi"
+      >
           <div className="admin-form-grid">
             <label className="admin-label">
               <span>Ribbon ust baslik</span>
@@ -720,7 +931,7 @@ export function WebsiteContentPage() {
               <span>Ribbon link</span>
               <input className="admin-input" onChange={(event) => setForm({ ...form, ribbon: { ...form.ribbon, ctaHref: event.target.value } })} value={form.ribbon.ctaHref} />
             </label>
-            <MediaPickerField items={mediaItems} label="Ribbon gorseli" onChange={(value) => setForm({ ...form, ribbon: { ...form.ribbon, imageUrl: value } })} value={form.ribbon.imageUrl} />
+            <MediaPickerField items={mediaItems} label="Ribbon gorseli" onItemsChange={setMediaItems} onChange={(value) => setForm({ ...form, ribbon: { ...form.ribbon, imageUrl: value } })} value={form.ribbon.imageUrl} />
             <label className="admin-label">
               <span>Iletisim hero rozeti</span>
               <input className="admin-input" onChange={(event) => setForm({ ...form, contactPage: { ...form.contactPage, badge: event.target.value } })} value={form.contactPage.badge} />
@@ -754,18 +965,27 @@ export function WebsiteContentPage() {
               <textarea className="admin-textarea" onChange={(event) => setForm({ ...form, contactPage: { ...form.contactPage, formDescription: event.target.value } })} rows={3} value={form.contactPage.formDescription} />
             </label>
           </div>
-        </article>
+      </AdminAccordionSection>
 
-        <article className="admin-panel">
-          <div className="admin-panel-header">
-            <div>
-              <h3>Footer linkleri</h3>
-              <p>Footer kolonlari ve menu baglantilari.</p>
-            </div>
-            <button className="admin-secondary-button" onClick={() => setForm({ ...form, footerColumns: [...form.footerColumns, emptyFooterColumn()] })} type="button">
-              Kolon ekle
-            </button>
-          </div>
+      <AdminAccordionSection
+        actions={
+          <button
+            className="admin-secondary-button"
+            onClick={() => setForm({ ...form, footerColumns: [...form.footerColumns, emptyFooterColumn()] })}
+            type="button"
+          >
+            Kolon ekle
+          </button>
+        }
+        description="Footer kolonlari ve menu baglantilari."
+        dirty={sectionDirtyMap.footer}
+        isOpen={openSection === 'footer'}
+        onSave={() => void handleSectionSave('footer')}
+        onToggle={() => setOpenSection((current) => (current === 'footer' ? null : 'footer'))}
+        saveDisabled={!sectionDirtyMap.footer}
+        saving={savingSection === 'footer'}
+        title="Footer linkleri"
+      >
           <div className="variant-list">
             {form.footerColumns.map((column, columnIndex) => (
               <div className="admin-panel" key={`${column.title}-${columnIndex}`}>
@@ -804,17 +1024,18 @@ export function WebsiteContentPage() {
               </div>
             ))}
           </div>
-        </article>
-      </section>
+      </AdminAccordionSection>
 
-      <section className="admin-panel">
-        <div className="admin-panel-header">
-          <div>
-            <h3>Yasal sayfalar</h3>
-            <p>KVKK, gizlilik ve satis sozlesmesi metinlerini yonetin.</p>
-          </div>
-        </div>
-
+      <AdminAccordionSection
+        description="KVKK, gizlilik ve satis sozlesmesi metinlerini yonetin."
+        dirty={sectionDirtyMap.legal}
+        isOpen={openSection === 'legal'}
+        onSave={() => void handleSectionSave('legal')}
+        onToggle={() => setOpenSection((current) => (current === 'legal' ? null : 'legal'))}
+        saveDisabled={!sectionDirtyMap.legal}
+        saving={savingSection === 'legal'}
+        title="Yasal sayfalar"
+      >
         <div className="variant-list">
           {([
             ['kvkk', 'KVKK'],
@@ -960,13 +1181,7 @@ export function WebsiteContentPage() {
             );
           })}
         </div>
-      </section>
-
-      <div className="admin-form-actions">
-        <button className="admin-primary-button" disabled={saving} type="submit">
-          {saving ? 'Kaydediliyor...' : 'Website icerigini kaydet'}
-        </button>
-      </div>
-    </form>
+      </AdminAccordionSection>
+    </div>
   );
 }

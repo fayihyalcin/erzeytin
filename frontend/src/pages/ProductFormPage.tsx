@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { AiSeoAssistant } from '../components/admin/AiSeoAssistant';
 import { AdminFormWizard, type AdminWizardStep } from '../components/admin/AdminFormWizard';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MediaBrowser } from '../components/admin/MediaBrowser';
-import { parseMediaLibrary } from '../lib/admin-content';
+import { parseMediaLibrary, slugify } from '../lib/admin-content';
 import { fetchSettingsRecord, updateMediaLibrary } from '../lib/admin-settings';
+import { createAiSeoSuggestions } from '../lib/ai-seo';
 import { api, extractApiError } from '../lib/api';
 import {
   createMediaItemFromUpload,
@@ -13,6 +15,7 @@ import {
 import type {
   Category,
   MediaItem,
+  PaginatedResponse,
   Product,
   ProductExpenseItem,
   ProductPricingPolicy,
@@ -46,6 +49,7 @@ type PolicyForm = {
 
 type ProductFormState = {
   name: string;
+  slug: string;
   sku: string;
   categoryId: string;
   barcode: string;
@@ -79,6 +83,7 @@ type ProductFormState = {
 
 const defaultForm: ProductFormState = {
   name: '',
+  slug: '',
   sku: '',
   categoryId: '',
   barcode: '',
@@ -240,6 +245,7 @@ const calculateSummary = (input: {
 const toForm = (product: Product): ProductFormState => ({
   ...defaultForm,
   name: product.name,
+  slug: product.slug ?? '',
   sku: product.sku,
   categoryId: product.category?.id ?? '',
   barcode: product.barcode ?? '',
@@ -329,16 +335,20 @@ export function ProductFormPage() {
       try {
         const [settings, categoryResponse, productResponse] = await Promise.all([
           fetchSettingsRecord(),
-          api.get<Category[]>('/catalog/categories'),
-          api.get<Product[]>('/catalog/products'),
+          api.get<PaginatedResponse<Category>>('/catalog/categories', {
+            params: { page: 1, pageSize: 200 },
+          }),
+          productId
+            ? api.get<Product>(`/catalog/products/${productId}`)
+            : Promise.resolve<{ data: Product | null }>({ data: null }),
         ]);
         if (!mounted) {
           return;
         }
-        setCategories(categoryResponse.data);
+        setCategories(categoryResponse.data.items);
         setMediaItems(parseMediaLibrary(settings.mediaLibrary));
         if (productId) {
-          const found = productResponse.data.find((item) => item.id === productId);
+          const found = productResponse.data;
           if (!found) {
             setMessage('Urun bulunamadi.');
             setEditingId(null);
@@ -495,6 +505,7 @@ export function ProductFormPage() {
 
     const payload = {
       name: form.name.trim(),
+      slug: form.slug.trim() || undefined,
       sku: form.sku.trim(),
       categoryId: form.categoryId || '',
       barcode: form.barcode,
@@ -542,6 +553,29 @@ export function ProductFormPage() {
 
   const selectedCategoryName =
     categories.find((item) => item.id === form.categoryId)?.name ?? 'Kategori secilmedi';
+  const seoSuggestions = useMemo(
+    () =>
+      createAiSeoSuggestions({
+        title: form.name,
+        brandName: form.brand,
+        category: selectedCategoryName === 'Kategori secilmedi' ? '' : selectedCategoryName,
+        summary: form.shortDescription,
+        content: form.description,
+        tags: csv(form.tagsText),
+        existingKeywords: csv(form.seoKeywordsText),
+        fallbackSlug: form.slug || form.name,
+      }),
+    [
+      form.brand,
+      form.description,
+      form.name,
+      form.seoKeywordsText,
+      form.shortDescription,
+      form.slug,
+      form.tagsText,
+      selectedCategoryName,
+    ],
+  );
 
   if (loading) {
     return <section className="admin-panel">Urun formu yukleniyor...</section>;
@@ -627,7 +661,27 @@ export function ProductFormPage() {
           <div className="admin-form-grid">
             <label className="admin-label">
               <span>Urun adi</span>
-              <input className="admin-input" onChange={(event) => setForm({ ...form, name: event.target.value })} required value={form.name} />
+              <input
+                className="admin-input"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                    slug: current.slug ? current.slug : slugify(event.target.value, 'urun'),
+                  }))
+                }
+                required
+                value={form.name}
+              />
+            </label>
+            <label className="admin-label">
+              <span>Slug</span>
+              <input
+                className="admin-input"
+                onChange={(event) => setForm({ ...form, slug: slugify(event.target.value, 'urun') })}
+                placeholder="urun-slug"
+                value={form.slug}
+              />
             </label>
             <label className="admin-label">
               <span>SKU</span>
@@ -1082,6 +1136,15 @@ export function ProductFormPage() {
 
           <div className="admin-form-grid">
             <label className="admin-label">
+              <span>SEO slug</span>
+              <input
+                className="admin-input"
+                onChange={(event) => setForm({ ...form, slug: slugify(event.target.value, 'urun') })}
+                placeholder="urun-slug"
+                value={form.slug}
+              />
+            </label>
+            <label className="admin-label">
               <span>SEO baslik</span>
               <input className="admin-input" onChange={(event) => setForm({ ...form, seoTitle: event.target.value })} value={form.seoTitle} />
             </label>
@@ -1094,6 +1157,20 @@ export function ProductFormPage() {
               <input className="admin-input" onChange={(event) => setForm({ ...form, seoKeywordsText: event.target.value })} placeholder="zeytinyagi, organik, premium" value={form.seoKeywordsText} />
             </label>
           </div>
+
+          <AiSeoAssistant
+            descriptionSuggestion={seoSuggestions.description}
+            keywordsSuggestion={seoSuggestions.keywords}
+            onApplyDescription={() => setForm((current) => ({ ...current, seoDescription: seoSuggestions.description }))}
+            onApplyKeywords={() => setForm((current) => ({ ...current, seoKeywordsText: seoSuggestions.keywords.join(', ') }))}
+            onApplySlug={() => setForm((current) => ({ ...current, slug: seoSuggestions.slug }))}
+            onApplySummary={() => setForm((current) => ({ ...current, shortDescription: seoSuggestions.summary }))}
+            onApplyTitle={() => setForm((current) => ({ ...current, seoTitle: seoSuggestions.title }))}
+            slugSuggestion={seoSuggestions.slug}
+            summaryLabel="Kisa aciklama onerisi"
+            summarySuggestion={seoSuggestions.summary}
+            titleSuggestion={seoSuggestions.title}
+          />
         </section>
           </>
         ) : null}
@@ -1132,6 +1209,7 @@ export function ProductFormPage() {
         allowedTypes={['image']}
         items={mediaItems}
         onClose={() => setGalleryBrowserOpen(false)}
+        onItemsChange={setMediaItems}
         onSelect={(item) => addImageToGallery(item.url)}
         open={galleryBrowserOpen}
         title="Urun galerisi icin medya sec"

@@ -8,6 +8,7 @@ import type {
   Order,
   OrderActivity,
   OrderStatus,
+  PaginatedResponse,
   PaymentMethod,
   PaymentStatus,
 } from '../types/api';
@@ -179,11 +180,17 @@ export function OrderDetailPage() {
 
       try {
         if (isAdmin) {
-          const representativesResponse = await api.get<AdminUser[]>(
+          const representativesResponse = await api.get<PaginatedResponse<AdminUser>>(
             '/users/representatives',
+            {
+              params: {
+                page: 1,
+                pageSize: 100,
+              },
+            },
           );
           if (mounted) {
-            setRepresentatives(representativesResponse.data);
+            setRepresentatives(representativesResponse.data.items);
           }
         }
 

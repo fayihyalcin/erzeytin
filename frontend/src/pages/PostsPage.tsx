@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AiSeoAssistant } from '../components/admin/AiSeoAssistant';
 import { MediaPickerField } from '../components/admin/MediaPickerField';
 import { createEmptyBlogPost, parseBlogPosts, parseMediaLibrary, slugify } from '../lib/admin-content';
 import { fetchSettingsRecord, updateSettingsRecord } from '../lib/admin-settings';
+import { createAiSeoSuggestions } from '../lib/ai-seo';
 import type { BlogPost, MediaItem } from '../types/api';
 
 function toTagList(value: string) {
@@ -33,6 +35,7 @@ export function PostsPage() {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [form, setForm] = useState<BlogPost>(createEmptyBlogPost);
   const [tagText, setTagText] = useState('');
+  const [seoKeywordText, setSeoKeywordText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,6 +63,7 @@ export function PostsPage() {
           setEditingId(parsedPosts[0].id);
           setForm(parsedPosts[0]);
           setTagText(toTagText(parsedPosts[0].tags));
+          setSeoKeywordText(toTagText(parsedPosts[0].seoKeywords));
         }
       } catch {
         if (mounted) {
@@ -119,6 +123,7 @@ export function PostsPage() {
     setEditingId(post.id);
     setForm(post);
     setTagText(toTagText(post.tags));
+    setSeoKeywordText(toTagText(post.seoKeywords));
   };
 
   const handleNew = () => {
@@ -126,6 +131,7 @@ export function PostsPage() {
     setEditingId(null);
     setForm(next);
     setTagText('');
+    setSeoKeywordText('');
   };
 
   const handleSave = async () => {
@@ -147,6 +153,7 @@ export function PostsPage() {
       tags: toTagList(tagText),
       seoTitle: form.seoTitle.trim(),
       seoDescription: form.seoDescription.trim(),
+      seoKeywords: toTagList(seoKeywordText),
       coverImageUrl: form.coverImageUrl.trim(),
       updatedAt: timestamp,
       publishedAt: form.isPublished ? form.publishedAt ?? timestamp : null,
@@ -167,7 +174,22 @@ export function PostsPage() {
     );
     setEditingId(normalized.id);
     setForm(normalized);
+    setSeoKeywordText(toTagText(normalized.seoKeywords));
   };
+
+  const seoSuggestions = useMemo(
+    () =>
+      createAiSeoSuggestions({
+        title: form.title,
+        category: form.category,
+        summary: form.excerpt,
+        content: form.content,
+        tags: toTagList(tagText),
+        existingKeywords: toTagList(seoKeywordText),
+        fallbackSlug: form.slug || form.title,
+      }),
+    [form.category, form.content, form.excerpt, form.slug, form.title, seoKeywordText, tagText],
+  );
 
   const handleDelete = async () => {
     if (!editingId) {
@@ -394,7 +416,31 @@ export function PostsPage() {
                 value={form.seoDescription}
               />
             </label>
+
+            <label className="admin-label admin-span-full">
+              <span>SEO anahtar kelimeler</span>
+              <input
+                className="admin-input"
+                onChange={(event) => setSeoKeywordText(event.target.value)}
+                placeholder="zeytinyagi, tarif, marka"
+                value={seoKeywordText}
+              />
+            </label>
           </div>
+
+          <AiSeoAssistant
+            descriptionSuggestion={seoSuggestions.description}
+            keywordsSuggestion={seoSuggestions.keywords}
+            onApplyDescription={() => setForm((current) => ({ ...current, seoDescription: seoSuggestions.description }))}
+            onApplyKeywords={() => setSeoKeywordText(seoSuggestions.keywords.join(', '))}
+            onApplySlug={() => setForm((current) => ({ ...current, slug: seoSuggestions.slug }))}
+            onApplySummary={() => setForm((current) => ({ ...current, excerpt: seoSuggestions.summary }))}
+            onApplyTitle={() => setForm((current) => ({ ...current, seoTitle: seoSuggestions.title }))}
+            slugSuggestion={seoSuggestions.slug}
+            summaryLabel="Kisa ozet onerisi"
+            summarySuggestion={seoSuggestions.summary}
+            titleSuggestion={seoSuggestions.title}
+          />
 
           <div className="admin-form-actions">
             <button className="admin-primary-button" disabled={saving} onClick={() => void handleSave()} type="button">

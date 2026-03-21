@@ -1,15 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { fetchSettingsRecord } from '../lib/admin-settings';
 import { parseBlogPosts, parseMediaLibrary } from '../lib/admin-content';
 import { parseWebsiteConfig } from '../lib/website-config';
-import type { Category, Order, OrdersSummary, Product } from '../types/api';
+import type {
+  CategoryCatalogSummary,
+  Order,
+  OrdersSummary,
+  PaginatedResponse,
+  ProductCatalogSummary,
+} from '../types/api';
 
 interface OverviewState {
-  summary: OrdersSummary | null;
-  products: Product[];
-  categories: Category[];
+  orderSummary: OrdersSummary | null;
+  productSummary: ProductCatalogSummary;
+  categorySummary: CategoryCatalogSummary;
   recentOrders: Order[];
   blogPostCount: number;
   mediaCount: number;
@@ -17,9 +23,21 @@ interface OverviewState {
 }
 
 const emptyOverview: OverviewState = {
-  summary: null,
-  products: [],
-  categories: [],
+  orderSummary: null,
+  productSummary: {
+    totalCount: 0,
+    activeCount: 0,
+    totalStock: 0,
+    lowStockCount: 0,
+    variantCount: 0,
+    lowStockProducts: [],
+  },
+  categorySummary: {
+    totalCount: 0,
+    activeCount: 0,
+    imageCount: 0,
+    seoConfiguredCount: 0,
+  },
   recentOrders: [],
   blogPostCount: 0,
   mediaCount: 0,
@@ -56,14 +74,21 @@ export function DashboardOverviewPage() {
       setMessage(null);
 
       try {
-        const [summaryResponse, productsResponse, categoriesResponse, ordersResponse, settings] =
-          await Promise.all([
-            api.get<OrdersSummary>('/orders/summary'),
-            api.get<Product[]>('/catalog/products'),
-            api.get<Category[]>('/catalog/categories'),
-            api.get<Order[]>('/orders'),
-            fetchSettingsRecord(),
-          ]);
+        const [
+          orderSummaryResponse,
+          productSummaryResponse,
+          categorySummaryResponse,
+          recentOrdersResponse,
+          settings,
+        ] = await Promise.all([
+          api.get<OrdersSummary>('/orders/summary'),
+          api.get<ProductCatalogSummary>('/catalog/products/summary'),
+          api.get<CategoryCatalogSummary>('/catalog/categories/summary'),
+          api.get<PaginatedResponse<Order>>('/orders', {
+            params: { page: 1, pageSize: 6 },
+          }),
+          fetchSettingsRecord(),
+        ]);
 
         if (!mounted) {
           return;
@@ -74,10 +99,10 @@ export function DashboardOverviewPage() {
         const mediaItems = parseMediaLibrary(settings.mediaLibrary);
 
         setData({
-          summary: summaryResponse.data,
-          products: productsResponse.data,
-          categories: categoriesResponse.data,
-          recentOrders: ordersResponse.data.slice(0, 6),
+          orderSummary: orderSummaryResponse.data,
+          productSummary: productSummaryResponse.data,
+          categorySummary: categorySummaryResponse.data,
+          recentOrders: recentOrdersResponse.data.items,
           blogPostCount: blogPosts.length,
           mediaCount: mediaItems.length,
           websiteBrand: websiteConfig.theme.brandName,
@@ -99,21 +124,6 @@ export function DashboardOverviewPage() {
       mounted = false;
     };
   }, []);
-
-  const lowStockProducts = useMemo(
-    () => data.products.filter((product) => product.stock <= Math.max(product.minStock, 3)).slice(0, 5),
-    [data.products],
-  );
-
-  const activeProducts = useMemo(
-    () => data.products.filter((product) => product.isActive).length,
-    [data.products],
-  );
-
-  const activeCategories = useMemo(
-    () => data.categories.filter((category) => category.isActive).length,
-    [data.categories],
-  );
 
   if (loading) {
     return <section className="admin-panel">Panel verileri yukleniyor...</section>;
@@ -146,23 +156,23 @@ export function DashboardOverviewPage() {
       <section className="admin-stat-grid">
         <article className="admin-stat-card">
           <span>Toplam ciro</span>
-          <strong>{formatCurrency(data.summary?.totalRevenue ?? 0)}</strong>
+          <strong>{formatCurrency(data.orderSummary?.totalRevenue ?? 0)}</strong>
           <small>Bugune kadar kayda giren siparisler</small>
         </article>
         <article className="admin-stat-card">
           <span>Siparisler</span>
-          <strong>{data.summary?.orderCount ?? 0}</strong>
-          <small>{data.summary?.byStatus?.NEW ?? 0} yeni siparis bekliyor</small>
+          <strong>{data.orderSummary?.orderCount ?? 0}</strong>
+          <small>{data.orderSummary?.byStatus?.NEW ?? 0} yeni siparis bekliyor</small>
         </article>
         <article className="admin-stat-card">
           <span>Urunler</span>
-          <strong>{activeProducts}</strong>
-          <small>{data.products.length} kayitli urun</small>
+          <strong>{data.productSummary.activeCount}</strong>
+          <small>{data.productSummary.totalCount} kayitli urun</small>
         </article>
         <article className="admin-stat-card">
           <span>Kategoriler</span>
-          <strong>{activeCategories}</strong>
-          <small>{data.categories.length} kategori</small>
+          <strong>{data.categorySummary.activeCount}</strong>
+          <small>{data.categorySummary.totalCount} kategori</small>
         </article>
         <article className="admin-stat-card">
           <span>CMS Icerigi</span>
@@ -213,14 +223,14 @@ export function DashboardOverviewPage() {
             </Link>
           </div>
 
-          {lowStockProducts.length === 0 ? (
+          {data.productSummary.lowStockProducts.length === 0 ? (
             <div className="admin-empty-state compact">
               <strong>Dusuk stok yok</strong>
               <p>Su an kritik stok seviyesine inen bir urun bulunmuyor.</p>
             </div>
           ) : (
             <ul className="admin-list">
-              {lowStockProducts.map((product) => (
+              {data.productSummary.lowStockProducts.map((product) => (
                 <li key={product.id}>
                   <div>
                     <strong>{product.name}</strong>

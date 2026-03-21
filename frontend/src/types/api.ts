@@ -8,6 +8,14 @@ export interface AdminUser {
   updatedAt?: string;
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface LoginResponse {
   accessToken: string;
   user: AdminUser;
@@ -224,6 +232,7 @@ export interface BlogPost {
   publishedAt: string | null;
   seoTitle: string;
   seoDescription: string;
+  seoKeywords: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -318,6 +327,15 @@ export interface Product {
   category: Category | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProductCatalogSummary {
+  totalCount: number;
+  activeCount: number;
+  totalStock: number;
+  lowStockCount: number;
+  variantCount: number;
+  lowStockProducts: Product[];
 }
 
 export type OrderStatus =
@@ -460,4 +478,11 @@ export interface OrdersSummary {
   orderCount: number;
   totalRevenue: number;
   byStatus: Record<string, number>;
+}
+
+export interface CategoryCatalogSummary {
+  totalCount: number;
+  activeCount: number;
+  imageCount: number;
+  seoConfiguredCount: number;
 }

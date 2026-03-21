@@ -47,15 +47,48 @@ export class OrdersService {
   ) {}
 
   async findAll(query: OrderQueryDto, actor: ActorContext) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
     const queryBuilder = this.ordersRepository
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.assignedRepresentative', 'assignedRepresentative')
+      .select([
+        'order.id',
+        'order.orderNumber',
+        'order.customerName',
+        'order.customerEmail',
+        'order.customerPhone',
+        'order.grandTotal',
+        'order.currency',
+        'order.status',
+        'order.paymentStatus',
+        'order.paymentMethod',
+        'order.fulfillmentStatus',
+        'order.assignedRepresentativeId',
+        'order.placedAt',
+        'assignedRepresentative.id',
+        'assignedRepresentative.username',
+        'assignedRepresentative.fullName',
+        'assignedRepresentative.role',
+        'assignedRepresentative.isActive',
+      ])
       .orderBy('order.placedAt', 'DESC');
 
     this.applyOrderFilters(queryBuilder, query);
     this.applyActorScope(queryBuilder, actor, query);
 
-    return queryBuilder.getMany();
+    const [items, total] = await queryBuilder
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
   }
 
   async getSummary(actor: ActorContext) {

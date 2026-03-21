@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { CreateRepresentativeDto } from './dto/create-representative.dto';
+import { ListRepresentativesQueryDto } from './dto/list-representatives-query.dto';
 import { UpdateRepresentativeDto } from './dto/update-representative.dto';
 import { AdminUser } from './admin-user.entity';
 
@@ -17,23 +18,51 @@ export class UsersService {
     private readonly usersRepository: Repository<AdminUser>,
   ) {}
 
-  findRepresentatives() {
-    return this.usersRepository.find({
-      where: { role: 'REPRESENTATIVE' },
-      order: {
-        isActive: 'DESC',
-        createdAt: 'DESC',
-      },
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+  async findRepresentatives(query: ListRepresentativesQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const queryBuilder = this.usersRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.username',
+        'user.fullName',
+        'user.role',
+        'user.isActive',
+        'user.createdAt',
+        'user.updatedAt',
+      ])
+      .where('user.role = :role', { role: 'REPRESENTATIVE' })
+      .orderBy('user.isActive', 'DESC')
+      .addOrderBy('user.createdAt', 'DESC');
+
+    if (query.status === 'active') {
+      queryBuilder.andWhere('user.isActive = true');
+    } else if (query.status === 'inactive') {
+      queryBuilder.andWhere('user.isActive = false');
+    }
+
+    if (query.search?.trim()) {
+      const value = `%${query.search.trim()}%`;
+      queryBuilder.andWhere(
+        '(user.fullName ILIKE :value OR user.username ILIKE :value)',
+        { value },
+      );
+    }
+
+    const [items, total] = await queryBuilder
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
   }
 
   async createRepresentative(dto: CreateRepresentativeDto) {

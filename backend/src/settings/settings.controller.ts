@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Header,
   Put,
   UseGuards,
 } from '@nestjs/common';
@@ -35,6 +36,7 @@ export class SettingsController {
   }
 
   @Get('public')
+  @Header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
   findPublic() {
     return this.settingsService.findPublic();
   }

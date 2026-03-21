@@ -130,6 +130,7 @@ export function createEmptyBlogPost(): BlogPost {
     publishedAt: timestamp,
     seoTitle: '',
     seoDescription: '',
+    seoKeywords: [],
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -174,6 +175,7 @@ export function parseBlogPosts(raw?: string | null): BlogPost[] {
           publishedAt: isPublished ? toStringValue(record.publishedAt, createdAt) : null,
           seoTitle: toStringValue(record.seoTitle),
           seoDescription: toStringValue(record.seoDescription),
+          seoKeywords: toArray(record.seoKeywords),
           createdAt,
           updatedAt,
         } satisfies BlogPost;

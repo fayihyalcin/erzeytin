@@ -1,4 +1,5 @@
 import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 const ORDER_STATUSES = [
   'NEW',
@@ -28,7 +29,7 @@ const FULFILLMENT_STATUSES = [
   'DELIVERED',
 ] as const;
 
-export class OrderQueryDto {
+export class OrderQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn(ORDER_STATUSES)
   status?: (typeof ORDER_STATUSES)[number];

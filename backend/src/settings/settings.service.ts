@@ -11,6 +11,7 @@ const PUBLIC_SETTING_KEYS = [
   'currency',
   'timezone',
   'taxRate',
+  'siteUrl',
   'websiteConfig',
   'blogPosts',
   'paytrEnabled',

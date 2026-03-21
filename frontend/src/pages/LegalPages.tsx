@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { PublicBreadcrumbs } from '../components/public/PublicBreadcrumbs';
 import { api } from '../lib/api';
 import { isInternalRoute, resolveStoreFooterHref } from '../lib/public-site';
+import {
+  buildBreadcrumbSchema,
+  buildPageTitle,
+  buildWebPageSchema,
+  summarizeText,
+  toAbsoluteSiteUrl,
+} from '../lib/public-seo';
+import { useSeo } from '../lib/seo';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type { PublicSettingsDto, WebsiteConfig, WebsiteLegalDocument } from '../types/api';
 import './LegalPages.css';
@@ -16,6 +25,7 @@ function splitContent(value: string) {
 }
 
 function useWebsiteConfig() {
+  const [settings, setSettings] = useState<PublicSettingsDto | null>(null);
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +39,7 @@ function useWebsiteConfig() {
           return;
         }
 
+        setSettings(response.data);
         setConfig(parseWebsiteConfig(response.data.websiteConfig));
       })
       .finally(() => {
@@ -42,18 +53,20 @@ function useWebsiteConfig() {
     };
   }, []);
 
-  return { config, loading };
+  return { config, loading, settings };
 }
 
 function LegalLayout({
   title,
   subtitle,
   config,
+  breadcrumbs,
   children,
 }: {
   title: string;
   subtitle: string;
   config: WebsiteConfig;
+  breadcrumbs: Array<{ label: string; href?: string }>;
   children: ReactNode;
 }) {
   return (
@@ -72,6 +85,10 @@ function LegalLayout({
           </nav>
         </div>
       </header>
+
+      <section className="legal-content" style={{ paddingBottom: 0 }}>
+        <PublicBreadcrumbs items={breadcrumbs} />
+      </section>
 
       <section className="legal-hero">
         <h1>{title}</h1>
@@ -97,11 +114,47 @@ function LegalSection({ heading, body }: { heading: string; body: string }) {
 }
 
 function LegalDocumentPage({ documentKey }: { documentKey: LegalDocumentKey }) {
-  const { config, loading } = useWebsiteConfig();
+  const { config, loading, settings } = useWebsiteConfig();
   const document: WebsiteLegalDocument = config.legalPages[documentKey];
+  const pagePath =
+    documentKey === 'kvkk'
+      ? '/kvkk'
+      : documentKey === 'privacy'
+        ? '/gizlilik'
+        : '/satis-sozlesmesi';
+  const siteUrl = settings?.siteUrl ?? null;
+  const siteName = settings?.storeName?.trim() || config.theme.brandName;
+  const pageDescription = summarizeText(document.subtitle, 155);
+
+  useSeo({
+    title: buildPageTitle(document.title, siteName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(siteUrl, pagePath),
+    siteName,
+    jsonLd: [
+      buildWebPageSchema({
+        siteUrl,
+        path: pagePath,
+        title: document.title,
+        description: pageDescription,
+      }),
+      buildBreadcrumbSchema(siteUrl, [
+        { name: 'Ana Sayfa', path: '/' },
+        { name: document.title, path: pagePath },
+      ]),
+    ],
+  });
 
   return (
-    <LegalLayout config={config} title={document.title} subtitle={document.subtitle}>
+    <LegalLayout
+      breadcrumbs={[
+        { label: 'Ana Sayfa', href: '/' },
+        { label: document.title },
+      ]}
+      config={config}
+      title={document.title}
+      subtitle={document.subtitle}
+    >
       {loading ? (
         <article className="legal-section">
           <p>Sayfa yukleniyor...</p>
@@ -132,9 +185,11 @@ export function SalesAgreementPage() {
 }
 
 export function ContactPage() {
-  const { config, loading } = useWebsiteConfig();
+  const { config, loading, settings } = useWebsiteConfig();
   const contact = config.contact;
   const footerColumns = config.footerColumns;
+  const siteUrl = settings?.siteUrl ?? null;
+  const siteName = settings?.storeName?.trim() || config.theme.brandName;
   const footerLegalLinks = useMemo(
     () => [
       { href: '/kvkk', label: config.legalPages.kvkk.title },
@@ -144,6 +199,26 @@ export function ContactPage() {
     ],
     [config],
   );
+  const pageDescription = summarizeText(config.contactPage.description, 155);
+
+  useSeo({
+    title: buildPageTitle(config.contactPage.title, siteName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/iletisim'),
+    siteName,
+    jsonLd: [
+      buildWebPageSchema({
+        siteUrl,
+        path: '/iletisim',
+        title: config.contactPage.title,
+        description: pageDescription,
+      }),
+      buildBreadcrumbSchema(siteUrl, [
+        { name: 'Ana Sayfa', path: '/' },
+        { name: 'Iletisim', path: '/iletisim' },
+      ]),
+    ],
+  });
 
   return (
     <main className="contact-page">
@@ -171,6 +246,17 @@ export function ContactPage() {
           </div>
         </div>
       </header>
+
+      <section className="legal-content" style={{ paddingBottom: 0 }}>
+        <div className="contact-shell">
+          <PublicBreadcrumbs
+            items={[
+              { label: 'Ana Sayfa', href: '/' },
+              { label: 'Iletisim' },
+            ]}
+          />
+        </div>
+      </section>
 
       <section className="contact-hero">
         <div className="contact-shell contact-hero-grid">

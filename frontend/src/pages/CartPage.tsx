@@ -5,6 +5,7 @@ import { useStoreCart } from '../context/StoreCartContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
+import { resolvePublicProductPath } from '../lib/public-site';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
   Order,
@@ -608,7 +609,13 @@ export function CartPage() {
 
                     return (
                       <article key={item.productId} className="sf-cart-item">
-                        <Link to={`/product/${item.productId}`} className="sf-cart-item-media">
+                        <Link
+                          to={resolvePublicProductPath({
+                            id: item.productId,
+                            slug: item.product.slug,
+                          })}
+                          className="sf-cart-item-media"
+                        >
                           <img
                             src={resolveCartImage(item.product)}
                             alt={item.product.name}
@@ -617,7 +624,13 @@ export function CartPage() {
 
                         <div className="sf-cart-item-info">
                           <p className="sf-cart-item-category">{item.product.categoryName || 'Zeytin ve Zeytinyagi'}</p>
-                          <Link to={`/product/${item.productId}`} className="sf-cart-item-title">
+                          <Link
+                            to={resolvePublicProductPath({
+                              id: item.productId,
+                              slug: item.product.slug,
+                            })}
+                            className="sf-cart-item-title"
+                          >
                             {item.product.name}
                           </Link>
                           <div className="sf-cart-item-price">
@@ -625,7 +638,14 @@ export function CartPage() {
                             <span>Birim fiyat</span>
                           </div>
                           <div className="sf-cart-item-actions">
-                            <Link to={`/product/${item.productId}`}>Detay</Link>
+                            <Link
+                              to={resolvePublicProductPath({
+                                id: item.productId,
+                                slug: item.product.slug,
+                              })}
+                            >
+                              Detay
+                            </Link>
                             <button type="button" onClick={() => removeProduct(item.productId)}>
                               Kaldır
                             </button>

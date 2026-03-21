@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MediaBrowser } from './MediaBrowser';
+import { resolveMediaAssetUrl } from '../../lib/media-library';
 import type { MediaItem, MediaItemType } from '../../types/api';
 
 function isVideo(url: string) {
@@ -14,6 +15,7 @@ export function MediaPickerField({
   allowedTypes = ['image'],
   placeholder = 'https://',
   helperText,
+  onItemsChange,
 }: {
   label: string;
   value: string;
@@ -22,6 +24,7 @@ export function MediaPickerField({
   allowedTypes?: MediaItemType[];
   placeholder?: string;
   helperText?: string;
+  onItemsChange?: (items: MediaItem[]) => void;
 }) {
   const [browserOpen, setBrowserOpen] = useState(false);
 
@@ -57,9 +60,12 @@ export function MediaPickerField({
       {value ? (
         <div className="admin-media-inline-preview">
           {isVideo(value) ? (
-            <video controls playsInline src={value} />
+            <video controls playsInline src={resolveMediaAssetUrl(value)} />
           ) : (
-            <img alt={selectedItem?.alt || label} src={selectedItem?.thumbnailUrl || value} />
+            <img
+              alt={selectedItem?.alt || label}
+              src={resolveMediaAssetUrl(selectedItem?.thumbnailUrl || value)}
+            />
           )}
           <div>
             <strong>{selectedItem?.title || 'Harici medya baglantisi'}</strong>
@@ -72,6 +78,7 @@ export function MediaPickerField({
         allowedTypes={allowedTypes}
         items={items}
         onClose={() => setBrowserOpen(false)}
+        onItemsChange={onItemsChange}
         onSelect={(item: MediaItem) => onChange(item.url)}
         open={browserOpen}
       />

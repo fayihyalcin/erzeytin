@@ -20,6 +20,7 @@ import { PaymentTransaction } from './orders/payment-transaction.entity';
 import { OrdersModule } from './orders/orders.module';
 import { UsersModule } from './users/users.module';
 import { MediaModule } from './media/media.module';
+import { SeoModule } from './seo/seo.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { MediaModule } from './media/media.module';
     AuthModule,
     UsersModule,
     MediaModule,
+    SeoModule,
     SettingsModule,
     CatalogModule,
     OrdersModule,

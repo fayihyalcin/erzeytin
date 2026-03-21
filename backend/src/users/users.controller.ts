@@ -8,11 +8,13 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CreateRepresentativeDto } from './dto/create-representative.dto';
+import { ListRepresentativesQueryDto } from './dto/list-representatives-query.dto';
 import { UpdateRepresentativeDto } from './dto/update-representative.dto';
 import { UsersService } from './users.service';
 
@@ -28,8 +30,8 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('representatives')
-  findRepresentatives() {
-    return this.usersService.findRepresentatives();
+  findRepresentatives(@Query() query: ListRepresentativesQueryDto) {
+    return this.usersService.findRepresentatives(query);
   }
 
   @Post('representatives')

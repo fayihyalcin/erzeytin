@@ -1,5 +1,10 @@
 import type { WebsiteFooterLink, WebsiteNavItem } from '../types/api';
 
+interface PublicProductRouteTarget {
+  id: string;
+  slug?: string | null;
+}
+
 const LEGACY_ROUTE_MAP: Record<string, string> = {
   '#hero': '/',
   '#categories': '/kategoriler',
@@ -105,4 +110,21 @@ export function isActiveStoreHref(currentPath: string, href: string) {
   }
 
   return currentPath === normalized;
+}
+
+export function resolvePublicProductPath(product: PublicProductRouteTarget) {
+  const slug = product.slug?.trim();
+  if (slug) {
+    return `/urun/${encodeURIComponent(slug)}`;
+  }
+
+  return `/product/${product.id}`;
+}
+
+export function resolvePublicCategoryFilterPath(slug?: string | null) {
+  if (!slug?.trim()) {
+    return '/urunler';
+  }
+
+  return `/urunler?kategori=${encodeURIComponent(slug.trim())}`;
 }

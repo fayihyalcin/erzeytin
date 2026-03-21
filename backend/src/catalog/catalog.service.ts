@@ -4,11 +4,14 @@
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository, SelectQueryBuilder } from 'typeorm';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { Category } from './category.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { ListCategoriesQueryDto } from './dto/list-categories-query.dto';
+import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { PublicProductsQueryDto } from './dto/public-products-query.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import {
@@ -64,29 +67,153 @@ export class CatalogService {
   }
 
   async findPublicProducts() {
-    const products = await this.productsRepository.find({
-      where: {
-        isActive: true,
-      },
-      relations: ['category'],
-      order: {
-        createdAt: 'DESC',
-      },
-    });
-
-    return products.filter(
-      (product) => !product.category || product.category.isActive,
-    );
+    return this.buildPublicProductsQuery().getMany();
   }
 
-  findCategories() {
-    return this.categoriesRepository.find({
-      relations: ['products'],
-      order: {
-        displayOrder: 'ASC',
-        createdAt: 'DESC',
-      },
-    });
+  async findPublicProductsPage(query: PublicProductsQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 12;
+    const queryBuilder = this.buildPublicProductsQuery();
+
+    this.applyPublicProductFilters(queryBuilder, query);
+
+    const [items, total] = await queryBuilder
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return this.toPaginatedResult(items, total, page, pageSize);
+  }
+
+  async findPublicProductById(id: string) {
+    const product = await this.buildPublicProductsQuery()
+      .andWhere('product.id = :id', { id })
+      .getOne();
+    if (!product) {
+      throw new NotFoundException('Urun bulunamadi.');
+    }
+
+    return product;
+  }
+
+  async findPublicProductByReference(reference: string) {
+    const normalizedReference = reference.trim();
+    if (!normalizedReference) {
+      throw new NotFoundException('Urun bulunamadi.');
+    }
+
+    const product = await this.buildPublicProductsQuery()
+      .andWhere(
+        this.isUuid(normalizedReference)
+          ? '(product.id = :reference OR product.slug = :reference)'
+          : 'product.slug = :reference',
+        { reference: normalizedReference },
+      )
+      .getOne();
+
+    if (!product) {
+      throw new NotFoundException('Urun bulunamadi.');
+    }
+
+    return product;
+  }
+
+  async findRelatedPublicProducts(id: string, requestedLimit = 12) {
+    const product = await this.findPublicProductById(id);
+    const limit = Math.min(Math.max(requestedLimit, 1), 24);
+    const excludedIds = new Set<string>([product.id]);
+    let relatedProducts: Product[] = [];
+
+    if (product.category?.id) {
+      relatedProducts = await this.buildPublicProductsQuery()
+        .andWhere('product.id != :id', { id })
+        .andWhere('category.id = :categoryId', {
+          categoryId: product.category.id,
+        })
+        .take(limit)
+        .getMany();
+
+      relatedProducts.forEach((item) => excludedIds.add(item.id));
+    }
+
+    if (relatedProducts.length < limit) {
+      const fallbackQuery = this.buildPublicProductsQuery().andWhere(
+        'product.id NOT IN (:...excludedIds)',
+        { excludedIds: [...excludedIds] },
+      );
+
+      const fallbackProducts = await fallbackQuery
+        .take(limit - relatedProducts.length)
+        .getMany();
+
+      relatedProducts = [...relatedProducts, ...fallbackProducts];
+    }
+
+    return relatedProducts;
+  }
+
+  async findCategories(query: ListCategoriesQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const queryBuilder = this.categoriesRepository
+      .createQueryBuilder('category')
+      .orderBy('category.displayOrder', 'ASC')
+      .addOrderBy('category.createdAt', 'DESC');
+
+    this.applyCategoryFilters(queryBuilder, query);
+
+    const [items, total] = await queryBuilder
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return this.toPaginatedResult(items, total, page, pageSize);
+  }
+
+  async getCategorySummary() {
+    const summary = await this.categoriesRepository
+      .createQueryBuilder('category')
+      .select('COUNT(*)', 'totalCount')
+      .addSelect(
+        'SUM(CASE WHEN category.isActive = true THEN 1 ELSE 0 END)',
+        'activeCount',
+      )
+      .addSelect(
+        'SUM(CASE WHEN category.imageUrl IS NOT NULL THEN 1 ELSE 0 END)',
+        'imageCount',
+      )
+      .addSelect(
+        `SUM(
+          CASE
+            WHEN category.seoTitle IS NOT NULL OR category.seoDescription IS NOT NULL
+            THEN 1
+            ELSE 0
+          END
+        )`,
+        'seoConfiguredCount',
+      )
+      .getRawOne<{
+        totalCount: string;
+        activeCount: string | null;
+        imageCount: string | null;
+        seoConfiguredCount: string | null;
+      }>();
+
+    return {
+      totalCount: Number(summary?.totalCount ?? 0),
+      activeCount: Number(summary?.activeCount ?? 0),
+      imageCount: Number(summary?.imageCount ?? 0),
+      seoConfiguredCount: Number(summary?.seoConfiguredCount ?? 0),
+    };
+  }
+
+  async findCategoryById(id: string) {
+    const category = await this.categoriesRepository.findOne({ where: { id } });
+    if (!category) {
+      throw new NotFoundException('Kategori bulunamadi.');
+    }
+
+    return category;
   }
 
   async createCategory(dto: CreateCategoryDto) {
@@ -175,13 +302,78 @@ export class CatalogService {
     return { success: true };
   }
 
-  findProducts() {
-    return this.productsRepository.find({
+  async findProducts(query: ListProductsQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const queryBuilder = this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .orderBy('product.createdAt', 'DESC');
+
+    this.applyProductFilters(queryBuilder, query);
+
+    const [items, total] = await queryBuilder
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return this.toPaginatedResult(items, total, page, pageSize);
+  }
+
+  async getProductSummary() {
+    const summary = await this.productsRepository
+      .createQueryBuilder('product')
+      .select('COUNT(*)', 'totalCount')
+      .addSelect(
+        'SUM(CASE WHEN product.isActive = true THEN 1 ELSE 0 END)',
+        'activeCount',
+      )
+      .addSelect('COALESCE(SUM(product.stock), 0)', 'totalStock')
+      .addSelect(
+        'SUM(CASE WHEN product.stock <= GREATEST(product.minStock, 3) THEN 1 ELSE 0 END)',
+        'lowStockCount',
+      )
+      .addSelect(
+        'SUM(CASE WHEN product.hasVariants = true THEN 1 ELSE 0 END)',
+        'variantCount',
+      )
+      .getRawOne<{
+        totalCount: string;
+        activeCount: string | null;
+        totalStock: string | null;
+        lowStockCount: string | null;
+        variantCount: string | null;
+      }>();
+
+    const lowStockProducts = await this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .where('product.stock <= GREATEST(product.minStock, 3)')
+      .orderBy('product.stock', 'ASC')
+      .addOrderBy('product.createdAt', 'DESC')
+      .take(5)
+      .getMany();
+
+    return {
+      totalCount: Number(summary?.totalCount ?? 0),
+      activeCount: Number(summary?.activeCount ?? 0),
+      totalStock: Number(summary?.totalStock ?? 0),
+      lowStockCount: Number(summary?.lowStockCount ?? 0),
+      variantCount: Number(summary?.variantCount ?? 0),
+      lowStockProducts,
+    };
+  }
+
+  async findProductById(id: string) {
+    const product = await this.productsRepository.findOne({
+      where: { id },
       relations: ['category'],
-      order: {
-        createdAt: 'DESC',
-      },
     });
+    if (!product) {
+      throw new NotFoundException('Urun bulunamadi.');
+    }
+
+    return product;
   }
 
   async createProduct(dto: CreateProductDto) {
@@ -715,6 +907,110 @@ export class CatalogService {
 
   private roundToTwo(value: number) {
     return Number(value.toFixed(2));
+  }
+
+  private applyCategoryFilters(
+    queryBuilder: SelectQueryBuilder<Category>,
+    query: ListCategoriesQueryDto,
+  ) {
+    if (query.status === 'active') {
+      queryBuilder.andWhere('category.isActive = true');
+    } else if (query.status === 'inactive') {
+      queryBuilder.andWhere('category.isActive = false');
+    }
+
+    if (query.search?.trim()) {
+      const value = `%${query.search.trim()}%`;
+      queryBuilder.andWhere(
+        new Brackets((builder) => {
+          builder
+            .where('category.name ILIKE :value', { value })
+            .orWhere('category.slug ILIKE :value', { value })
+            .orWhere('category.description ILIKE :value', { value });
+        }),
+      );
+    }
+  }
+
+  private applyProductFilters(
+    queryBuilder: SelectQueryBuilder<Product>,
+    query: ListProductsQueryDto,
+  ) {
+    if (query.status === 'active') {
+      queryBuilder.andWhere('product.isActive = true');
+    } else if (query.status === 'inactive') {
+      queryBuilder.andWhere('product.isActive = false');
+    }
+
+    if (query.search?.trim()) {
+      const value = `%${query.search.trim()}%`;
+      queryBuilder.andWhere(
+        new Brackets((builder) => {
+          builder
+            .where('product.name ILIKE :value', { value })
+            .orWhere('product.sku ILIKE :value', { value })
+            .orWhere('product.brand ILIKE :value', { value })
+            .orWhere('category.name ILIKE :value', { value })
+            .orWhere('CAST(product.tags AS text) ILIKE :value', { value });
+        }),
+      );
+    }
+  }
+
+  private buildPublicProductsQuery() {
+    return this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .where('product.isActive = true')
+      .andWhere('(category.id IS NULL OR category.isActive = true)')
+      .orderBy('product.createdAt', 'DESC');
+  }
+
+  private applyPublicProductFilters(
+    queryBuilder: SelectQueryBuilder<Product>,
+    query: PublicProductsQueryDto,
+  ) {
+    if (query.category?.trim()) {
+      queryBuilder.andWhere('category.slug = :category', {
+        category: query.category.trim(),
+      });
+    }
+
+    if (query.search?.trim()) {
+      const value = `%${query.search.trim()}%`;
+      queryBuilder.andWhere(
+        new Brackets((builder) => {
+          builder
+            .where('product.name ILIKE :value', { value })
+            .orWhere('product.shortDescription ILIKE :value', { value })
+            .orWhere('product.description ILIKE :value', { value })
+            .orWhere('product.brand ILIKE :value', { value })
+            .orWhere('category.name ILIKE :value', { value })
+            .orWhere('CAST(product.tags AS text) ILIKE :value', { value });
+        }),
+      );
+    }
+  }
+
+  private toPaginatedResult<T>(
+    items: T[],
+    total: number,
+    page: number,
+    pageSize: number,
+  ) {
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  }
+
+  private isUuid(value: string) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    );
   }
 
   private slugify(value: string, fallback: string) {

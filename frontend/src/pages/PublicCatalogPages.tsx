@@ -1,20 +1,38 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { PublicBreadcrumbs } from '../components/public/PublicBreadcrumbs';
 import { PublicStorefrontLayout } from '../components/public/PublicStorefrontLayout';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
-import { isInternalRoute, resolveStoreHref } from '../lib/public-site';
+import {
+  isInternalRoute,
+  resolvePublicCategoryFilterPath,
+  resolvePublicProductPath,
+  resolveStoreHref,
+} from '../lib/public-site';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
+import {
+  buildBreadcrumbSchema,
+  buildCollectionSchema,
+  buildPageTitle,
+  buildWebPageSchema,
+  summarizeText,
+  toAbsoluteSiteUrl,
+} from '../lib/public-seo';
+import { useSeo } from '../lib/seo';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
   Category,
+  PaginatedResponse,
   Product,
   PublicSettingsDto,
   WebsiteConfig,
   WebsiteManagedPageContent,
 } from '../types/api';
 import './PublicCatalogPages.css';
+
+const PUBLIC_PRODUCTS_PAGE_SIZE = 12;
 
 function resolveProductImage(product: Product) {
   return resolveCatalogProductImage({
@@ -72,7 +90,9 @@ function resolveCategoryImage(category: Category, products: Product[]) {
   return firstProduct ? resolveProductImage(firstProduct) : '';
 }
 
-function usePublicCatalogData() {
+function usePublicCatalogData(options?: { includeProducts?: boolean }) {
+  const includeProducts = options?.includeProducts ?? true;
+  const [settings, setSettings] = useState<PublicSettingsDto | null>(null);
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -85,13 +105,16 @@ function usePublicCatalogData() {
     Promise.all([
       api.get<PublicSettingsDto>('/settings/public'),
       api.get<Category[]>('/catalog/public/categories'),
-      api.get<Product[]>('/catalog/public/products'),
+      includeProducts
+        ? api.get<Product[]>('/catalog/public/products')
+        : Promise.resolve({ data: [] as Product[] }),
     ])
       .then(([settingsResponse, categoriesResponse, productsResponse]) => {
         if (!mounted) {
           return;
         }
 
+        setSettings(settingsResponse.data);
         setConfig(parseWebsiteConfig(settingsResponse.data.websiteConfig));
         setCurrency(settingsResponse.data.currency ?? 'TRY');
         setCategories(categoriesResponse.data);
@@ -106,9 +129,9 @@ function usePublicCatalogData() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [includeProducts]);
 
-  return { categories, config, currency, loading, products };
+  return { categories, config, currency, loading, products, settings };
 }
 
 function ManagedPageHero({
@@ -190,14 +213,14 @@ function ProductCatalogCard({
 
   return (
     <article className="pc-product-card">
-      <Link className="pc-product-card-media" to={`/product/${product.id}`}>
-        <img alt={product.name} src={resolveProductImage(product)} />
+      <Link className="pc-product-card-media" to={resolvePublicProductPath(product)}>
+        <img alt={product.name} decoding="async" loading="lazy" src={resolveProductImage(product)} />
       </Link>
 
       <div className="pc-product-card-body">
         <span className="pc-product-card-category">{product.category?.name || 'Mağaza ürünü'}</span>
         <h3>
-          <Link to={`/product/${product.id}`}>{product.name}</Link>
+          <Link to={resolvePublicProductPath(product)}>{product.name}</Link>
         </h3>
         <p>{product.shortDescription || 'Admin panelinden yönetilen ürün kartı.'}</p>
 
@@ -222,9 +245,63 @@ function ProductCatalogCard({
   );
 }
 
+function PublicCatalogPagination({
+  page,
+  total,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  total: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pages = useMemo(() => {
+    const start = Math.max(1, page - 2);
+    const end = Math.min(totalPages, page + 2);
+    const nextPages: number[] = [];
+
+    for (let current = start; current <= end; current += 1) {
+      nextPages.push(current);
+    }
+
+    return nextPages;
+  }, [page, totalPages]);
+
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  return (
+    <nav className="pc-pagination" aria-label="Urun sayfalama">
+      <p>
+        Toplam <strong>{total}</strong> urun
+      </p>
+      <div className="pc-pagination-actions">
+        <button disabled={page <= 1} onClick={() => onPageChange(page - 1)} type="button">
+          {'<'}
+        </button>
+        {pages.map((pageNumber) => (
+          <button
+            className={pageNumber === page ? 'active' : undefined}
+            key={`public-page-${pageNumber}`}
+            onClick={() => onPageChange(pageNumber)}
+            type="button"
+          >
+            {pageNumber}
+          </button>
+        ))}
+        <button disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} type="button">
+          {'>'}
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 export function PublicCategoriesPage() {
   const location = useLocation();
-  const { categories, config, currency, loading, products } = usePublicCatalogData();
+  const { categories, config, currency, loading, products, settings } = usePublicCatalogData();
 
   const sortedCategories = useMemo(
     () =>
@@ -253,9 +330,52 @@ export function PublicCategoriesPage() {
     [products, sortedCategories],
   );
 
+  const siteUrl = settings?.siteUrl ?? null;
+  const pageDescription = summarizeText(
+    config.pages.categories.description ||
+      'Er Zeytincilik kategori vitrini; zeytinyagi, zeytin ve gurme urunleri tek akista sunar.',
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle('Kategori vitrini', config.theme.brandName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/kategoriler'),
+    keywords: ['kategori', 'zeytinyagi', 'zeytin', 'gurme urunler'],
+    siteName: config.theme.brandName,
+    jsonLd: [
+      buildWebPageSchema({
+        siteUrl,
+        path: '/kategoriler',
+        title: 'Kategori vitrini',
+        description: pageDescription,
+      }),
+      buildCollectionSchema({
+        siteUrl,
+        path: '/kategoriler',
+        name: 'Kategori vitrini',
+        description: pageDescription,
+        items: categorySummaries.map(({ category }) => ({
+          name: category.name,
+          path: resolvePublicCategoryFilterPath(category.slug),
+        })),
+      }),
+      buildBreadcrumbSchema(siteUrl, [
+        { name: 'Ana Sayfa', path: '/' },
+        { name: 'Kategoriler', path: '/kategoriler' },
+      ]),
+    ],
+  });
+
   return (
     <PublicStorefrontLayout activePath={location.pathname} config={config} currency={currency}>
       <div className="pc-page-shell">
+        <PublicBreadcrumbs
+          items={[
+            { label: 'Ana Sayfa', href: '/' },
+            { label: 'Kategoriler' },
+          ]}
+        />
         <ManagedPageHero eyebrow="Kategoriler" page={config.pages.categories} />
 
         <section className="pc-stat-strip">
@@ -290,7 +410,7 @@ export function PublicCategoriesPage() {
             : categorySummaries.map(({ category, image, productCount, sampleProducts }) => (
                 <article className="pc-category-card" key={category.id}>
                   <div className="pc-category-card-media">
-                    {image ? <img alt={category.name} src={image} /> : null}
+                    {image ? <img alt={category.name} decoding="async" loading="lazy" src={image} /> : null}
                     <span>{productCount} ürün</span>
                   </div>
 
@@ -309,7 +429,7 @@ export function PublicCategoriesPage() {
                     </div>
 
                     <div className="pc-category-card-actions">
-                      <Link to={`/urunler?kategori=${encodeURIComponent(category.slug)}`}>Kategoriyi Aç</Link>
+                      <Link to={resolvePublicCategoryFilterPath(category.slug)}>Kategoriyi Aç</Link>
                       <Link className="ghost" to="/iletisim">
                         Bilgi Al
                       </Link>
@@ -327,10 +447,24 @@ export function PublicProductsPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { addProduct } = useStoreCart();
-  const { categories, config, currency, loading, products } = usePublicCatalogData();
+  const { categories, config, currency, loading, settings } = usePublicCatalogData({
+    includeProducts: false,
+  });
 
   const activeCategory = searchParams.get('kategori') ?? 'all';
   const activeQuery = searchParams.get('q') ?? '';
+  const activePage = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
+  const searchParamsKey = searchParams.toString();
+  const [searchInput, setSearchInput] = useState(activeQuery);
+  const deferredSearchInput = useDeferredValue(searchInput);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    pageSize: PUBLIC_PRODUCTS_PAGE_SIZE,
+    totalPages: 1,
+  });
 
   const sortedCategories = useMemo(
     () =>
@@ -344,30 +478,12 @@ export function PublicProductsPage() {
     [categories],
   );
 
-  const filteredProducts = useMemo(() => {
-    const normalizedQuery = activeQuery.trim().toLocaleLowerCase('tr-TR');
+  useEffect(() => {
+    setSearchInput(activeQuery);
+  }, [activeQuery]);
 
-    return products.filter((product) => {
-      const matchesCategory =
-        activeCategory === 'all' || product.category?.slug === activeCategory;
-      const haystack = [
-        product.name,
-        product.shortDescription,
-        product.description,
-        product.category?.name,
-        ...(product.tags ?? []),
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLocaleLowerCase('tr-TR');
-
-      const matchesQuery = !normalizedQuery || haystack.includes(normalizedQuery);
-      return matchesCategory && matchesQuery;
-    });
-  }, [activeCategory, activeQuery, products]);
-
-  const updateParams = (next: { kategori?: string; q?: string }) => {
-    const params = new URLSearchParams(searchParams);
+  const updateParams = (next: { kategori?: string; page?: number; q?: string }) => {
+    const params = new URLSearchParams(searchParamsKey);
 
     if (typeof next.kategori !== 'undefined') {
       if (!next.kategori || next.kategori === 'all') {
@@ -385,12 +501,137 @@ export function PublicProductsPage() {
       }
     }
 
+    if (typeof next.page !== 'undefined') {
+      if (!next.page || next.page <= 1) {
+        params.delete('page');
+      } else {
+        params.set('page', String(next.page));
+      }
+    }
+
     setSearchParams(params, { replace: true });
   };
+
+  useEffect(() => {
+    const normalizedInput = deferredSearchInput.trim();
+    if (normalizedInput === activeQuery) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      updateParams({ q: normalizedInput, page: 1 });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [activeQuery, deferredSearchInput, searchParamsKey]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    setProductsLoading(true);
+
+    api
+      .get<PaginatedResponse<Product>>('/catalog/public/products/list', {
+        params: {
+          page: activePage,
+          pageSize: PUBLIC_PRODUCTS_PAGE_SIZE,
+          search: activeQuery || undefined,
+          category: activeCategory !== 'all' ? activeCategory : undefined,
+        },
+      })
+      .then((response) => {
+        if (!mounted) {
+          return;
+        }
+
+        setProducts(response.data.items);
+        setPagination({
+          total: response.data.total,
+          page: response.data.page,
+          pageSize: response.data.pageSize,
+          totalPages: response.data.totalPages,
+        });
+      })
+      .finally(() => {
+        if (mounted) {
+          setProductsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeCategory, activePage, activeQuery]);
+
+  const siteUrl = settings?.siteUrl ?? null;
+  const activeCategoryName =
+    sortedCategories.find((category) => category.slug === activeCategory)?.name ?? '';
+  const canonicalParams = new URLSearchParams();
+
+  if (activeCategory !== 'all') {
+    canonicalParams.set('kategori', activeCategory);
+  }
+  if (activePage > 1) {
+    canonicalParams.set('page', String(activePage));
+  }
+
+  const canonicalPath = canonicalParams.toString()
+    ? `/urunler?${canonicalParams.toString()}`
+    : '/urunler';
+  const pageTitle = activeCategoryName ? `${activeCategoryName} urunleri` : 'Tum urunler';
+  const pageDescription = summarizeText(
+    activeCategoryName
+      ? `${activeCategoryName} kategorisindeki urunleri filtreli katalog akisi ile inceleyin.`
+      : config.pages.products.description || 'Tum urunler filtreli katalog akisi ile listelenir.',
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle(pageTitle, config.theme.brandName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(siteUrl, canonicalPath),
+    robots: activeQuery.trim()
+      ? 'noindex,follow,max-image-preview:large'
+      : 'index,follow,max-image-preview:large',
+    keywords: ['urunler', activeCategoryName, 'zeytinyagi', 'zeytin'].filter((item) => item),
+    siteName: config.theme.brandName,
+    jsonLd: [
+      buildWebPageSchema({
+        siteUrl,
+        path: canonicalPath,
+        title: pageTitle,
+        description: pageDescription,
+      }),
+      buildCollectionSchema({
+        siteUrl,
+        path: canonicalPath,
+        name: pageTitle,
+        description: pageDescription,
+        items: products.map((product) => ({
+          name: product.name,
+          path: resolvePublicProductPath(product),
+        })),
+      }),
+      buildBreadcrumbSchema(siteUrl, [
+        { name: 'Ana Sayfa', path: '/' },
+        { name: 'Urunler', path: '/urunler' },
+        ...(activeCategoryName ? [{ name: activeCategoryName, path: canonicalPath }] : []),
+      ]),
+    ],
+  });
 
   return (
     <PublicStorefrontLayout activePath={location.pathname} config={config} currency={currency}>
       <div className="pc-page-shell">
+        <PublicBreadcrumbs
+          items={[
+            { label: 'Ana Sayfa', href: '/' },
+            { label: 'Urunler', href: activeCategoryName ? '/urunler' : undefined },
+            ...(activeCategoryName ? [{ label: activeCategoryName }] : []),
+          ]}
+        />
         <ManagedPageHero eyebrow="Ürünler" page={config.pages.products} />
 
         <section className="pc-products-layout">
@@ -401,7 +642,7 @@ export function PublicProductsPage() {
               <div className="pc-filter-list">
                 <button
                   className={activeCategory === 'all' ? 'active' : ''}
-                  onClick={() => updateParams({ kategori: 'all' })}
+                  onClick={() => updateParams({ kategori: 'all', page: 1 })}
                   type="button"
                 >
                   Tüm ürünler
@@ -410,7 +651,7 @@ export function PublicProductsPage() {
                   <button
                     className={activeCategory === category.slug ? 'active' : ''}
                     key={category.id}
-                    onClick={() => updateParams({ kategori: category.slug })}
+                    onClick={() => updateParams({ kategori: category.slug, page: 1 })}
                     type="button"
                   >
                     {category.name}
@@ -434,26 +675,26 @@ export function PublicProductsPage() {
             <div className="pc-products-toolbar">
               <div>
                 <span>Katalog</span>
-                <h2>{filteredProducts.length} ürün listelendi</h2>
+                <h2>{pagination.total} ürün listelendi</h2>
               </div>
 
               <label className="pc-search-box">
                 <span>Arama</span>
                 <input
-                  onChange={(event) => updateParams({ q: event.target.value })}
+                  onChange={(event) => setSearchInput(event.target.value)}
                   placeholder="Ürün, kategori veya etiket ara"
                   type="search"
-                  value={activeQuery}
+                  value={searchInput}
                 />
               </label>
             </div>
 
             <div className="pc-product-grid">
-              {loading
+              {loading || productsLoading
                 ? Array.from({ length: 6 }).map((_, index) => (
                     <article className="pc-product-card skeleton" key={`product-skeleton-${index}`} />
                   ))
-                : filteredProducts.map((product) => (
+                : products.map((product) => (
                     <ProductCatalogCard
                       currency={currency}
                       key={product.id}
@@ -463,11 +704,24 @@ export function PublicProductsPage() {
                   ))}
             </div>
 
-            {!loading && filteredProducts.length === 0 ? (
+            <PublicCatalogPagination
+              onPageChange={(page) => updateParams({ page })}
+              page={pagination.page}
+              total={pagination.total}
+              totalPages={pagination.totalPages}
+            />
+
+            {!loading && !productsLoading && products.length === 0 ? (
               <article className="pc-empty-state">
                 <strong>Filtrelere uygun ürün bulunamadı</strong>
                 <p>Admin panelinden yeni ürün ekleyebilir ya da farklı kategori seçerek listeyi yenileyebilirsiniz.</p>
-                <button onClick={() => setSearchParams(new URLSearchParams())} type="button">
+                <button
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearchParams(new URLSearchParams(), { replace: true });
+                  }}
+                  type="button"
+                >
                   Filtreleri temizle
                 </button>
               </article>
@@ -481,7 +735,7 @@ export function PublicProductsPage() {
 
 export function PublicCampaignsPage() {
   const location = useLocation();
-  const { config, currency, loading, products } = usePublicCatalogData();
+  const { config, currency, loading, products, settings } = usePublicCatalogData();
 
   const discountedProducts = useMemo(
     () =>
@@ -501,9 +755,52 @@ export function PublicCampaignsPage() {
     [currency],
   );
 
+  const siteUrl = settings?.siteUrl ?? null;
+  const pageDescription = summarizeText(
+    config.pages.campaigns.description ||
+      'Kampanyalar, indirimli urunler ve promo bloklari tek sayfada sergilenir.',
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle('Kampanyalar', config.theme.brandName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/kampanyalar'),
+    keywords: ['kampanya', 'indirim', 'zeytinyagi', 'zeytin'],
+    siteName: config.theme.brandName,
+    jsonLd: [
+      buildWebPageSchema({
+        siteUrl,
+        path: '/kampanyalar',
+        title: 'Kampanyalar',
+        description: pageDescription,
+      }),
+      buildCollectionSchema({
+        siteUrl,
+        path: '/kampanyalar',
+        name: 'Kampanyalar',
+        description: pageDescription,
+        items: discountedProducts.map((product) => ({
+          name: product.name,
+          path: resolvePublicProductPath(product),
+        })),
+      }),
+      buildBreadcrumbSchema(siteUrl, [
+        { name: 'Ana Sayfa', path: '/' },
+        { name: 'Kampanyalar', path: '/kampanyalar' },
+      ]),
+    ],
+  });
+
   return (
     <PublicStorefrontLayout activePath={location.pathname} config={config} currency={currency}>
       <div className="pc-page-shell">
+        <PublicBreadcrumbs
+          items={[
+            { label: 'Ana Sayfa', href: '/' },
+            { label: 'Kampanyalar' },
+          ]}
+        />
         <ManagedPageHero eyebrow="Kampanyalar" page={config.pages.campaigns} />
 
         <section className="pc-section-head">
@@ -531,7 +828,7 @@ export function PublicCampaignsPage() {
         <section className="pc-promo-grid">
           {config.promoCards.map((card, index) => (
             <article className={index === 0 ? 'pc-promo-card featured' : 'pc-promo-card'} key={`${card.title}-${index}`}>
-              <img alt={card.title} src={card.imageUrl} />
+              <img alt={card.title} decoding="async" loading="lazy" src={card.imageUrl} />
               <div className="pc-promo-card-copy">
                 <span>Promo modulu</span>
                 <h3>{card.title}</h3>
@@ -558,7 +855,7 @@ export function PublicCampaignsPage() {
               ))
             : discountedProducts.map((product) => (
                 <article className="pc-campaign-product" key={product.id}>
-                  <img alt={product.name} src={resolveProductImage(product)} />
+                  <img alt={product.name} decoding="async" loading="lazy" src={resolveProductImage(product)} />
                   <div>
                     <span>{product.category?.name || 'Kampanyalı ürün'}</span>
                     <h3>{product.name}</h3>
@@ -567,7 +864,7 @@ export function PublicCampaignsPage() {
                   <div className="pc-campaign-product-price">
                     <small>{formatter.format(parsePrice(product.compareAtPrice))}</small>
                     <strong>{formatter.format(parsePrice(product.price))}</strong>
-                    <Link to={`/product/${product.id}`}>Ürünü Aç</Link>
+                    <Link to={resolvePublicProductPath(product)}>Ürünü Aç</Link>
                   </div>
                 </article>
               ))}
@@ -576,7 +873,7 @@ export function PublicCampaignsPage() {
         <section className="pc-parallax-grid">
           {config.parallaxCards.map((card, index) => (
             <article className={index === 0 ? 'pc-parallax-card tall' : 'pc-parallax-card'} key={`${card.title}-${index}`}>
-              <img alt={card.title} src={card.imageUrl} />
+              <img alt={card.title} decoding="async" loading="lazy" src={card.imageUrl} />
               <div className="pc-parallax-card-copy">
                 <span>Vitrin blogu</span>
                 <h3>{card.title}</h3>

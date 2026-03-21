@@ -1,13 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { AiSeoAssistant } from '../components/admin/AiSeoAssistant';
 import { MediaPickerField } from '../components/admin/MediaPickerField';
-import { parseMediaLibrary } from '../lib/admin-content';
+import { parseMediaLibrary, slugify } from '../lib/admin-content';
 import { fetchSettingsRecord } from '../lib/admin-settings';
+import { createAiSeoSuggestions } from '../lib/ai-seo';
 import { api } from '../lib/api';
 import type { Category, MediaItem } from '../types/api';
 
 interface CategoryFormState {
   name: string;
+  slug: string;
   description: string;
   imageUrl: string;
   displayOrder: string;
@@ -19,6 +22,7 @@ interface CategoryFormState {
 
 const defaultCategoryForm: CategoryFormState = {
   name: '',
+  slug: '',
   description: '',
   imageUrl: '',
   displayOrder: '0',
@@ -38,6 +42,7 @@ function toKeywordArray(raw: string) {
 function toCategoryFormState(category: Category): CategoryFormState {
   return {
     name: category.name,
+    slug: category.slug,
     description: category.description ?? '',
     imageUrl: category.imageUrl ?? '',
     displayOrder: String(category.displayOrder),
@@ -70,9 +75,11 @@ export function CategoryFormPage() {
       setCategoryNotFound(false);
 
       try {
-        const [settings, categoriesResponse] = await Promise.all([
+        const [settings, categoryResponse] = await Promise.all([
           fetchSettingsRecord(),
-          api.get<Category[]>('/catalog/categories'),
+          categoryId
+            ? api.get<Category>(`/catalog/categories/${categoryId}`)
+            : Promise.resolve<{ data: Category | null }>({ data: null }),
         ]);
 
         if (!mounted) {
@@ -82,9 +89,9 @@ export function CategoryFormPage() {
         setMediaItems(parseMediaLibrary(settings.mediaLibrary));
 
         if (isEditMode && categoryId) {
-          const category = categoriesResponse.data.find((item) => item.id === categoryId);
+          const category = categoryResponse.data;
           if (!category) {
-            setMessage('Kategori bulunamadı.');
+            setMessage('Kategori bulunamadi.');
             setCategoryNotFound(true);
             setEditingCategoryId(null);
             setForm(defaultCategoryForm);
@@ -100,7 +107,7 @@ export function CategoryFormPage() {
         setForm(defaultCategoryForm);
       } catch {
         if (mounted) {
-          setMessage('Kategori formu yüklenemedi.');
+          setMessage('Kategori formu yuklenemedi.');
         }
       } finally {
         if (mounted) {
@@ -123,6 +130,7 @@ export function CategoryFormPage() {
 
     const payload = {
       name: form.name.trim(),
+      slug: form.slug.trim() || undefined,
       description: form.description,
       imageUrl: form.imageUrl,
       displayOrder: Number(form.displayOrder || '0'),
@@ -147,8 +155,21 @@ export function CategoryFormPage() {
     }
   };
 
+  const seoSuggestions = useMemo(
+    () =>
+      createAiSeoSuggestions({
+        title: form.name,
+        category: form.name,
+        summary: form.description,
+        content: form.description,
+        existingKeywords: toKeywordArray(form.seoKeywordsText),
+        fallbackSlug: form.slug || form.name,
+      }),
+    [form.description, form.name, form.seoKeywordsText, form.slug],
+  );
+
   if (loading) {
-    return <section className="admin-panel">Kategori formu yükleniyor...</section>;
+    return <section className="admin-panel">Kategori formu yukleniyor...</section>;
   }
 
   if (categoryNotFound) {
@@ -156,10 +177,14 @@ export function CategoryFormPage() {
       <section className="admin-panel">
         <div className="admin-panel-header">
           <div>
-            <h3>Kategori bulunamadı</h3>
-            <p>Düzenlemek istediğiniz kayıt silinmiş olabilir.</p>
+            <h3>Kategori bulunamadi</h3>
+            <p>Duzenlemek istediginiz kayit silinmis olabilir.</p>
           </div>
-          <button className="admin-secondary-button" onClick={() => navigate('/dashboard/categories')} type="button">
+          <button
+            className="admin-secondary-button"
+            onClick={() => navigate('/dashboard/categories')}
+            type="button"
+          >
             Kategori listesi
           </button>
         </div>
@@ -173,13 +198,17 @@ export function CategoryFormPage() {
       <section className="admin-page-header">
         <div>
           <span className="admin-eyebrow">Katalog / Kategori formu</span>
-          <h2>{editingCategoryId ? 'Kategori düzenle' : 'Yeni kategori ekle'}</h2>
-          <p>Kategori görseli, sıralama ve SEO alanlarını eksiksiz yönetin.</p>
+          <h2>{editingCategoryId ? 'Kategori duzenle' : 'Yeni kategori ekle'}</h2>
+          <p>Kategori gorseli, siralama ve SEO alanlarini eksiksiz yonetin.</p>
         </div>
 
         <div className="admin-header-actions">
-          <button className="admin-secondary-button" onClick={() => navigate('/dashboard/categories')} type="button">
-            Listeye dön
+          <button
+            className="admin-secondary-button"
+            onClick={() => navigate('/dashboard/categories')}
+            type="button"
+          >
+            Listeye don
           </button>
         </div>
       </section>
@@ -191,7 +220,7 @@ export function CategoryFormPage() {
           <section className="admin-stage-intro">
             <span className="admin-eyebrow">Kompakt Form</span>
             <h3>Kategori vitrini</h3>
-            <p>Kategori görseli, sıralama ve SEO alanlarını tek akışta tamamlayın.</p>
+            <p>Kategori gorseli, siralama ve SEO alanlarini tek akista tamamlayin.</p>
           </section>
 
           <section className="admin-panel">
@@ -200,9 +229,27 @@ export function CategoryFormPage() {
                 <span>Kategori adi</span>
                 <input
                   className="admin-input"
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                      slug: current.slug ? current.slug : slugify(event.target.value, 'kategori'),
+                    }))
+                  }
                   required
                   value={form.name}
+                />
+              </label>
+
+              <label className="admin-label">
+                <span>Slug</span>
+                <input
+                  className="admin-input"
+                  onChange={(event) =>
+                    setForm({ ...form, slug: slugify(event.target.value, 'kategori') })
+                  }
+                  placeholder="kategori-slug"
+                  value={form.slug}
                 />
               </label>
 
@@ -219,7 +266,7 @@ export function CategoryFormPage() {
               </label>
 
               <label className="admin-label admin-span-full">
-                <span>Açıklama</span>
+                <span>Aciklama</span>
                 <textarea
                   className="admin-textarea"
                   onChange={(event) => setForm({ ...form, description: event.target.value })}
@@ -230,15 +277,15 @@ export function CategoryFormPage() {
 
               <MediaPickerField
                 allowedTypes={['image']}
-                helperText="Kategori kapak görseli storefront ve admin listesinde kullanılır."
+                helperText="Kategori kapak gorseli storefront ve admin listesinde kullanilir."
                 items={mediaItems}
-                label="Kategori görseli"
+                label="Kategori gorseli"
                 onChange={(value) => setForm({ ...form, imageUrl: value })}
                 value={form.imageUrl}
               />
 
               <label className="admin-label">
-                <span>Gösterim sırası</span>
+                <span>Gosterim sirasi</span>
                 <input
                   className="admin-input"
                   min="0"
@@ -249,7 +296,7 @@ export function CategoryFormPage() {
               </label>
 
               <label className="admin-label">
-                <span>SEO başlık</span>
+                <span>SEO baslik</span>
                 <input
                   className="admin-input"
                   onChange={(event) => setForm({ ...form, seoTitle: event.target.value })}
@@ -257,8 +304,20 @@ export function CategoryFormPage() {
                 />
               </label>
 
+              <label className="admin-label">
+                <span>SEO slug</span>
+                <input
+                  className="admin-input"
+                  onChange={(event) =>
+                    setForm({ ...form, slug: slugify(event.target.value, 'kategori') })
+                  }
+                  placeholder="kategori-slug"
+                  value={form.slug}
+                />
+              </label>
+
               <label className="admin-label admin-span-full">
-                <span>SEO açıklama</span>
+                <span>SEO aciklama</span>
                 <input
                   className="admin-input"
                   onChange={(event) => setForm({ ...form, seoDescription: event.target.value })}
@@ -271,20 +330,67 @@ export function CategoryFormPage() {
                 <input
                   className="admin-input"
                   onChange={(event) => setForm({ ...form, seoKeywordsText: event.target.value })}
-                  placeholder="zeytin, naturel, soğuk sıkım"
+                  placeholder="zeytin, naturel, soguk sikim"
                   value={form.seoKeywordsText}
                 />
               </label>
             </div>
 
+            <AiSeoAssistant
+              descriptionSuggestion={seoSuggestions.description}
+              keywordsSuggestion={seoSuggestions.keywords}
+              onApplyDescription={() =>
+                setForm((current) => ({
+                  ...current,
+                  seoDescription: seoSuggestions.description,
+                }))
+              }
+              onApplyKeywords={() =>
+                setForm((current) => ({
+                  ...current,
+                  seoKeywordsText: seoSuggestions.keywords.join(', '),
+                }))
+              }
+              onApplySlug={() =>
+                setForm((current) => ({
+                  ...current,
+                  slug: seoSuggestions.slug,
+                }))
+              }
+              onApplySummary={() =>
+                setForm((current) => ({
+                  ...current,
+                  description: seoSuggestions.summary,
+                }))
+              }
+              onApplyTitle={() =>
+                setForm((current) => ({
+                  ...current,
+                  seoTitle: seoSuggestions.title,
+                }))
+              }
+              slugSuggestion={seoSuggestions.slug}
+              summaryLabel="Kategori ozet onerisi"
+              summarySuggestion={seoSuggestions.summary}
+              titleSuggestion={seoSuggestions.title}
+            />
+
             <div className="admin-stage-actions">
               <div className="admin-stage-actions-group" />
               <div className="admin-stage-actions-group">
                 <button className="admin-primary-button" disabled={saving} type="submit">
-                  {saving ? 'Kaydediliyor...' : editingCategoryId ? 'Kategoriyi güncelle' : 'Kategoriyi oluştur'}
+                  {saving
+                    ? 'Kaydediliyor...'
+                    : editingCategoryId
+                      ? 'Kategoriyi guncelle'
+                      : 'Kategoriyi olustur'}
                 </button>
-                <button className="admin-ghost-button" onClick={() => navigate('/dashboard/categories')} type="button">
-                  Vazgeç
+                <button
+                  className="admin-ghost-button"
+                  onClick={() => navigate('/dashboard/categories')}
+                  type="button"
+                >
+                  Vazgec
                 </button>
               </div>
             </div>
@@ -293,29 +399,29 @@ export function CategoryFormPage() {
 
         <aside className="admin-workbench-aside">
           <div className="admin-preview-card">
-            <h3>Kategori özeti</h3>
-            <p>Kayıt sırasında storefront tarafında nasıl görüneceğine dair hızlı kontrol.</p>
+            <h3>Kategori ozeti</h3>
+            <p>Kayit sirasinda storefront tarafinda nasil gorunecegine dair hizli kontrol.</p>
 
             <div className="admin-preview-media">
               {form.imageUrl ? (
-                <img alt={form.name || 'Kategori görseli'} src={form.imageUrl} />
+                <img alt={form.name || 'Kategori gorseli'} src={form.imageUrl} />
               ) : (
-                <span className="admin-preview-empty">Kapak görseli seçilmedi</span>
+                <span className="admin-preview-empty">Kapak gorseli secilmedi</span>
               )}
             </div>
 
             <ul className="admin-preview-list">
               <li>
                 <strong>Durum</strong>
-                <small>{form.isActive ? 'Yayında' : 'Pasif'}</small>
+                <small>{form.isActive ? 'Yayinda' : 'Pasif'}</small>
               </li>
               <li>
-                <strong>Sıra</strong>
+                <strong>Sira</strong>
                 <small>{form.displayOrder || '0'}</small>
               </li>
               <li>
                 <strong>SEO</strong>
-                <small>{form.seoTitle || form.seoDescription ? 'Yapılandırıldı' : 'Boş'}</small>
+                <small>{form.seoTitle || form.seoDescription ? 'Yapilandirildi' : 'Bos'}</small>
               </li>
             </ul>
           </div>

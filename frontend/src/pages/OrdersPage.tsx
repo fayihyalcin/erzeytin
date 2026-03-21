@@ -1,15 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AdminPagination } from '../components/admin/AdminPagination';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type {
   AdminUser,
   FulfillmentStatus,
   Order,
-  OrderStatus,
   OrdersSummary,
+  PaginatedResponse,
   PaymentMethod,
   PaymentStatus,
+  OrderStatus,
 } from '../types/api';
 
 const ORDER_STATUS_OPTIONS: OrderStatus[] = [
@@ -65,6 +67,8 @@ const STATUS_LABELS: Record<string, string> = {
   UNFULFILLED: 'Hazirlanmadi',
   PROCESSING: 'Hazirlaniyor',
 };
+
+const PAGE_SIZE = 20;
 
 function formatCurrency(value: string, currency: string) {
   const numeric = Number(value);
@@ -141,45 +145,83 @@ export function OrdersPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [paymentFilter, setPaymentFilter] = useState<string>('');
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('');
-  const [fulfillmentFilter, setFulfillmentFilter] = useState<string>('');
-  const [assignedRepresentativeFilter, setAssignedRepresentativeFilter] = useState<string>('');
-  const [mineOnly, setMineOnly] = useState<boolean>(isRepresentative);
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({
+    status: '',
+    paymentStatus: '',
+    paymentMethod: '',
+    fulfillmentStatus: '',
+    assignedRepresentativeId: '',
+    mineOnly: isRepresentative,
+    search: '',
+  });
+  const [query, setQuery] = useState({
+    page: 1,
+    status: '',
+    paymentStatus: '',
+    paymentMethod: '',
+    fulfillmentStatus: '',
+    assignedRepresentativeId: '',
+    mineOnly: isRepresentative,
+    search: '',
+  });
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    pageSize: PAGE_SIZE,
+    totalPages: 1,
+  });
+
+  useEffect(() => {
+    setFilters((current) => ({ ...current, mineOnly: isRepresentative }));
+    setQuery((current) => ({ ...current, mineOnly: isRepresentative, page: 1 }));
+  }, [isRepresentative]);
 
   const fetchRepresentatives = async () => {
-    const response = await api.get<AdminUser[]>('/users/representatives');
-    setRepresentatives(response.data);
+    const response = await api.get<PaginatedResponse<AdminUser>>('/users/representatives', {
+      params: {
+        page: 1,
+        pageSize: 100,
+      },
+    });
+    setRepresentatives(response.data.items);
   };
 
-  const fetchOrders = async () => {
-    const params: Record<string, string> = {};
-    if (statusFilter) {
-      params.status = statusFilter;
+  const fetchOrders = async (nextQuery = query) => {
+    const params: Record<string, string | number> = {
+      page: nextQuery.page,
+      pageSize: PAGE_SIZE,
+    };
+
+    if (nextQuery.status) {
+      params.status = nextQuery.status;
     }
-    if (paymentFilter) {
-      params.paymentStatus = paymentFilter;
+    if (nextQuery.paymentStatus) {
+      params.paymentStatus = nextQuery.paymentStatus;
     }
-    if (paymentMethodFilter) {
-      params.paymentMethod = paymentMethodFilter;
+    if (nextQuery.paymentMethod) {
+      params.paymentMethod = nextQuery.paymentMethod;
     }
-    if (fulfillmentFilter) {
-      params.fulfillmentStatus = fulfillmentFilter;
+    if (nextQuery.fulfillmentStatus) {
+      params.fulfillmentStatus = nextQuery.fulfillmentStatus;
     }
-    if (assignedRepresentativeFilter) {
-      params.assignedRepresentativeId = assignedRepresentativeFilter;
+    if (nextQuery.assignedRepresentativeId) {
+      params.assignedRepresentativeId = nextQuery.assignedRepresentativeId;
     }
-    if (mineOnly) {
+    if (nextQuery.mineOnly) {
       params.mine = 'true';
     }
-    if (search.trim()) {
-      params.search = search.trim();
+    if (nextQuery.search.trim()) {
+      params.search = nextQuery.search.trim();
     }
 
-    const response = await api.get<Order[]>('/orders', { params });
-    setOrders(response.data);
+    const response = await api.get<PaginatedResponse<Order>>('/orders', { params });
+    setOrders(response.data.items);
+    setPagination({
+      total: response.data.total,
+      page: response.data.page,
+      pageSize: response.data.pageSize,
+      totalPages: response.data.totalPages,
+    });
   };
 
   const fetchSummary = async () => {
@@ -187,12 +229,12 @@ export function OrdersPage() {
     setSummary(response.data);
   };
 
-  const refresh = async () => {
+  const refresh = async (nextQuery = query) => {
     setLoading(true);
     setMessage(null);
 
     try {
-      const tasks: Promise<unknown>[] = [fetchOrders(), fetchSummary()];
+      const tasks: Promise<unknown>[] = [fetchOrders(nextQuery), fetchSummary()];
       if (isAdmin) {
         tasks.push(fetchRepresentatives());
       }
@@ -205,16 +247,21 @@ export function OrdersPage() {
   };
 
   useEffect(() => {
-    void refresh();
-  }, []);
+    void refresh(query);
+  }, [query, isAdmin]);
 
-  useEffect(() => {
-    setMineOnly(isRepresentative);
-  }, [isRepresentative]);
-
-  const handleFilterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleFilterSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await refresh();
+    setQuery({
+      page: 1,
+      status: filters.status,
+      paymentStatus: filters.paymentStatus,
+      paymentMethod: filters.paymentMethod,
+      fulfillmentStatus: filters.fulfillmentStatus,
+      assignedRepresentativeId: filters.assignedRepresentativeId,
+      mineOnly: filters.mineOnly,
+      search: filters.search.trim(),
+    });
   };
 
   const handleDelete = async (order: Order) => {
@@ -231,7 +278,7 @@ export function OrdersPage() {
 
     try {
       await api.delete(`/orders/${order.id}`);
-      await refresh();
+      await refresh(query);
       setMessage('Siparis silindi.');
     } catch {
       setMessage('Siparis silinemedi.');
@@ -273,11 +320,11 @@ export function OrdersPage() {
       <form className="orders-filters" onSubmit={handleFilterSubmit}>
         <input
           placeholder="Siparis no / musteri / e-posta"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          value={filters.search}
+          onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
         />
 
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+        <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
           <option value="">Tum Siparis Durumlari</option>
           {ORDER_STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
@@ -286,7 +333,7 @@ export function OrdersPage() {
           ))}
         </select>
 
-        <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+        <select value={filters.paymentStatus} onChange={(event) => setFilters((current) => ({ ...current, paymentStatus: event.target.value }))}>
           <option value="">Tum Odeme Durumlari</option>
           {PAYMENT_STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
@@ -296,8 +343,8 @@ export function OrdersPage() {
         </select>
 
         <select
-          value={paymentMethodFilter}
-          onChange={(event) => setPaymentMethodFilter(event.target.value)}
+          value={filters.paymentMethod}
+          onChange={(event) => setFilters((current) => ({ ...current, paymentMethod: event.target.value }))}
         >
           <option value="">Tum Odeme Yontemleri</option>
           {PAYMENT_METHOD_OPTIONS.map((method) => (
@@ -308,8 +355,8 @@ export function OrdersPage() {
         </select>
 
         <select
-          value={fulfillmentFilter}
-          onChange={(event) => setFulfillmentFilter(event.target.value)}
+          value={filters.fulfillmentStatus}
+          onChange={(event) => setFilters((current) => ({ ...current, fulfillmentStatus: event.target.value }))}
         >
           <option value="">Tum Kargo Durumlari</option>
           {FULFILLMENT_STATUS_OPTIONS.map((status) => (
@@ -321,8 +368,10 @@ export function OrdersPage() {
 
         {isAdmin ? (
           <select
-            value={assignedRepresentativeFilter}
-            onChange={(event) => setAssignedRepresentativeFilter(event.target.value)}
+            value={filters.assignedRepresentativeId}
+            onChange={(event) =>
+              setFilters((current) => ({ ...current, assignedRepresentativeId: event.target.value }))
+            }
           >
             <option value="">Tum Temsilciler</option>
             {representatives.map((representative) => (
@@ -340,8 +389,10 @@ export function OrdersPage() {
         <label className="muted">
           <input
             type="checkbox"
-            checked={mineOnly}
-            onChange={(event) => setMineOnly(event.target.checked)}
+            checked={filters.mineOnly}
+            onChange={(event) =>
+              setFilters((current) => ({ ...current, mineOnly: event.target.checked }))
+            }
           />{' '}
           Sadece zimmetimdeki siparisler
         </label>
@@ -403,12 +454,7 @@ export function OrdersPage() {
                     <td data-label="Tarih">{formatDate(order.placedAt)}</td>
                     <td data-label="WhatsApp">
                       {whatsappLink ? (
-                        <a
-                          className="tiny whatsapp"
-                          href={whatsappLink}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
+                        <a className="tiny whatsapp" href={whatsappLink} target="_blank" rel="noreferrer">
                           WhatsApp
                         </a>
                       ) : (
@@ -443,6 +489,13 @@ export function OrdersPage() {
           </tbody>
         </table>
       </div>
+
+      <AdminPagination
+        onPageChange={(page) => setQuery((current) => ({ ...current, page }))}
+        page={pagination.page}
+        total={pagination.total}
+        totalPages={pagination.totalPages}
+      />
     </section>
   );
 }

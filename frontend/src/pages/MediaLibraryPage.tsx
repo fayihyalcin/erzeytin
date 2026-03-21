@@ -5,6 +5,7 @@ import { extractApiError } from '../lib/api';
 import {
   createMediaItemFromUpload,
   mergeMediaItems,
+  resolveMediaAssetUrl,
   uploadMediaFiles,
 } from '../lib/media-library';
 import type { MediaItem, MediaItemType } from '../types/api';
@@ -37,6 +38,7 @@ export function MediaLibraryPage() {
   const [search, setSearch] = useState('');
   const [folderFilter, setFolderFilter] = useState('Tum klasorler');
   const [typeFilter, setTypeFilter] = useState<'all' | MediaItemType>('all');
+  const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -199,6 +201,7 @@ export function MediaLibraryPage() {
       setMessage(extractApiError(error, 'Dosyalar yuklenemedi.'));
     } finally {
       setUploading(false);
+      setDragActive(false);
     }
   };
 
@@ -281,9 +284,17 @@ export function MediaLibraryPage() {
                 >
                   <div className="admin-media-preview">
                     {item.type === 'image' ? (
-                      <img alt={item.alt || item.title || 'Medya'} src={item.thumbnailUrl || item.url} />
+                      <img
+                        alt={item.alt || item.title || 'Medya'}
+                        src={resolveMediaAssetUrl(item.thumbnailUrl || item.url)}
+                      />
                     ) : item.type === 'video' ? (
-                      <video muted playsInline preload="metadata" src={item.url} />
+                      <video
+                        muted
+                        playsInline
+                        preload="metadata"
+                        src={resolveMediaAssetUrl(item.url)}
+                      />
                     ) : (
                       <div className="admin-media-file-icon">DOC</div>
                     )}
@@ -397,12 +408,33 @@ export function MediaLibraryPage() {
             </label>
           </div>
 
-          <div className="admin-upload-box">
+          <div
+            className={dragActive ? 'admin-upload-box admin-upload-box-active' : 'admin-upload-box'}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setDragActive(true);
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault();
+              if (event.currentTarget === event.target) {
+                setDragActive(false);
+              }
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragActive(true);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragActive(false);
+              void handleUpload(event.dataTransfer.files);
+            }}
+          >
             <div>
               <strong>Hizli coklu yukleme</strong>
               <p>
-                Dosyalari dogrudan sunucuya yukleyin. Sectikten sonra aninda kutuphaneye eklenir;
-                ayrica tek tek kaydetmenize gerek kalmaz.
+                Dosyalari buraya birakin veya secin. Yukleme artik toplu batch istegiyle
+                yapiliyor; buyuk secimlerde de tek tek beklemiyorsunuz.
               </p>
             </div>
             <label className="admin-upload-trigger">
@@ -423,9 +455,12 @@ export function MediaLibraryPage() {
           {form.url ? (
             <div className="admin-media-inline-preview large">
               {isVideo(form.url) ? (
-                <video controls playsInline src={form.url} />
+                <video controls playsInline src={resolveMediaAssetUrl(form.url)} />
               ) : isImage(form.url) ? (
-                <img alt={form.alt || form.title || 'Onizleme'} src={form.thumbnailUrl || form.url} />
+                <img
+                  alt={form.alt || form.title || 'Onizleme'}
+                  src={resolveMediaAssetUrl(form.thumbnailUrl || form.url)}
+                />
               ) : (
                 <div className="admin-document-preview">
                   <strong>{form.title || 'Dokuman onizlemesi'}</strong>

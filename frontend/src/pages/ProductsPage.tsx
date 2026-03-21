@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AdminPagination } from '../components/admin/AdminPagination';
 import { api } from '../lib/api';
 import { resolveProductImage } from '../lib/product-images';
-import type { Product } from '../types/api';
+import type { PaginatedResponse, Product, ProductCatalogSummary } from '../types/api';
 
 function formatPrice(value: string) {
   return new Intl.NumberFormat('tr-TR', {
@@ -12,67 +13,87 @@ function formatPrice(value: string) {
   }).format(Number(value || 0));
 }
 
+const DEFAULT_SUMMARY: ProductCatalogSummary = {
+  totalCount: 0,
+  activeCount: 0,
+  totalStock: 0,
+  lowStockCount: 0,
+  variantCount: 0,
+  lowStockProducts: [],
+};
+
+const PAGE_SIZE = 12;
+
 export function ProductsPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
+  const [summary, setSummary] = useState<ProductCatalogSummary>(DEFAULT_SUMMARY);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [statusFilterInput, setStatusFilterInput] = useState<'all' | 'active' | 'inactive'>('all');
+  const [query, setQuery] = useState({
+    page: 1,
+    search: '',
+    status: 'all' as 'all' | 'active' | 'inactive',
+  });
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    pageSize: PAGE_SIZE,
+    totalPages: 1,
+  });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const loadProducts = async () => {
-    const response = await api.get<Product[]>('/catalog/products');
-    setProducts(response.data);
+  const loadProducts = async (nextQuery = query) => {
+    const [productsResponse, summaryResponse] = await Promise.all([
+      api.get<PaginatedResponse<Product>>('/catalog/products', {
+        params: {
+          page: nextQuery.page,
+          pageSize: PAGE_SIZE,
+          search: nextQuery.search || undefined,
+          status: nextQuery.status !== 'all' ? nextQuery.status : undefined,
+        },
+      }),
+      api.get<ProductCatalogSummary>('/catalog/products/summary'),
+    ]);
+
+    setProducts(productsResponse.data.items);
+    setSummary(summaryResponse.data);
+    setPagination({
+      total: productsResponse.data.total,
+      page: productsResponse.data.page,
+      pageSize: productsResponse.data.pageSize,
+      totalPages: productsResponse.data.totalPages,
+    });
   };
 
   useEffect(() => {
-    loadProducts()
+    loadProducts(query)
       .catch(() => {
         setMessage('Urunler yuklenemedi.');
       })
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [query]);
 
-  const filteredProducts = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase('tr-TR');
-    return products.filter((product) => {
-      if (statusFilter === 'active' && !product.isActive) {
-        return false;
-      }
-
-      if (statusFilter === 'inactive' && product.isActive) {
-        return false;
-      }
-
-      if (!keyword) {
-        return true;
-      }
-
-      return [product.name, product.sku, product.category?.name ?? '', ...(product.tags ?? [])].some((value) =>
-        value.toLocaleLowerCase('tr-TR').includes(keyword),
-      );
+  const handleFilterSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setQuery({
+      page: 1,
+      search: searchInput.trim(),
+      status: statusFilterInput,
     });
-  }, [products, search, statusFilter]);
-
-  const totalStock = useMemo(
-    () => products.reduce((total, product) => total + Number(product.stock || 0), 0),
-    [products],
-  );
-
-  const lowStockCount = useMemo(
-    () => products.filter((product) => product.stock <= Math.max(product.minStock, 3)).length,
-    [products],
-  );
+  };
 
   const handleDelete = async (productId: string) => {
     setDeletingId(productId);
     setMessage(null);
+
     try {
       await api.delete(`/catalog/products/${productId}`);
-      await loadProducts();
+      await loadProducts(query);
       setMessage('Urun silindi.');
     } catch {
       setMessage('Urun silinemedi.');
@@ -104,27 +125,27 @@ export function ProductsPage() {
       <section className="admin-stat-grid">
         <article className="admin-stat-card">
           <span>Toplam urun</span>
-          <strong>{products.length}</strong>
+          <strong>{summary.totalCount}</strong>
           <small>Katalogdaki tum urun kayitlari</small>
         </article>
         <article className="admin-stat-card">
           <span>Aktif urun</span>
-          <strong>{products.filter((product) => product.isActive).length}</strong>
+          <strong>{summary.activeCount}</strong>
           <small>Storefront'ta gorunen urunler</small>
         </article>
         <article className="admin-stat-card">
           <span>Toplam stok</span>
-          <strong>{totalStock}</strong>
+          <strong>{summary.totalStock}</strong>
           <small>Varyantlar dahil toplam adet</small>
         </article>
         <article className="admin-stat-card">
           <span>Dusuk stok</span>
-          <strong>{lowStockCount}</strong>
+          <strong>{summary.lowStockCount}</strong>
           <small>Kontrol edilmesi gereken urun sayisi</small>
         </article>
         <article className="admin-stat-card">
           <span>Varyantli urun</span>
-          <strong>{products.filter((product) => product.hasVariants).length}</strong>
+          <strong>{summary.variantCount}</strong>
           <small>Secenek bazli satilan urunler</small>
         </article>
       </section>
@@ -132,37 +153,42 @@ export function ProductsPage() {
       {message ? <p className="message">{message}</p> : null}
 
       <section className="admin-panel">
-        <div className="admin-toolbar">
+        <form className="admin-toolbar" onSubmit={handleFilterSubmit}>
           <input
             className="admin-input"
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Urun, SKU veya etiket ara"
-            value={search}
+            value={searchInput}
           />
           <select
             className="admin-select"
-            onChange={(event) => setStatusFilter(event.target.value as 'all' | 'active' | 'inactive')}
-            value={statusFilter}
+            onChange={(event) => setStatusFilterInput(event.target.value as 'all' | 'active' | 'inactive')}
+            value={statusFilterInput}
           >
             <option value="all">Tum durumlar</option>
             <option value="active">Aktif</option>
             <option value="inactive">Pasif</option>
           </select>
-          <div className="admin-pill">{filteredProducts.length} kayit</div>
-        </div>
+          <button className="admin-secondary-button" type="submit">
+            Filtrele
+          </button>
+          <div className="admin-pill">{pagination.total} kayit</div>
+        </form>
 
-        {filteredProducts.length === 0 ? (
+        {products.length === 0 ? (
           <div className="admin-empty-state compact">
             <strong>Eslesen urun bulunamadi</strong>
             <p>Arama kelimenizi veya filtreleri degistirerek tekrar deneyin.</p>
           </div>
         ) : (
           <div className="admin-media-grid">
-            {filteredProducts.map((product) => (
+            {products.map((product) => (
               <article key={product.id} className="admin-media-card">
                 <div className="admin-media-preview">
                   <img
                     alt={product.name}
+                    decoding="async"
+                    loading="lazy"
                     src={resolveProductImage({
                       id: product.id,
                       name: product.name,
@@ -214,6 +240,13 @@ export function ProductsPage() {
             ))}
           </div>
         )}
+
+        <AdminPagination
+          onPageChange={(page) => setQuery((current) => ({ ...current, page }))}
+          page={pagination.page}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+        />
       </section>
     </div>
   );

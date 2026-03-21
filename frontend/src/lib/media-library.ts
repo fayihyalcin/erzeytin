@@ -1,5 +1,5 @@
 import { createId } from './admin-content';
-import { api } from './api';
+import { api, API_ORIGIN } from './api';
 import type { MediaItem, MediaItemType } from '../types/api';
 
 interface UploadedMediaAsset {
@@ -18,8 +18,21 @@ interface UploadMediaResponse {
   uploadedAt: string;
 }
 
+const MAX_UPLOAD_BATCH_SIZE = 20;
+const MAX_PARALLEL_UPLOAD_BATCHES = 2;
+
 function toArray(files: File[] | FileList) {
   return Array.isArray(files) ? files : Array.from(files);
+}
+
+function chunkFiles(files: File[], size: number) {
+  const chunks: File[][] = [];
+
+  for (let index = 0; index < files.length; index += size) {
+    chunks.push(files.slice(index, index + size));
+  }
+
+  return chunks;
 }
 
 function humanizeFileName(value: string) {
@@ -30,6 +43,34 @@ function humanizeFileName(value: string) {
     .trim();
 
   return normalized || 'Yeni medya';
+}
+
+async function uploadBatch(endpoint: string, files: File[]) {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('files', file, file.name);
+  });
+
+  const response = await api.post<UploadMediaResponse>(endpoint, formData);
+  return response.data.items;
+}
+
+async function runUploadQueue(endpoint: string, batches: File[][]) {
+  const results: UploadedMediaAsset[][] = new Array(batches.length);
+  let nextBatchIndex = 0;
+
+  async function worker() {
+    while (nextBatchIndex < batches.length) {
+      const currentIndex = nextBatchIndex;
+      nextBatchIndex += 1;
+      results[currentIndex] = await uploadBatch(endpoint, batches[currentIndex]);
+    }
+  }
+
+  const workerCount = Math.min(MAX_PARALLEL_UPLOAD_BATCHES, batches.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  return results.flat();
 }
 
 export async function uploadMediaFiles(
@@ -48,22 +89,9 @@ export async function uploadMediaFiles(
 
   const endpoint =
     params.size > 0 ? `/media/upload?${params.toString()}` : '/media/upload';
-  const uploadedItems: UploadedMediaAsset[] = [];
+  const batches = chunkFiles(uploadFiles, MAX_UPLOAD_BATCH_SIZE);
 
-  for (const file of uploadFiles) {
-    const formData = new FormData();
-    formData.append('files', file);
-
-    const response = await api.post<UploadMediaResponse>(endpoint, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    uploadedItems.push(...response.data.items);
-  }
-
-  return uploadedItems;
+  return runUploadQueue(endpoint, batches);
 }
 
 export function createMediaItemFromUpload(asset: UploadedMediaAsset): MediaItem {
@@ -104,4 +132,26 @@ export function mergeMediaItems(existing: MediaItem[], incoming: MediaItem[]) {
   return [...byUrl.values()].sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt),
   );
+}
+
+export function resolveMediaAssetUrl(value?: string | null) {
+  const url = value?.trim();
+  if (!url) {
+    return '';
+  }
+
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('data:') ||
+    url.startsWith('blob:')
+  ) {
+    return url;
+  }
+
+  if (url.startsWith('//')) {
+    return `${window.location.protocol}${url}`;
+  }
+
+  return `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`;
 }

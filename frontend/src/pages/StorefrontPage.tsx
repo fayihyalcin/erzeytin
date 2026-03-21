@@ -4,8 +4,18 @@ import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
 import { parseBlogPosts } from '../lib/admin-content';
-import { resolveStoreNavItemHref } from '../lib/public-site';
+import { resolvePublicProductPath, resolveStoreNavItemHref } from '../lib/public-site';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
+import {
+  buildBreadcrumbSchema,
+  buildOrganizationSchema,
+  buildPageTitle,
+  buildWebPageSchema,
+  buildWebsiteSchema,
+  summarizeText,
+  toAbsoluteSiteUrl,
+} from '../lib/public-seo';
+import { useSeo } from '../lib/seo';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
   BlogPost,
@@ -100,14 +110,14 @@ function ProductShowcaseCard({
           <strong>Yeni Sezon</strong>
           <span>{processLabel}</span>
         </div>
-        <Link className="sf-card-link-media" to={`/product/${product.id}`}>
-          <img src={resolveProductImage(product)} alt={product.name} />
+        <Link className="sf-card-link-media" to={resolvePublicProductPath(product)}>
+          <img decoding="async" loading="lazy" src={resolveProductImage(product)} alt={product.name} />
         </Link>
       </div>
 
       <p className="sf-product-category-tag">{product.category?.name || 'Zeytin ve Zeytinyağı'}</p>
       <h4>
-        <Link className="sf-card-link-title" to={`/product/${product.id}`}>
+        <Link className="sf-card-link-title" to={resolvePublicProductPath(product)}>
           {product.name}
         </Link>
       </h4>
@@ -132,7 +142,7 @@ function ProductShowcaseCard({
         </div>
 
         <div className="sf-product-card-actions">
-          <Link className="sf-product-detail-link" to={`/product/${product.id}`}>
+          <Link className="sf-product-detail-link" to={resolvePublicProductPath(product)}>
             Incele
           </Link>
           <button
@@ -175,13 +185,13 @@ function FeaturedProductCard({
     <article className="sf-featured-card">
       <div className="sf-featured-media">
         {hasDiscount ? <span className="sf-featured-discount">%{discountPercent}</span> : null}
-        <Link className="sf-card-link-media" to={`/product/${product.id}`}>
-          <img src={resolveProductImage(product)} alt={product.name} />
+        <Link className="sf-card-link-media" to={resolvePublicProductPath(product)}>
+          <img decoding="async" loading="lazy" src={resolveProductImage(product)} alt={product.name} />
         </Link>
       </div>
 
       <h4>
-        <Link className="sf-card-link-title" to={`/product/${product.id}`}>
+        <Link className="sf-card-link-title" to={resolvePublicProductPath(product)}>
           {product.name}
         </Link>
       </h4>
@@ -257,8 +267,8 @@ function BestSellerCard({
     <article className={index === 0 ? 'sf-best-card highlight' : 'sf-best-card'}>
       <div className="sf-best-media">
         {badgeLabel ? <span className={`sf-best-badge ${badgeClass}`}>{badgeLabel}</span> : null}
-        <Link className="sf-card-link-media" to={`/product/${product.id}`}>
-          <img src={resolveProductImage(product)} alt={product.name} />
+        <Link className="sf-card-link-media" to={resolvePublicProductPath(product)}>
+          <img decoding="async" loading="lazy" src={resolveProductImage(product)} alt={product.name} />
         </Link>
 
         <div className="sf-best-float-actions">
@@ -281,7 +291,7 @@ function BestSellerCard({
       </div>
 
       <h4>
-        <Link className="sf-card-link-title" to={`/product/${product.id}`}>
+        <Link className="sf-card-link-title" to={resolvePublicProductPath(product)}>
           {product.name}
         </Link>
       </h4>
@@ -349,14 +359,14 @@ function MostPopularCard({
         <button className="sf-most-fav" type="button" aria-label={`${product.name} favorilere ekle`}>
           +
         </button>
-        <Link className="sf-card-link-media" to={`/product/${product.id}`}>
-          <img src={resolveProductImage(product)} alt={product.name} />
+        <Link className="sf-card-link-media" to={resolvePublicProductPath(product)}>
+          <img decoding="async" loading="lazy" src={resolveProductImage(product)} alt={product.name} />
         </Link>
       </div>
 
       <p className="sf-most-category">{product.category?.name || 'Kategori'}</p>
       <h4>
-        <Link className="sf-card-link-title" to={`/product/${product.id}`}>
+        <Link className="sf-card-link-title" to={resolvePublicProductPath(product)}>
           {product.name}
         </Link>
       </h4>
@@ -397,7 +407,7 @@ function PromoCta({
 }) {
   return (
     <article className={className ? `sf-promo-card ${className}` : 'sf-promo-card'}>
-      <img src={card.imageUrl} alt={card.title} />
+      <img decoding="async" loading="lazy" src={card.imageUrl} alt={card.title} />
       <div className="sf-promo-overlay">
         <span>%20 avantaj fırsatı</span>
         <h4>{card.title}</h4>
@@ -480,7 +490,7 @@ function BlogPreviewCard({ post }: { post: BlogPost }) {
     <article className="sf-blog-card">
       <Link className="sf-blog-media" to={`/blog/${post.slug}`}>
         {post.coverImageUrl ? (
-          <img src={post.coverImageUrl} alt={post.title} />
+          <img decoding="async" loading="lazy" src={post.coverImageUrl} alt={post.title} />
         ) : (
           <span>{post.category || 'Blog'}</span>
         )}
@@ -844,10 +854,44 @@ export function StorefrontPage() {
   }, [mostPopularProducts, popularStart, popularVisibleCount]);
 
   const highlightedSlide = heroSlides[slideIndex] ?? heroSlides[0];
-  const highlightedSlideHasVideo = Boolean(highlightedSlide?.videoUrl) && isVideoMedia(highlightedSlide.videoUrl);
   const promoPrimary = promoCards[0];
   const promoSecondary = promoCards[1] ?? promoCards[0];
   const promoTertiary = promoCards[2] ?? promoCards[0];
+  const siteUrl = settings?.siteUrl ?? null;
+  const homeDescription = summarizeText(
+    highlightedSlide?.description ||
+      config.announcement ||
+      `${config.theme.brandName} dogal zeytin ve zeytinyagi urunlerini modern storefront akisi ile sunar.`,
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle(config.theme.brandName || 'Er Zeytincilik', config.theme.brandName),
+    description: homeDescription,
+    canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/'),
+    keywords: ['zeytinyagi', 'zeytin', 'dogal urunler', 'erken hasat'],
+    siteName: config.theme.brandName,
+    jsonLd: [
+      buildWebPageSchema({
+        siteUrl,
+        path: '/',
+        title: config.theme.brandName,
+        description: homeDescription,
+      }),
+      buildOrganizationSchema({
+        siteUrl,
+        name: config.theme.brandName,
+        email: contact.email,
+        phone: contact.phoneDisplay,
+      }),
+      buildWebsiteSchema({
+        siteUrl,
+        name: config.theme.brandName,
+        description: homeDescription,
+      }),
+      buildBreadcrumbSchema(siteUrl, [{ name: 'Ana Sayfa', path: '/' }]),
+    ],
+  });
 
   const dealClock = useMemo(
     () => countDownParts(dealDeadline - clockNow),
@@ -1045,12 +1089,11 @@ export function StorefrontPage() {
       <main className="sf-main">
         <section className="sf-hero-section" id="hero">
           {highlightedSlide ? (
-            <article className="sf-hero-card">
+            <article className="sf-hero-card sf-hero-card--media-only" aria-label="Acilis slider">
               <div className="sf-hero-modern">
                 <div className="sf-hero-slides">
                   {heroSlides.map((slide, index) => {
                     const isActive = index === slideIndex;
-                    const hasVideo = Boolean(slide.videoUrl) && isVideoMedia(slide.videoUrl);
                     const posterUrl = resolveHeroPoster(slide);
 
                     return (
@@ -1059,188 +1102,45 @@ export function StorefrontPage() {
                         className={isActive ? 'sf-hero-slide active' : 'sf-hero-slide'}
                         aria-hidden={!isActive}
                       >
-                        <div className="sf-hero-slide-media" aria-hidden="true">
-                          {hasVideo ? (
-                            <video
-                              ref={(node) => {
-                                heroVideoRefs.current[index] = node;
-                              }}
-                              autoPlay={isActive}
-                              className="sf-hero-slide-video"
-                              loop
-                              muted
-                              playsInline
-                              poster={posterUrl || undefined}
-                              preload={isActive ? 'auto' : 'metadata'}
-                            >
-                              <source src={slide.videoUrl} />
-                            </video>
-                          ) : (
-                            <img
-                              alt={slide.title}
-                              className="sf-hero-slide-image"
-                              src={posterUrl || resolveHeroPoster(highlightedSlide)}
-                            />
-                          )}
-                        </div>
-                        <div className="sf-hero-slide-overlay" aria-hidden="true" />
+                        <img
+                          alt={slide.title}
+                          className="sf-hero-slide-image"
+                          fetchPriority={index === 0 ? 'high' : 'auto'}
+                          src={posterUrl}
+                        />
                       </section>
                     );
                   })}
                 </div>
 
-                <div className="sf-hero-modern-shell">
-                  <div className="sf-hero-copy">
-                    <div className="sf-hero-copy-topline">
-                      <p className="sf-hero-pretitle">{highlightedSlide.badge || 'Yeni Sezon'}</p>
-                      <span className="sf-hero-media-chip">
-                        {highlightedSlideHasVideo ? 'Video sunum' : 'Kurumsal vitrin'}
-                      </span>
-                    </div>
-                    <h1>{highlightedSlide.title}</h1>
-                    <p>{highlightedSlide.subtitle || 'Ayvalık ve Memecik seçkileriyle doğal tatlar'}</p>
-                    <small>{highlightedSlide.description}</small>
-                    <div className="sf-hero-actions">
-                      <a href={highlightedSlide.ctaHref}>{highlightedSlide.ctaLabel}</a>
-                      <a className="ghost" href="#products">
-                        Ürünleri Keşfet
-                      </a>
-                    </div>
-                  </div>
-
-                <aside className="sf-hero-spotlight" aria-label="Slider özeti">
-                    <span className="sf-hero-spotlight-index">
-                      {String(slideIndex + 1).padStart(2, '0')}
-                    </span>
-                    <strong>{highlightedSlide.badge || 'Kurumsal Sunum'}</strong>
-                    <h2>{highlightedSlide.title}</h2>
-                    <p>
-                      {highlightedSlideHasVideo
-                        ? 'Video, kapak görseli ve çağrılarla daha güçlü bir vitrin sunumu.'
-                        : 'Her slide kendi görseliyle ürünleri ve kampanyaları net şekilde anlatır.'}
-                    </p>
-                    <ul className="sf-hero-spotlight-list">
-                    <li>Admin panelinden yönetilebilir medya alanları</li>
-                      <li>
-                        {highlightedSlideHasVideo
-                          ? 'Video ve poster görsel destekli sunum'
-                          : 'Responsive görsel geçiş ve net tipografi'}
-                      </li>
-                    <li>Sepet ve ödeme akışına hızlı yönlendirme</li>
-                    </ul>
-                  </aside>
-                </div>
-
                 <button
-                    aria-label="Önceki slide"
-                  className="sf-hero-modern-arrow left"
+                  aria-label="Onceki slider gorseli"
+                  className="sf-hero-media-arrow left"
                   type="button"
                   onClick={goToPrevSlide}
                 >
                   {'<'}
                 </button>
                 <button
-                    aria-label="Sonraki slide"
-                  className="sf-hero-modern-arrow right"
+                  aria-label="Sonraki slider gorseli"
+                  className="sf-hero-media-arrow right"
                   type="button"
                   onClick={goToNextSlide}
                 >
                   {'>'}
                 </button>
 
-                <div className="sf-hero-bottom-rail">
-                  {heroSlides.map((slide, index) => {
-                    const posterUrl = resolveHeroPoster(slide);
-
-                    return (
-                      <button
-                        key={`hero-rail-${slide.title}-${index}`}
-                        className={index === slideIndex ? 'sf-hero-rail-item active' : 'sf-hero-rail-item'}
-                        type="button"
-                        onClick={() => setSlideIndex(index)}
-                      >
-                        <span className="sf-hero-rail-thumb" aria-hidden="true">
-                          {posterUrl ? <img src={posterUrl} alt="" /> : <span>SL</span>}
-                        </span>
-                        <span className="sf-hero-rail-copy">
-                          <small>{slide.badge || 'Slide'}</small>
-                          <strong>{slide.title}</strong>
-                        </span>
-                      </button>
-                    );
-                  })}
-                  <span className="sf-hero-count">
-                    {String(slideIndex + 1).padStart(2, '0')} / {String(heroSlides.length).padStart(2, '0')}
-                  </span>
-                </div>
-              </div>
-              <div className="sf-hero-media-stack" aria-hidden="true">
-                {heroSlides.map((slide, index) => (
-                  <img
-                    key={`${slide.title}-${index}`}
-                    className={index === slideIndex ? 'sf-hero-bg-image active' : 'sf-hero-bg-image'}
-                    src={slide.imageUrl}
-                    alt=""
-                  />
-                ))}
-              </div>
-              <div className="sf-hero-overlay" aria-hidden="true" />
-
-              <div className="sf-hero-shell">
-                <div className="sf-hero-content">
-                  <div className="sf-hero-content-card">
-                    <p className="sf-hero-pretitle">{highlightedSlide.badge || 'Yeni Sezon'}</p>
-                    <h1>{highlightedSlide.title}</h1>
-                    <p>{highlightedSlide.subtitle || 'Ayvalık ve Memecik seçkileriyle doğal tatlar'}</p>
-                    <small>{highlightedSlide.description}</small>
-                    <div className="sf-hero-actions">
-                      <a href={highlightedSlide.ctaHref}>{highlightedSlide.ctaLabel}</a>
-                      <a className="ghost" href="#products">
-                        Popüler Ürünler
-                      </a>
-                    </div>
-                  </div>
-                </div>
-
-                <aside className="sf-hero-side" aria-label="Slider önizleme">
+                <div className="sf-hero-media-dots" aria-label="Slider noktaları">
                   {heroSlides.map((slide, index) => (
                     <button
-                      key={`hero-side-${slide.title}-${index}`}
-                      type="button"
-                      className={index === slideIndex ? 'sf-hero-side-item active' : 'sf-hero-side-item'}
-                      onClick={() => setSlideIndex(index)}
-                    >
-                      <img src={slide.imageUrl} alt="" aria-hidden="true" />
-                      <div>
-                        <small>{slide.badge || 'Kampanya'}</small>
-                        <strong>{slide.title}</strong>
-                      </div>
-                    </button>
-                  ))}
-                </aside>
-              </div>
-
-              <button className="sf-hero-arrow left" type="button" onClick={goToPrevSlide}>
-                {'<'}
-              </button>
-              <button className="sf-hero-arrow right" type="button" onClick={goToNextSlide}>
-                {'>'}
-              </button>
-
-              <div className="sf-hero-dots-wrap">
-                <div className="sf-hero-dots">
-                  {heroSlides.map((slide, index) => (
-                    <button
-                      key={`${slide.title}-${index}`}
-                      className={index === slideIndex ? 'sf-dot active' : 'sf-dot'}
+                      key={`hero-media-dot-${slide.title}-${index}`}
+                      aria-label={`${index + 1}. slider gorseli`}
+                      className={index === slideIndex ? 'sf-hero-media-dot active' : 'sf-hero-media-dot'}
                       type="button"
                       onClick={() => setSlideIndex(index)}
                     />
                   ))}
                 </div>
-                <span className="sf-hero-count">
-                  {String(slideIndex + 1).padStart(2, '0')} / {String(heroSlides.length).padStart(2, '0')}
-                </span>
               </div>
             </article>
           ) : null}

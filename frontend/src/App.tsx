@@ -1,41 +1,96 @@
-import { useLayoutEffect, type ReactNode } from 'react';
+import { Suspense, lazy, useLayoutEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { StorefrontWhatsAppButton } from './components/StorefrontWhatsAppButton';
 import { useAuth } from './context/AuthContext';
 import { useCustomerAuth } from './context/CustomerAuthContext';
-import { CategoryFormPage } from './pages/CategoryFormPage';
-import { DashboardOverviewPage } from './pages/DashboardOverviewPage';
-import { DashboardLayout } from './layouts/DashboardLayout';
-import { CategoriesPage } from './pages/CategoriesPage';
-import { LoginPage } from './pages/LoginPage';
-import { MediaLibraryPage } from './pages/MediaLibraryPage';
-import { OrderDetailPage } from './pages/OrderDetailPage';
-import { OrdersPage } from './pages/OrdersPage';
-import { PostsPage } from './pages/PostsPage';
-import { CartPage } from './pages/CartPage';
-import { CustomerDashboardPage } from './pages/CustomerDashboardPage';
-import { BlogPostPage } from './pages/BlogPostPage';
-import { ProductDetailPage } from './pages/ProductDetailPage';
-import { ProductFormPage } from './pages/ProductFormPage';
-import { ProductsPage } from './pages/ProductsPage';
-import {
-  PublicCampaignsPage,
-  PublicCategoriesPage,
-  PublicProductsPage,
-} from './pages/PublicCatalogPages';
-import { RepresentativesPage } from './pages/RepresentativesPage';
-import { PaytrReturnPage } from './pages/PaytrReturnPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { StorefrontPage } from './pages/StorefrontPage';
-import { CustomerLoginPage } from './pages/CustomerLoginPage';
-import { CustomerRegisterPage } from './pages/CustomerRegisterPage';
-import {
-  ContactPage,
-  KvkkPage,
-  PrivacyPolicyPage,
-  SalesAgreementPage,
-} from './pages/LegalPages';
-import { WebsiteContentPage } from './pages/WebsiteContentPage';
+
+const DashboardLayout = lazy(() =>
+  import('./layouts/DashboardLayout').then((module) => ({ default: module.DashboardLayout })),
+);
+const CategoryFormPage = lazy(() =>
+  import('./pages/CategoryFormPage').then((module) => ({ default: module.CategoryFormPage })),
+);
+const DashboardOverviewPage = lazy(() =>
+  import('./pages/DashboardOverviewPage').then((module) => ({ default: module.DashboardOverviewPage })),
+);
+const CategoriesPage = lazy(() =>
+  import('./pages/CategoriesPage').then((module) => ({ default: module.CategoriesPage })),
+);
+const LoginPage = lazy(() =>
+  import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })),
+);
+const MediaLibraryPage = lazy(() =>
+  import('./pages/MediaLibraryPage').then((module) => ({ default: module.MediaLibraryPage })),
+);
+const OrderDetailPage = lazy(() =>
+  import('./pages/OrderDetailPage').then((module) => ({ default: module.OrderDetailPage })),
+);
+const OrdersPage = lazy(() =>
+  import('./pages/OrdersPage').then((module) => ({ default: module.OrdersPage })),
+);
+const PostsPage = lazy(() =>
+  import('./pages/PostsPage').then((module) => ({ default: module.PostsPage })),
+);
+const CartPage = lazy(() =>
+  import('./pages/CartPage').then((module) => ({ default: module.CartPage })),
+);
+const CustomerDashboardPage = lazy(() =>
+  import('./pages/CustomerDashboardPage').then((module) => ({ default: module.CustomerDashboardPage })),
+);
+const BlogPostPage = lazy(() =>
+  import('./pages/BlogPostPage').then((module) => ({ default: module.BlogPostPage })),
+);
+const ProductDetailPage = lazy(() =>
+  import('./pages/ProductDetailPage').then((module) => ({ default: module.ProductDetailPage })),
+);
+const ProductFormPage = lazy(() =>
+  import('./pages/ProductFormPage').then((module) => ({ default: module.ProductFormPage })),
+);
+const ProductsPage = lazy(() =>
+  import('./pages/ProductsPage').then((module) => ({ default: module.ProductsPage })),
+);
+const PublicCampaignsPage = lazy(() =>
+  import('./pages/PublicCatalogPages').then((module) => ({ default: module.PublicCampaignsPage })),
+);
+const PublicCategoriesPage = lazy(() =>
+  import('./pages/PublicCatalogPages').then((module) => ({ default: module.PublicCategoriesPage })),
+);
+const PublicProductsPage = lazy(() =>
+  import('./pages/PublicCatalogPages').then((module) => ({ default: module.PublicProductsPage })),
+);
+const RepresentativesPage = lazy(() =>
+  import('./pages/RepresentativesPage').then((module) => ({ default: module.RepresentativesPage })),
+);
+const PaytrReturnPage = lazy(() =>
+  import('./pages/PaytrReturnPage').then((module) => ({ default: module.PaytrReturnPage })),
+);
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })),
+);
+const StorefrontPage = lazy(() =>
+  import('./pages/StorefrontPage').then((module) => ({ default: module.StorefrontPage })),
+);
+const CustomerLoginPage = lazy(() =>
+  import('./pages/CustomerLoginPage').then((module) => ({ default: module.CustomerLoginPage })),
+);
+const CustomerRegisterPage = lazy(() =>
+  import('./pages/CustomerRegisterPage').then((module) => ({ default: module.CustomerRegisterPage })),
+);
+const ContactPage = lazy(() =>
+  import('./pages/LegalPages').then((module) => ({ default: module.ContactPage })),
+);
+const KvkkPage = lazy(() =>
+  import('./pages/LegalPages').then((module) => ({ default: module.KvkkPage })),
+);
+const PrivacyPolicyPage = lazy(() =>
+  import('./pages/LegalPages').then((module) => ({ default: module.PrivacyPolicyPage })),
+);
+const SalesAgreementPage = lazy(() =>
+  import('./pages/LegalPages').then((module) => ({ default: module.SalesAgreementPage })),
+);
+const WebsiteContentPage = lazy(() =>
+  import('./pages/WebsiteContentPage').then((module) => ({ default: module.WebsiteContentPage })),
+);
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
@@ -114,6 +169,10 @@ function ScrollManager() {
   return null;
 }
 
+function RouteFallback() {
+  return <div className="screen-message">Yukleniyor...</div>;
+}
+
 function App() {
   const location = useLocation();
   const hideWhatsAppButton =
@@ -124,84 +183,87 @@ function App() {
     location.pathname.startsWith('/dashboard');
 
   return (
-    <>
-      <ScrollManager />
+      <>
+        <ScrollManager />
 
-      <Routes>
-        <Route path="/" element={<StorefrontPage />} />
-        <Route path="/kategoriler" element={<PublicCategoriesPage />} />
-        <Route path="/urunler" element={<PublicProductsPage />} />
-        <Route path="/kampanyalar" element={<PublicCampaignsPage />} />
-        <Route path="/blog/:slug" element={<BlogPostPage />} />
-        <Route path="/product/:productId" element={<ProductDetailPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/checkout/paytr/return" element={<PaytrReturnPage />} />
-        <Route
-          path="/customer/dashboard"
-          element={
-            <CustomerProtectedRoute>
-              <CustomerDashboardPage />
-            </CustomerProtectedRoute>
-          }
-        />
-        <Route
-          path="/customer/login"
-          element={
-            <CustomerGuestRoute>
-              <CustomerLoginPage />
-            </CustomerGuestRoute>
-          }
-        />
-        <Route
-          path="/customer/register"
-          element={
-            <CustomerGuestRoute>
-              <CustomerRegisterPage />
-            </CustomerGuestRoute>
-          }
-        />
-        <Route path="/kvkk" element={<KvkkPage />} />
-        <Route path="/gizlilik" element={<PrivacyPolicyPage />} />
-        <Route path="/satis-sozlesmesi" element={<SalesAgreementPage />} />
-        <Route path="/iletisim" element={<ContactPage />} />
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<StorefrontPage />} />
+          <Route path="/kategoriler" element={<PublicCategoriesPage />} />
+          <Route path="/urunler" element={<PublicProductsPage />} />
+          <Route path="/kampanyalar" element={<PublicCampaignsPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
+          <Route path="/urun/:productSlug" element={<ProductDetailPage />} />
+          <Route path="/product/:productId" element={<ProductDetailPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout/paytr/return" element={<PaytrReturnPage />} />
+          <Route
+            path="/customer/dashboard"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerDashboardPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/login"
+            element={
+              <CustomerGuestRoute>
+                <CustomerLoginPage />
+              </CustomerGuestRoute>
+            }
+          />
+          <Route
+            path="/customer/register"
+            element={
+              <CustomerGuestRoute>
+                <CustomerRegisterPage />
+              </CustomerGuestRoute>
+            }
+          />
+          <Route path="/kvkk" element={<KvkkPage />} />
+          <Route path="/gizlilik" element={<PrivacyPolicyPage />} />
+          <Route path="/satis-sozlesmesi" element={<SalesAgreementPage />} />
+          <Route path="/iletisim" element={<ContactPage />} />
 
-        <Route
-          path="/admin"
-          element={
-            <GuestRoute>
-              <LoginPage />
-            </GuestRoute>
-          }
-        />
+          <Route
+            path="/admin"
+            element={
+              <GuestRoute>
+                <LoginPage />
+              </GuestRoute>
+            }
+          />
 
-        <Route path="/login" element={<Navigate to="/admin" replace />} />
+          <Route path="/login" element={<Navigate to="/admin" replace />} />
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<DashboardOverviewPage />} />
-          <Route path="website" element={<WebsiteContentPage />} />
-          <Route path="posts" element={<PostsPage />} />
-          <Route path="media" element={<MediaLibraryPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="categories" element={<CategoriesPage />} />
-          <Route path="categories/new" element={<CategoryFormPage />} />
-          <Route path="categories/:categoryId/edit" element={<CategoryFormPage />} />
-          <Route path="products" element={<ProductsPage />} />
-          <Route path="products/new" element={<ProductFormPage />} />
-          <Route path="products/:productId/edit" element={<ProductFormPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="orders/:orderId" element={<OrderDetailPage />} />
-          <Route path="representatives" element={<RepresentativesPage />} />
-        </Route>
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<DashboardOverviewPage />} />
+            <Route path="website" element={<WebsiteContentPage />} />
+            <Route path="posts" element={<PostsPage />} />
+            <Route path="media" element={<MediaLibraryPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="categories" element={<CategoriesPage />} />
+            <Route path="categories/new" element={<CategoryFormPage />} />
+            <Route path="categories/:categoryId/edit" element={<CategoryFormPage />} />
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="products/new" element={<ProductFormPage />} />
+            <Route path="products/:productId/edit" element={<ProductFormPage />} />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="orders/:orderId" element={<OrderDetailPage />} />
+            <Route path="representatives" element={<RepresentativesPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
 
       {hideWhatsAppButton ? null : <StorefrontWhatsAppButton />}
     </>

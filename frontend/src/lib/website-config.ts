@@ -17,6 +17,7 @@
   WebsiteRibbonConfig,
   WebsiteThemeConfig,
 } from '../types/api';
+import { canonicalizeAssetUrl } from './asset-url';
 
 const DEFAULT_THEME: WebsiteThemeConfig = {
   brandName: 'Er Zeytincilik',
@@ -574,6 +575,10 @@ function toStringArray(value: unknown) {
   return value.map((item) => toStringValue(item)).filter((item) => item.length > 0);
 }
 
+function normalizeMediaUrl(value: unknown, fallback = '') {
+  return canonicalizeAssetUrl(toStringValue(value, fallback));
+}
+
 function decodeUtf8Mojibake(value: string) {
   try {
     const bytes = Uint8Array.from(value, (character) => character.charCodeAt(0) & 0xff);
@@ -671,9 +676,9 @@ function normalizeHeroSlides(value: unknown, fallback: WebsiteHeroSlide[]) {
 
       const record = item as Record<string, unknown>;
       const title = toStringValue(record.title);
-      const imageUrl = toStringValue(record.imageUrl);
-      const videoUrl = toStringValue(record.videoUrl);
-      const posterUrl = toStringValue(record.posterUrl);
+      const imageUrl = normalizeMediaUrl(record.imageUrl);
+      const videoUrl = normalizeMediaUrl(record.videoUrl);
+      const posterUrl = normalizeMediaUrl(record.posterUrl);
       if (!title || (!imageUrl && !videoUrl)) {
         return null;
       }
@@ -710,7 +715,7 @@ function normalizeParallaxCards(value: unknown, fallback: WebsiteParallaxCard[])
 
       const record = item as Partial<Record<keyof WebsiteParallaxCard, unknown>>;
       const title = toStringValue(record.title);
-      const imageUrl = toStringValue(record.imageUrl);
+      const imageUrl = normalizeMediaUrl(record.imageUrl);
       if (!title || !imageUrl) {
         return null;
       }
@@ -741,7 +746,7 @@ function normalizePromoCards(value: unknown, fallback: WebsitePromoCard[]) {
 
       const record = item as Partial<Record<keyof WebsitePromoCard, unknown>>;
       const title = toStringValue(record.title);
-      const imageUrl = toStringValue(record.imageUrl);
+      const imageUrl = normalizeMediaUrl(record.imageUrl);
       if (!title || !imageUrl) {
         return null;
       }
@@ -770,7 +775,7 @@ function normalizeRibbon(value: unknown, fallback: WebsiteRibbonConfig): Website
     title: normalizeMarketingText(toStringValue(record.title, fallback.title)),
     ctaLabel: normalizeDisplayText(toStringValue(record.ctaLabel, fallback.ctaLabel)),
     ctaHref: toStringValue(record.ctaHref, fallback.ctaHref),
-    imageUrl: toStringValue(record.imageUrl, fallback.imageUrl),
+    imageUrl: normalizeMediaUrl(record.imageUrl, fallback.imageUrl),
   };
 }
 
@@ -947,9 +952,9 @@ function normalizeManagedPage(
     primaryCtaHref: toStringValue(record.primaryCtaHref, fallback.primaryCtaHref),
     secondaryCtaLabel: normalizeDisplayText(toStringValue(record.secondaryCtaLabel, fallback.secondaryCtaLabel)),
     secondaryCtaHref: toStringValue(record.secondaryCtaHref, fallback.secondaryCtaHref),
-    mediaUrl: toStringValue(record.mediaUrl, fallback.mediaUrl),
-    videoUrl: toStringValue(record.videoUrl, fallback.videoUrl),
-    posterUrl: toStringValue(record.posterUrl, fallback.posterUrl),
+    mediaUrl: normalizeMediaUrl(record.mediaUrl, fallback.mediaUrl),
+    videoUrl: normalizeMediaUrl(record.videoUrl, fallback.videoUrl),
+    posterUrl: normalizeMediaUrl(record.posterUrl, fallback.posterUrl),
     summaryTitle: normalizeMarketingText(toStringValue(record.summaryTitle, fallback.summaryTitle)),
     summaryText: normalizeMarketingText(toStringValue(record.summaryText, fallback.summaryText)),
     highlights: highlights.length > 0 ? highlights : [...fallback.highlights],

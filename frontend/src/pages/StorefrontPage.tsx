@@ -4,6 +4,7 @@ import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
 import { parseBlogPosts } from '../lib/admin-content';
+import { resolveAssetUrl } from '../lib/asset-url';
 import { resolvePublicProductPath, resolveStoreNavItemHref } from '../lib/public-site';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import {
@@ -80,7 +81,7 @@ function isVideoMedia(url: string) {
 }
 
 function resolveHeroPoster(slide: WebsiteHeroSlide) {
-  return slide.posterUrl || slide.imageUrl || '';
+  return resolveAssetUrl(slide.posterUrl || slide.imageUrl || '');
 }
 
 function ProductShowcaseCard({

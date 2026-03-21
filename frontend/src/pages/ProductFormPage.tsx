@@ -177,6 +177,11 @@ const csv = (value: string) =>
     .split(',')
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+const buildProductSlug = (value: string) => slugify(value, 'urun');
+const hasCustomProductSlug = (name: string, slug: string) => {
+  const normalizedSlug = slug.trim();
+  return normalizedSlug.length > 0 && normalizedSlug !== buildProductSlug(name);
+};
 
 const PRODUCT_IMAGE_ACCEPT = 'image/*';
 
@@ -298,6 +303,7 @@ export function ProductFormPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [form, setForm] = useState<ProductFormState>(defaultForm);
+  const [slugEditedManually, setSlugEditedManually] = useState(false);
   const [galleryUrl, setGalleryUrl] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -353,13 +359,17 @@ export function ProductFormPage() {
             setMessage('Urun bulunamadi.');
             setEditingId(null);
             setForm(defaultForm);
+            setSlugEditedManually(false);
           } else {
+            const nextForm = toForm(found);
             setEditingId(found.id);
-            setForm(toForm(found));
+            setForm(nextForm);
+            setSlugEditedManually(hasCustomProductSlug(nextForm.name, nextForm.slug));
           }
         } else {
           setEditingId(null);
           setForm(defaultForm);
+          setSlugEditedManually(false);
         }
       } catch {
         if (mounted) {
@@ -476,6 +486,25 @@ export function ProductFormPage() {
     }
 
     setCurrentStep(productSteps[currentStepIndex - 1].id);
+  };
+
+  const handleNameChange = (nextName: string) => {
+    setForm((current) => ({
+      ...current,
+      name: nextName,
+      slug: slugEditedManually ? current.slug : buildProductSlug(nextName),
+    }));
+  };
+
+  const handleSlugChange = (rawValue: string) => {
+    const nextSlug = buildProductSlug(rawValue);
+    const autoSlug = buildProductSlug(form.name);
+
+    setForm((current) => ({
+      ...current,
+      slug: nextSlug,
+    }));
+    setSlugEditedManually(rawValue.trim().length > 0 && nextSlug !== autoSlug);
   };
 
   const goToNextStep = () => {
@@ -663,13 +692,7 @@ export function ProductFormPage() {
               <span>Urun adi</span>
               <input
                 className="admin-input"
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                    slug: current.slug ? current.slug : slugify(event.target.value, 'urun'),
-                  }))
-                }
+                onChange={(event) => handleNameChange(event.target.value)}
                 required
                 value={form.name}
               />
@@ -678,7 +701,7 @@ export function ProductFormPage() {
               <span>Slug</span>
               <input
                 className="admin-input"
-                onChange={(event) => setForm({ ...form, slug: slugify(event.target.value, 'urun') })}
+                onChange={(event) => handleSlugChange(event.target.value)}
                 placeholder="urun-slug"
                 value={form.slug}
               />
@@ -1139,7 +1162,7 @@ export function ProductFormPage() {
               <span>SEO slug</span>
               <input
                 className="admin-input"
-                onChange={(event) => setForm({ ...form, slug: slugify(event.target.value, 'urun') })}
+                onChange={(event) => handleSlugChange(event.target.value)}
                 placeholder="urun-slug"
                 value={form.slug}
               />
@@ -1163,7 +1186,10 @@ export function ProductFormPage() {
             keywordsSuggestion={seoSuggestions.keywords}
             onApplyDescription={() => setForm((current) => ({ ...current, seoDescription: seoSuggestions.description }))}
             onApplyKeywords={() => setForm((current) => ({ ...current, seoKeywordsText: seoSuggestions.keywords.join(', ') }))}
-            onApplySlug={() => setForm((current) => ({ ...current, slug: seoSuggestions.slug }))}
+            onApplySlug={() => {
+              setForm((current) => ({ ...current, slug: seoSuggestions.slug }));
+              setSlugEditedManually(seoSuggestions.slug !== buildProductSlug(form.name));
+            }}
             onApplySummary={() => setForm((current) => ({ ...current, shortDescription: seoSuggestions.summary }))}
             onApplyTitle={() => setForm((current) => ({ ...current, seoTitle: seoSuggestions.title }))}
             slugSuggestion={seoSuggestions.slug}

@@ -30,6 +30,7 @@ export function MediaBrowser({
   title = 'Medya kutuphanesi',
   items,
   allowedTypes = ['image', 'video', 'document'],
+  autoSelectFirstUpload = false,
   onClose,
   onItemsChange,
   onSelect,
@@ -38,6 +39,7 @@ export function MediaBrowser({
   title?: string;
   items: MediaItem[];
   allowedTypes?: MediaItemType[];
+  autoSelectFirstUpload?: boolean;
   onClose: () => void;
   onItemsChange?: (items: MediaItem[]) => void;
   onSelect: (item: MediaItem) => void;
@@ -145,6 +147,16 @@ export function MediaBrowser({
       setLibraryItems(nextItems);
       onItemsChange?.(nextItems);
       setUploadMessage(`${uploadedItems.length} dosya kutuphaneye eklendi.`);
+
+      if (autoSelectFirstUpload) {
+        const firstUploaded = uploadedItems[0];
+        if (firstUploaded) {
+          const selectedItem =
+            nextItems.find((item) => item.url === firstUploaded.url) ?? firstUploaded;
+          onSelect(selectedItem);
+          onClose();
+        }
+      }
     } catch (error) {
       setUploadMessage(extractApiError(error, 'Medya yukleme basarisiz oldu.'));
     } finally {

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MediaBrowser } from './MediaBrowser';
+import { canonicalizeAssetUrl } from '../../lib/asset-url';
 import { resolveMediaAssetUrl } from '../../lib/media-library';
 import type { MediaItem, MediaItemType } from '../../types/api';
 
@@ -27,10 +28,16 @@ export function MediaPickerField({
   onItemsChange?: (items: MediaItem[]) => void;
 }) {
   const [browserOpen, setBrowserOpen] = useState(false);
+  const normalizedValue = canonicalizeAssetUrl(value);
 
   const selectedItem = useMemo(
-    () => items.find((item) => item.url === value || item.thumbnailUrl === value) ?? null,
-    [items, value],
+    () =>
+      items.find((item) => {
+        const itemUrl = canonicalizeAssetUrl(item.url);
+        const itemThumbnailUrl = canonicalizeAssetUrl(item.thumbnailUrl);
+        return itemUrl === normalizedValue || itemThumbnailUrl === normalizedValue;
+      }) ?? null,
+    [items, normalizedValue],
   );
 
   return (
@@ -40,7 +47,7 @@ export function MediaPickerField({
         <div className="admin-media-inline">
           <input
             className="admin-input"
-            onChange={(event) => onChange(event.target.value)}
+            onChange={(event) => onChange(canonicalizeAssetUrl(event.target.value))}
             placeholder={placeholder}
             value={value}
           />
@@ -75,11 +82,12 @@ export function MediaPickerField({
       ) : null}
 
       <MediaBrowser
+        autoSelectFirstUpload
         allowedTypes={allowedTypes}
         items={items}
         onClose={() => setBrowserOpen(false)}
         onItemsChange={onItemsChange}
-        onSelect={(item: MediaItem) => onChange(item.url)}
+        onSelect={(item: MediaItem) => onChange(canonicalizeAssetUrl(item.url))}
         open={browserOpen}
       />
     </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PublicBreadcrumbs } from '../components/public/PublicBreadcrumbs';
+import { PublicStorefrontLayout } from '../components/public/PublicStorefrontLayout';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
 import {
@@ -20,7 +21,8 @@ import {
   toAbsoluteSiteUrl,
 } from '../lib/public-seo';
 import { useSeo } from '../lib/seo';
-import type { Product, PublicSettingsDto } from '../types/api';
+import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
+import type { Product, PublicSettingsDto, WebsiteConfig } from '../types/api';
 import './StorefrontPage.css';
 import './ProductDetailPage.css';
 
@@ -640,8 +642,10 @@ export function ProductDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { addProduct } = useStoreCart();
+  const defaultConfig = useMemo(() => createDefaultWebsiteConfig(), []);
 
   const [settings, setSettings] = useState<PublicSettingsDto | null>(null);
+  const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -688,6 +692,7 @@ export function ProductDetailPage() {
         }
 
         setSettings(settingsResponse.data);
+        setConfig(parseWebsiteConfig(settingsResponse.data.websiteConfig));
         setProduct(productResponse.data);
         setRelatedProducts(relatedResponse.data);
         if (settingsResponse.data.currency) {
@@ -698,6 +703,7 @@ export function ProductDetailPage() {
           return;
         }
 
+        setConfig(defaultConfig);
         setProduct(null);
         setRelatedProducts([]);
       } finally {
@@ -712,7 +718,7 @@ export function ProductDetailPage() {
     return () => {
       mounted = false;
     };
-  }, [productReference]);
+  }, [defaultConfig, productReference]);
 
   const formatter = useMemo(() => {
     try {
@@ -803,6 +809,8 @@ export function ProductDetailPage() {
       : undefined,
   });
 
+  const activePath = product ? resolvePublicProductPath(product) : location.pathname;
+
   if (loading) {
     return <div className="storefront-loading">Ürün detayı yükleniyor...</div>;
   }
@@ -820,16 +828,18 @@ export function ProductDetailPage() {
   }
 
   return (
-    <ProductDetailContent
-      key={product.id}
-      product={product}
-      relatedProducts={relatedProducts}
-      formatter={formatter}
-      onAddProduct={addProduct}
-      onBuyNow={(target, quantity) => {
-        addProduct(target, quantity);
-        navigate('/cart');
-      }}
-    />
+    <PublicStorefrontLayout activePath={activePath} config={config} currency={currency}>
+      <ProductDetailContent
+        key={product.id}
+        product={product}
+        relatedProducts={relatedProducts}
+        formatter={formatter}
+        onAddProduct={addProduct}
+        onBuyNow={(target, quantity) => {
+          addProduct(target, quantity);
+          navigate('/cart');
+        }}
+      />
+    </PublicStorefrontLayout>
   );
 }

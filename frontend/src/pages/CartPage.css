@@ -666,6 +666,21 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.sf-checkout-page {
+  padding: 26px 0 56px;
+}
+
+.sf-checkout-page-panel {
+  width: 100%;
+  max-height: none;
+  margin-top: 14px;
+  box-shadow: 0 22px 44px rgba(5, 12, 22, 0.16);
+}
+
+.sf-checkout-page-panel .sf-cart-checkout-panel-grid {
+  overflow: visible;
+}
+
 .sf-cart-checkout-panel-head {
   padding: 16px 18px;
   border-bottom: 1px solid #dce5f0;
@@ -676,6 +691,7 @@
   gap: 12px;
 }
 
+.sf-cart-checkout-panel-head h1,
 .sf-cart-checkout-panel-head h3 {
   margin: 0;
   color: #16243c;
@@ -981,6 +997,49 @@
   color: #5e6d84;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.sf-checkout-summary-items {
+  display: grid;
+  gap: 8px;
+}
+
+.sf-checkout-summary-item {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #dbe5f0;
+  border-radius: 12px;
+  padding: 8px;
+  background: #f9fbfe;
+  color: inherit;
+}
+
+.sf-checkout-summary-item img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.sf-checkout-summary-item strong {
+  display: block;
+  color: #21344f;
+  font-size: 13px;
+}
+
+.sf-checkout-summary-item small {
+  display: block;
+  margin-top: 4px;
+  color: #617089;
+  font-size: 12px;
+}
+
+.sf-checkout-empty,
+.sf-checkout-success {
+  margin-top: 14px;
 }
 
 .sf-paytr-return-page {
@@ -1300,6 +1359,12 @@
     }
   }
 
+  .sf-checkout-page-panel {
+    height: auto;
+    max-height: none;
+    border-radius: 20px;
+  }
+
   .sf-cart-checkout-panel-head {
     padding: 12px;
     flex-direction: column;
@@ -1309,6 +1374,7 @@
     z-index: 2;
   }
 
+  .sf-cart-checkout-panel-head h1,
   .sf-cart-checkout-panel-head h3 {
     font-size: 22px;
   }
@@ -1365,6 +1431,16 @@
     bottom: 0;
     padding: 10px 0 calc(6px + env(safe-area-inset-bottom));
     background: linear-gradient(180deg, rgba(255, 255, 255, 0), #ffffff 22%);
+  }
+
+  .sf-checkout-page-panel .sf-cart-checkout-panel-head {
+    position: static;
+  }
+
+  .sf-checkout-page-panel .sf-cart-checkout-actions {
+    position: static;
+    padding: 0;
+    background: none;
   }
 
   .sf-cart-mobile-dock {

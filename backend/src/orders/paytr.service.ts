@@ -9,6 +9,7 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
 import { CreateShopOrderDto } from './dto/create-shop-order.dto';
+import { Order } from './order.entity';
 import { OrdersService } from './orders.service';
 import { PaymentTransaction } from './payment-transaction.entity';
 
@@ -43,6 +44,8 @@ export class PaytrService {
   private readonly logger = new Logger(PaytrService.name);
 
   constructor(
+    @InjectRepository(Order)
+    private readonly ordersRepository: Repository<Order>,
     @InjectRepository(PaymentTransaction)
     private readonly paymentTransactionsRepository: Repository<PaymentTransaction>,
     private readonly ordersService: OrdersService,
@@ -78,29 +81,36 @@ export class PaytrService {
       throw new BadRequestException('Odeme icin siparis hazirlanamadi.');
     }
 
-    const payment = await this.paymentTransactionsRepository.save(
-      this.paymentTransactionsRepository.create({
-        orderId: order.id,
-        provider: 'PAYTR',
-        merchantOid,
-        status: 'PENDING',
-        requestAmount: order.grandTotal,
-        paidAmount: null,
-        currency: order.currency,
-        iframeToken: null,
-        paymentType: null,
-        providerTransactionId: null,
-        failureCode: null,
-        failureMessage: null,
-        callbackCount: 0,
-        isTest: settings.testMode,
-        rawRequest: {},
-        rawResponse: {},
-        rawCallback: {},
-        paidAt: null,
-        failedAt: null,
-      }),
-    );
+    let payment: PaymentTransaction | null = null;
+    try {
+      payment = await this.paymentTransactionsRepository.save(
+        this.paymentTransactionsRepository.create({
+          orderId: order.id,
+          provider: 'PAYTR',
+          merchantOid,
+          status: 'PENDING',
+          requestAmount: order.grandTotal,
+          paidAmount: null,
+          currency: order.currency,
+          iframeToken: null,
+          paymentType: null,
+          providerTransactionId: null,
+          failureCode: null,
+          failureMessage: null,
+          callbackCount: 0,
+          isTest: settings.testMode,
+          rawRequest: {},
+          rawResponse: {},
+          rawCallback: {},
+          paidAt: null,
+          failedAt: null,
+        }),
+      );
+    } catch (error) {
+      this.logger.error(
+        `PAYTR transaction log kaydi olusturulamadi (${merchantOid}). Order fallback kullanilacak. ${this.describeError(error)}`,
+      );
+    }
 
     try {
       const paymentAmount = this.toMinorUnits(order.grandTotal);
@@ -171,22 +181,32 @@ export class PaytrService {
 
       const apiResponse = await this.fetchToken(requestPayload);
 
-      payment.iframeToken = apiResponse.token;
-      payment.rawRequest = {
-        ...requestPayload,
-        paytr_token: '[REDACTED]',
-      };
-      payment.rawResponse = apiResponse;
-      payment.failureCode = null;
-      payment.failureMessage = null;
-      payment.failedAt = null;
-      await this.paymentTransactionsRepository.save(payment);
+      if (payment) {
+        payment.iframeToken = apiResponse.token;
+        payment.rawRequest = {
+          ...requestPayload,
+          paytr_token: '[REDACTED]',
+        };
+        payment.rawResponse = apiResponse;
+        payment.failureCode = null;
+        payment.failureMessage = null;
+        payment.failedAt = null;
+
+        try {
+          await this.paymentTransactionsRepository.save(payment);
+        } catch (error) {
+          this.logger.error(
+            `PAYTR transaction log kaydi guncellenemedi (${merchantOid}). Order fallback kullanilacak. ${this.describeError(error)}`,
+          );
+          payment = null;
+        }
+      }
 
       return {
         orderId: order.id,
         orderNumber: order.orderNumber,
         merchantOid,
-        paymentId: payment.id,
+        paymentId: payment?.id ?? merchantOid,
         iframeToken: apiResponse.token,
         iframeUrl: `https://www.paytr.com/odeme/guvenli/${apiResponse.token}`,
       };
@@ -196,10 +216,19 @@ export class PaytrService {
           ? error.message
           : 'PAYTR odeme oturumu olusturulamadi.';
 
-      payment.status = 'FAILED';
-      payment.failureMessage = message;
-      payment.failedAt = new Date();
-      await this.paymentTransactionsRepository.save(payment);
+      if (payment) {
+        payment.status = 'FAILED';
+        payment.failureMessage = message;
+        payment.failedAt = new Date();
+
+        try {
+          await this.paymentTransactionsRepository.save(payment);
+        } catch (persistError) {
+          this.logger.error(
+            `PAYTR failed transaction log kaydi guncellenemedi (${merchantOid}). ${this.describeError(persistError)}`,
+          );
+        }
+      }
 
       await this.ordersService.markOrderPaymentFailedBySystem(order.id, {
         provider: 'PAYTR',
@@ -232,13 +261,59 @@ export class PaytrService {
       throw new BadRequestException('PAYTR callback dogrulamasi icin ayarlar eksik.');
     }
 
-    const payment = await this.paymentTransactionsRepository.findOne({
-      where: { merchantOid },
-      relations: ['order'],
-    });
+    let payment: PaymentTransaction | null = null;
+    try {
+      payment = await this.paymentTransactionsRepository.findOne({
+        where: { merchantOid },
+        relations: ['order'],
+      });
+    } catch (error) {
+      this.logger.error(
+        `PAYTR callback transaction sorgusu basarisiz (${merchantOid}). Order fallback kullanilacak. ${this.describeError(error)}`,
+      );
+    }
 
     if (!payment) {
-      throw new NotFoundException('Odeme kaydi bulunamadi.');
+      const fallbackOrder = await this.ordersRepository.findOne({
+        where: { paymentTransactionId: merchantOid },
+      });
+
+      if (!fallbackOrder) {
+        throw new NotFoundException('Odeme kaydi bulunamadi.');
+      }
+
+      if (status === 'success') {
+        await this.ordersService.markOrderPaymentPaidBySystem(fallbackOrder.id, {
+          provider: 'PAYTR',
+          transactionId: merchantOid,
+          message: 'PAYTR callback ile odeme basarili olarak onaylandi.',
+          meta: {
+            merchantOid,
+            paymentType: this.toNullableString(payload.payment_type),
+            totalAmount,
+            fallback: 'ORDER_ONLY',
+          },
+        });
+        return;
+      }
+
+      const failureCode = this.toNullableString(payload.failed_reason_code);
+      const failureMessage =
+        this.toNullableString(payload.failed_reason_msg) ?? 'Odeme PAYTR tarafinda basarisiz oldu.';
+      await this.ordersService.markOrderPaymentFailedBySystem(fallbackOrder.id, {
+        provider: 'PAYTR',
+        transactionId: merchantOid,
+        reason: `PAYTR callback: ${failureMessage}`,
+        meta: {
+          merchantOid,
+          failedReasonCode: failureCode,
+          failedReasonMessage: failureMessage,
+          totalAmount,
+          fallback: 'ORDER_ONLY',
+        },
+        cancelOrder: true,
+      });
+      return;
     }
 
     const callbackHash = this.hashToBase64(
@@ -502,6 +577,14 @@ export class PaytrService {
 
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private describeError(error: unknown) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Bilinmeyen hata';
   }
 
   private limitText(value: string, maxLength: number) {

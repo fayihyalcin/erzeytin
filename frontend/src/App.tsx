@@ -34,6 +34,9 @@ const PostsPage = lazy(() =>
 const CartPage = lazy(() =>
   import('./pages/CartPage').then((module) => ({ default: module.CartPage })),
 );
+const CheckoutPage = lazy(() =>
+  import('./pages/CheckoutPage').then((module) => ({ default: module.CheckoutPage })),
+);
 const CustomerDashboardPage = lazy(() =>
   import('./pages/CustomerDashboardPage').then((module) => ({ default: module.CustomerDashboardPage })),
 );
@@ -178,6 +181,7 @@ function App() {
   const hideWhatsAppButton =
     location.pathname === '/admin' ||
     location.pathname === '/login' ||
+    location.pathname.startsWith('/checkout') ||
     location.pathname === '/customer/login' ||
     location.pathname === '/customer/register' ||
     location.pathname.startsWith('/dashboard');
@@ -196,6 +200,7 @@ function App() {
           <Route path="/urun/:productSlug" element={<ProductDetailPage />} />
           <Route path="/product/:productId" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/checkout/paytr/return" element={<PaytrReturnPage />} />
           <Route
             path="/customer/dashboard"

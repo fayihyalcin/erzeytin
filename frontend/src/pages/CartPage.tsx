@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { useToast } from '../context/ToastContext';
@@ -112,6 +112,7 @@ function paymentMethodLabel(method: CheckoutPaymentMethod) {
 
 export function CartPage() {
   const defaultConfig = useMemo(() => createDefaultWebsiteConfig(), []);
+  const navigate = useNavigate();
   const { items, itemCount, subtotal, setQuantity, removeProduct, clearCart } = useStoreCart();
   const {
     user: customerUser,
@@ -542,8 +543,8 @@ export function CartPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setCheckoutOpen(true);
                     setCreatedOrderNumber('');
+                    navigate('/checkout');
                   }}
                 >
                   Yeni Sipariş Oluştur
@@ -698,15 +699,11 @@ export function CartPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setCheckoutOpen(true);
                       setCheckoutError('');
+                      navigate('/checkout');
                     }}
                   >
-                    {paytrSession
-                      ? 'Bekleyen PAYTR Ödemesine Dön'
-                      : checkoutOpen
-                        ? 'Ödeme Paneli Açık'
-                        : 'Güvenli Ödemeye Geç'}
+                    Güvenli Ödemeye Geç
                   </button>
 
                   <Link to="/" className="sf-cart-summary-link">
@@ -729,8 +726,8 @@ export function CartPage() {
           <button
             type="button"
             onClick={() => {
-              setCheckoutOpen(true);
               setCheckoutError('');
+              navigate('/checkout');
             }}
           >
             Ödemeye Geç

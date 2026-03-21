@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { createId } from './admin-content';
 import { api } from './api';
 import { canonicalizeAssetUrl } from './asset-url';
@@ -46,14 +47,44 @@ function humanizeFileName(value: string) {
   return normalized || 'Yeni medya';
 }
 
-async function uploadBatch(endpoint: string, files: File[]) {
+function isPayloadTooLargeError(error: unknown) {
+  return axios.isAxiosError(error) && error.response?.status === 413;
+}
+
+async function uploadBatch(
+  endpoint: string,
+  files: File[],
+): Promise<UploadedMediaAsset[]> {
   const formData = new FormData();
   files.forEach((file) => {
     formData.append('files', file, file.name);
   });
 
-  const response = await api.post<UploadMediaResponse>(endpoint, formData);
-  return response.data.items;
+  try {
+    const response = await api.post<UploadMediaResponse>(endpoint, formData);
+    return response.data.items;
+  } catch (error) {
+    if (isPayloadTooLargeError(error)) {
+      if (files.length === 1) {
+        throw new Error(
+          `"${files[0].name}" dosyasi sunucu yukleme limitini asiyor. Dosyayi kucultun veya sunucuda client_max_body_size / UPLOAD_MAX_FILE_SIZE_MB degerini artirin.`,
+        );
+      }
+
+      const midpoint = Math.ceil(files.length / 2);
+      const left: UploadedMediaAsset[] = await uploadBatch(
+        endpoint,
+        files.slice(0, midpoint),
+      );
+      const right: UploadedMediaAsset[] = await uploadBatch(
+        endpoint,
+        files.slice(midpoint),
+      );
+      return [...left, ...right];
+    }
+
+    throw error;
+  }
 }
 
 async function runUploadQueue(endpoint: string, batches: File[][]) {

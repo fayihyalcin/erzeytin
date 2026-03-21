@@ -88,6 +88,10 @@ export function isUnauthorizedResponse(error: unknown) {
 
 export function extractApiError(error: unknown, fallback: string) {
   if (!axios.isAxiosError(error)) {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
+    }
+
     return fallback;
   }
 

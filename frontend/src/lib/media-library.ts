@@ -1,5 +1,6 @@
 import { createId } from './admin-content';
-import { api, API_ORIGIN } from './api';
+import { api } from './api';
+import { canonicalizeAssetUrl } from './asset-url';
 import type { MediaItem, MediaItemType } from '../types/api';
 
 interface UploadedMediaAsset {
@@ -104,11 +105,11 @@ export function createMediaItemFromUpload(asset: UploadedMediaAsset): MediaItem 
     folder: asset.folder,
     id: createId('media'),
     mimeType: asset.mimeType,
-    thumbnailUrl: asset.type === 'document' ? '' : asset.url,
+    thumbnailUrl: asset.type === 'document' ? '' : canonicalizeAssetUrl(asset.url),
     title: humanizeFileName(asset.originalName),
     type: asset.type,
     updatedAt: timestamp,
-    url: asset.url,
+    url: canonicalizeAssetUrl(asset.url),
   };
 }
 
@@ -135,23 +136,5 @@ export function mergeMediaItems(existing: MediaItem[], incoming: MediaItem[]) {
 }
 
 export function resolveMediaAssetUrl(value?: string | null) {
-  const url = value?.trim();
-  if (!url) {
-    return '';
-  }
-
-  if (
-    url.startsWith('http://') ||
-    url.startsWith('https://') ||
-    url.startsWith('data:') ||
-    url.startsWith('blob:')
-  ) {
-    return url;
-  }
-
-  if (url.startsWith('//')) {
-    return `${window.location.protocol}${url}`;
-  }
-
-  return `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`;
+  return canonicalizeAssetUrl(value);
 }

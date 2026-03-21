@@ -3,6 +3,8 @@ import { isAbsolute, resolve } from 'node:path';
 import type { Request } from 'express';
 
 const DEFAULT_UPLOAD_DIR = 'uploads';
+export const PUBLIC_UPLOAD_PATH = '/api/uploads';
+export const LEGACY_PUBLIC_UPLOAD_PATH = '/uploads';
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/msword': '.doc',

@@ -6,6 +6,7 @@ import {
   buildPublicUploadUrl,
   detectMediaType,
   normalizeMediaFolderLabel,
+  PUBLIC_UPLOAD_PATH,
   resolveUploadRoot,
 } from './media.utils';
 
@@ -32,7 +33,7 @@ export class MediaService {
     return {
       items: files.map((file) => {
         const relativePath = relative(uploadRoot, file.path).split(sep).join('/');
-        const publicPath = `/uploads/${relativePath}`;
+        const publicPath = `${PUBLIC_UPLOAD_PATH}/${relativePath}`;
 
         return {
           folder: folderLabel,

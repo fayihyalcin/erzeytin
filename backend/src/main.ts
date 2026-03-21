@@ -1,6 +1,6 @@
 import { static as expressStatic } from 'express';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ensureUploadRoot } from './media/media.utils';
+import { ensureUploadRoot, LEGACY_PUBLIC_UPLOAD_PATH, PUBLIC_UPLOAD_PATH } from './media/media.utils';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -17,13 +17,13 @@ async function bootstrap() {
       { path: 'sitemap.xml', method: RequestMethod.GET },
     ],
   });
-  app.use(
-    '/uploads',
-    expressStatic(uploadRoot, {
-      etag: true,
-      maxAge: '7d',
-    }),
-  );
+  const uploadStaticOptions = {
+    etag: true,
+    maxAge: '7d',
+  } as const;
+
+  app.use(PUBLIC_UPLOAD_PATH, expressStatic(uploadRoot, uploadStaticOptions));
+  app.use(LEGACY_PUBLIC_UPLOAD_PATH, expressStatic(uploadRoot, uploadStaticOptions));
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

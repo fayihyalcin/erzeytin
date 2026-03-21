@@ -1,4 +1,5 @@
 import type { BlogPost, MediaItem, MediaItemType } from '../types/api';
+import { canonicalizeAssetUrl } from './asset-url';
 
 function nowIso() {
   return new Date().toISOString();
@@ -97,12 +98,12 @@ export function parseMediaLibrary(raw?: string | null): MediaItem[] {
         return {
           id: toStringValue(record.id, createId('media')),
           title: toStringValue(record.title),
-          url,
+          url: canonicalizeAssetUrl(url),
           type: normalizeMediaType(record.type),
           folder: toStringValue(record.folder, 'Genel'),
           alt: toStringValue(record.alt),
           description: toStringValue(record.description),
-          thumbnailUrl: toStringValue(record.thumbnailUrl, url),
+          thumbnailUrl: canonicalizeAssetUrl(toStringValue(record.thumbnailUrl, url)),
           mimeType: toStringValue(record.mimeType),
           createdAt,
           updatedAt,

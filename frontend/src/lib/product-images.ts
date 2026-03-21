@@ -1,3 +1,5 @@
+import { canonicalizeAssetUrl } from './asset-url';
+
 interface ProductImageSource {
   id?: string;
   name?: string;
@@ -11,12 +13,14 @@ export const PRODUCT_PLACEHOLDER_IMAGE = '/product-placeholder.svg';
 function normalizeProvidedImages(source: ProductImageSource) {
   const images = Array.isArray(source.images)
     ? source.images
-        .map((item) => item.trim())
+        .map((item) => canonicalizeAssetUrl(item))
         .filter((item) => item.length > 0)
     : [];
 
   const featuredImage =
-    typeof source.featuredImage === 'string' ? source.featuredImage.trim() : '';
+    typeof source.featuredImage === 'string'
+      ? canonicalizeAssetUrl(source.featuredImage)
+      : '';
 
   if (featuredImage && images.includes(featuredImage)) {
     return [featuredImage, ...images.filter((item) => item !== featuredImage)];

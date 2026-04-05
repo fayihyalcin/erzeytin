@@ -47,11 +47,13 @@ export function PublicStorefrontLayout({
   children,
   config,
   currency,
+  showFooter = true,
 }: {
   activePath: string;
   children: ReactNode;
   config: WebsiteConfig;
   currency: string;
+  showFooter?: boolean;
 }) {
   const { itemCount } = useStoreCart();
   const { isAuthenticated, logout } = useCustomerAuth();
@@ -192,59 +194,61 @@ export function PublicStorefrontLayout({
 
       <main className="ps-main">{children}</main>
 
-      <footer className="ps-footer">
-        <div className="ps-container ps-footer-grid">
-          <article className="ps-footer-brand">
-            <span className="ps-footer-badge">Kurumsal Mağaza</span>
-            <h3>{config.theme.brandName}</h3>
-            <p>{config.contactPage.footerDescription}</p>
-            <div className="ps-footer-contact">
-              <a href={contact.phoneLink}>{contact.phoneDisplay}</a>
-              <a href={`mailto:${contact.email}`}>{contact.email}</a>
-              <span>{contact.address}</span>
-            </div>
-          </article>
-
-          {config.footerColumns.map((column) => (
-            <div className="ps-footer-column" key={column.title}>
-              <h4>{column.title}</h4>
-              <div className="ps-footer-links">
-                {column.links.map((link) => {
-                  const href = resolveStoreFooterHref(link);
-
-                  return (
-                    <StoreLink
-                      className={isActiveStoreHref(activePath, href) ? 'active' : undefined}
-                      href={href}
-                      key={`${column.title}-${link.label}-${href}`}
-                    >
-                      {link.label}
-                    </StoreLink>
-                  );
-                })}
+      {showFooter ? (
+        <footer className="ps-footer">
+          <div className="ps-container ps-footer-grid">
+            <article className="ps-footer-brand">
+              <span className="ps-footer-badge">Kurumsal Mağaza</span>
+              <h3>{config.theme.brandName}</h3>
+              <p>{config.contactPage.footerDescription}</p>
+              <div className="ps-footer-contact">
+                <a href={contact.phoneLink}>{contact.phoneDisplay}</a>
+                <a href={`mailto:${contact.email}`}>{contact.email}</a>
+                <span>{contact.address}</span>
               </div>
-            </div>
-          ))}
-        </div>
+            </article>
 
-        <div className="ps-container ps-footer-bottom">
-          <span>
-            {config.theme.brandName} - {new Date().getFullYear()} Tüm hakları saklıdır.
-          </span>
-          <div className="ps-footer-legal" aria-label="Yasal bağlantılar">
-            {[
-              { label: config.legalPages.kvkk.title, href: '/kvkk' },
-              { label: config.legalPages.privacy.title, href: '/gizlilik' },
-              { label: config.legalPages.sales.title, href: '/satis-sozlesmesi' },
-              { label: 'İletişim', href: resolveStoreHref('/iletisim') },
-            ].map((item) => (
-              <Link key={item.href} to={item.href}>
-                {item.label}
-              </Link>
+            {config.footerColumns.map((column) => (
+              <div className="ps-footer-column" key={column.title}>
+                <h4>{column.title}</h4>
+                <div className="ps-footer-links">
+                  {column.links.map((link) => {
+                    const href = resolveStoreFooterHref(link);
+
+                    return (
+                      <StoreLink
+                        className={isActiveStoreHref(activePath, href) ? 'active' : undefined}
+                        href={href}
+                        key={`${column.title}-${link.label}-${href}`}
+                      >
+                        {link.label}
+                      </StoreLink>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-      </footer>
+
+          <div className="ps-container ps-footer-bottom">
+            <span>
+              {config.theme.brandName} - {new Date().getFullYear()} Tüm hakları saklıdır.
+            </span>
+            <div className="ps-footer-legal" aria-label="Yasal bağlantılar">
+              {[
+                { label: config.legalPages.kvkk.title, href: '/kvkk' },
+                { label: config.legalPages.privacy.title, href: '/gizlilik' },
+                { label: config.legalPages.sales.title, href: '/satis-sozlesmesi' },
+                { label: 'İletişim', href: resolveStoreHref('/iletisim') },
+              ].map((item) => (
+                <Link key={item.href} to={item.href}>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </footer>
+      ) : null}
     </div>
   );
 }

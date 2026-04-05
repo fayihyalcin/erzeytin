@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { PublicBreadcrumbs } from '../components/public/PublicBreadcrumbs';
+import { PublicStorefrontLayout } from '../components/public/PublicStorefrontLayout';
 import { api } from '../lib/api';
 import { parseBlogPosts } from '../lib/admin-content';
 import {
@@ -25,6 +26,7 @@ function splitParagraphs(content: string) {
 
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const [settings, setSettings] = useState<PublicSettingsDto | null>(null);
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -62,6 +64,7 @@ export function BlogPostPage() {
   );
   const siteUrl = settings?.siteUrl ?? null;
   const siteName = settings?.storeName?.trim() || config.theme.brandName || 'Er Zeytincilik';
+  const currency = settings?.currency?.toUpperCase() ?? 'TRY';
   const pageDescription = summarizeText(
     post?.seoDescription || post?.excerpt || post?.content || config.homeSections.blogDescription,
     155,
@@ -103,93 +106,83 @@ export function BlogPostPage() {
       : undefined,
   });
 
-  if (loading) {
-    return <main className="legal-page"><section className="legal-content">Yazi yukleniyor...</section></main>;
-  }
-
-  if (!post) {
+  if (!loading && !post) {
     return <Navigate to="/" replace />;
   }
 
   return (
-    <main className="legal-page">
-      <header className="legal-topbar">
-        <div className="legal-topbar-inner">
-          <Link to="/" className="legal-brand">
-            {config.theme.brandName}
-          </Link>
-          <nav className="legal-nav" aria-label="Blog gezinme">
-            <Link to="/">Ana Sayfa</Link>
-            <Link to="/urunler">Urunler</Link>
-            <Link to="/kampanyalar">Kampanyalar</Link>
-            <Link to="/iletisim">Iletisim</Link>
-          </nav>
-        </div>
-      </header>
-
-      <section className="legal-content" style={{ paddingBottom: 0 }}>
-        <PublicBreadcrumbs
-          items={[
-            { label: 'Ana Sayfa', href: '/' },
-            { label: 'Blog', href: '/' },
-            { label: post.title },
-          ]}
-        />
-      </section>
-
-      <article>
-        <section className="legal-hero">
-          <p className="contact-hero-badge">{post.category}</p>
-          <h1>{post.title}</h1>
-          <p>{post.excerpt || config.homeSections.blogDescription}</p>
-        </section>
-
-        <section className="legal-content">
-          {post.coverImageUrl ? (
-            <article className="legal-section">
-              <img
-                alt={post.title}
-                decoding="async"
-                loading="eager"
-                fetchPriority="high"
-                src={post.coverImageUrl}
-                style={{ width: '100%', borderRadius: 16, objectFit: 'cover', maxHeight: 480 }}
+    <PublicStorefrontLayout activePath={location.pathname} config={config} currency={currency}>
+      <div className="legal-page">
+        {loading || !post ? (
+          <section className="legal-content">Yazi yukleniyor...</section>
+        ) : (
+          <>
+            <section className="legal-content" style={{ paddingBottom: 0 }}>
+              <PublicBreadcrumbs
+                items={[
+                  { label: 'Ana Sayfa', href: '/' },
+                  { label: 'Blog', href: '/' },
+                  { label: post.title },
+                ]}
               />
+            </section>
+
+            <article>
+              <section className="legal-hero">
+                <p className="contact-hero-badge">{post.category}</p>
+                <h1>{post.title}</h1>
+                <p>{post.excerpt || config.homeSections.blogDescription}</p>
+              </section>
+
+              <section className="legal-content">
+                {post.coverImageUrl ? (
+                  <article className="legal-section">
+                    <img
+                      alt={post.title}
+                      decoding="async"
+                      loading="eager"
+                      fetchPriority="high"
+                      src={post.coverImageUrl}
+                      style={{ width: '100%', borderRadius: 16, objectFit: 'cover', maxHeight: 480 }}
+                    />
+                  </article>
+                ) : null}
+
+                <article className="legal-section">
+                  <h2>Yayin detayi</h2>
+                  <p>
+                    {new Date(post.publishedAt ?? post.updatedAt).toLocaleDateString('tr-TR')} -{' '}
+                    {post.tags.length > 0 ? post.tags.join(', ') : 'Genel icerik'}
+                  </p>
+                </article>
+
+                <article className="legal-section">
+                  <h2>Icerik</h2>
+                  <div>
+                    {splitParagraphs(post.content || post.excerpt).map((paragraph, index) => (
+                      <p key={`${post.id}-paragraph-${index}`}>{paragraph}</p>
+                    ))}
+                  </div>
+                </article>
+
+                {relatedPosts.length > 0 ? (
+                  <article className="legal-section">
+                    <h2>Diger yazilar</h2>
+                    <div className="admin-quick-grid">
+                      {relatedPosts.map((item) => (
+                        <Link key={item.id} className="admin-quick-card" to={`/blog/${item.slug}`}>
+                          <strong>{item.title}</strong>
+                          <span>{item.excerpt || item.category}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </article>
+                ) : null}
+              </section>
             </article>
-          ) : null}
-
-          <article className="legal-section">
-            <h2>Yayin detayi</h2>
-            <p>
-              {new Date(post.publishedAt ?? post.updatedAt).toLocaleDateString('tr-TR')} -{' '}
-              {post.tags.length > 0 ? post.tags.join(', ') : 'Genel icerik'}
-            </p>
-          </article>
-
-          <article className="legal-section">
-            <h2>Icerik</h2>
-            <div>
-              {splitParagraphs(post.content || post.excerpt).map((paragraph, index) => (
-                <p key={`${post.id}-paragraph-${index}`}>{paragraph}</p>
-              ))}
-            </div>
-          </article>
-
-          {relatedPosts.length > 0 ? (
-            <article className="legal-section">
-              <h2>Diger yazilar</h2>
-              <div className="admin-quick-grid">
-                {relatedPosts.map((item) => (
-                  <Link key={item.id} className="admin-quick-card" to={`/blog/${item.slug}`}>
-                    <strong>{item.title}</strong>
-                    <span>{item.excerpt || item.category}</span>
-                  </Link>
-                ))}
-              </div>
-            </article>
-          ) : null}
-        </section>
-      </article>
-    </main>
+          </>
+        )}
+      </div>
+    </PublicStorefrontLayout>
   );
 }

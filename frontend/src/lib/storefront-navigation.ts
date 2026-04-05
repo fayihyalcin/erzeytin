@@ -3,11 +3,6 @@ import { api } from './api';
 import { resolvePublicCategoryResultsPath } from './public-site';
 import type { Category, WebsiteNavItem } from '../types/api';
 
-const STORE_PRODUCTS_NAV_ITEM: WebsiteNavItem = {
-  label: 'Tüm Ürünler',
-  href: resolvePublicCategoryResultsPath(),
-};
-
 const FALLBACK_CATEGORY_NAV_ITEMS: WebsiteNavItem[] = [
   { label: 'Zeytinyağı', href: resolvePublicCategoryResultsPath('zeytinyagi') },
   { label: 'Siyah Zeytin', href: resolvePublicCategoryResultsPath('siyah-zeytin') },
@@ -53,10 +48,7 @@ export function buildFeaturedCategoryNavItems(categories: Category[], limit = 6)
 }
 
 export function buildStoreHeaderNavItems(categories: Category[], limit = 6) {
-  return dedupeNavItems([
-    STORE_PRODUCTS_NAV_ITEM,
-    ...buildFeaturedCategoryNavItems(categories, limit),
-  ]);
+  return dedupeNavItems(buildFeaturedCategoryNavItems(categories, limit));
 }
 
 export function useStoreHeaderNavItems(limit = 6) {

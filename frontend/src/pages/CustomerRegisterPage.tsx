@@ -2,6 +2,8 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PublicStorefrontLayout } from '../components/public/PublicStorefrontLayout';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
+import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
+import { useSeo } from '../lib/seo';
 import { usePublicWebsiteConfig } from '../lib/usePublicWebsiteConfig';
 import './CustomerAuthPage.css';
 
@@ -65,7 +67,7 @@ export function CustomerRegisterPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { register } = useCustomerAuth();
-  const { config, currency, loading: configLoading } = usePublicWebsiteConfig();
+  const { config, currency, loading: configLoading, settings } = usePublicWebsiteConfig();
 
   const nextPath = useMemo(() => resolveNextPath(location.search), [location.search]);
   const loginHref = location.search ? `/customer/login${location.search}` : '/customer/login';
@@ -75,6 +77,23 @@ export function CustomerRegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const siteName = settings?.storeName?.trim() || config.theme.brandName;
+  const siteUrl = settings?.siteUrl ?? null;
+  const pageDescription = summarizeText(
+    `${config.theme.brandName} müşteri hesabı oluşturarak sipariş takibi, kayıtlı adresler ve hızlı ödeme adımlarına erişin.`,
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle('Müşteri Kaydı', siteName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/customer/register'),
+    keywords: buildKeywordSet(siteName, ['müşteri kaydı', 'hesap oluştur', 'hızlı sipariş']),
+    robots: 'noindex,follow,max-image-preview:large',
+    siteName,
+    imageUrl: buildDefaultSeoImageUrl(siteUrl),
+    imageAlt: `${siteName} müşteri kaydı`,
+  });
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

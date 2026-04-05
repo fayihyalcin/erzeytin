@@ -14,6 +14,7 @@ import {
 import { useStoreHeaderNavItems } from '../../lib/storefront-navigation';
 import type { WebsiteConfig } from '../../types/api';
 import '../../pages/StorefrontPage.css';
+import { StorefrontBrandLink } from './StorefrontBrandLink';
 import './PublicStorefrontLayout.css';
 
 function StoreLink({
@@ -122,13 +123,7 @@ export function PublicStorefrontLayout({
 
       <header className="sf-main-header">
         <div className="sf-container sf-brand-row">
-          <Link className="sf-logo" to="/">
-            <span className="sf-logo-mark">Z</span>
-            <span className="sf-logo-text">
-              <strong>{config.theme.brandName}</strong>
-              <small>{config.theme.tagline}</small>
-            </span>
-          </Link>
+          <StorefrontBrandLink brandName={config.theme.brandName} />
 
           <form className="sf-search-form" onSubmit={handleSearchSubmit}>
             <input

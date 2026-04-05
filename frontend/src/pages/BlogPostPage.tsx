@@ -7,6 +7,8 @@ import { parseBlogPosts } from '../lib/admin-content';
 import {
   buildArticleSchema,
   buildBreadcrumbSchema,
+  buildBlogKeywords,
+  buildDefaultSeoImageUrl,
   buildPageTitle,
   buildWebPageSchema,
   summarizeText,
@@ -69,16 +71,23 @@ export function BlogPostPage() {
     post?.seoDescription || post?.excerpt || post?.content || config.homeSections.blogDescription,
     155,
   );
+  const blogImageUrl = post?.coverImageUrl
+    ? toAbsoluteSiteUrl(siteUrl, post.coverImageUrl)
+    : buildDefaultSeoImageUrl(siteUrl);
 
   useSeo({
     title: buildPageTitle(post?.seoTitle || post?.title || 'Blog yazisi', siteName),
     description: pageDescription,
     canonicalUrl: post ? toAbsoluteSiteUrl(siteUrl, `/blog/${post.slug}`) : toAbsoluteSiteUrl(siteUrl, '/'),
     robots: post ? 'index,follow,max-image-preview:large' : 'noindex,follow',
-    keywords: post?.seoKeywords?.length ? post.seoKeywords : post?.tags ?? [],
-    imageUrl: post?.coverImageUrl ? toAbsoluteSiteUrl(siteUrl, post.coverImageUrl) : undefined,
+    keywords: post ? buildBlogKeywords(post, siteName) : [siteName, 'blog'],
+    imageUrl: blogImageUrl,
+    imageAlt: post?.title || `${siteName} blog yazısı`,
     siteName,
     type: 'article',
+    publishedTime: post?.publishedAt ?? post?.updatedAt,
+    modifiedTime: post?.updatedAt,
+    section: post?.category || 'Blog',
     jsonLd: post
       ? [
           buildWebPageSchema({
@@ -86,6 +95,7 @@ export function BlogPostPage() {
             path: `/blog/${post.slug}`,
             title: post.title,
             description: pageDescription,
+            imageUrl: blogImageUrl,
           }),
           buildArticleSchema({
             siteUrl,
@@ -93,9 +103,8 @@ export function BlogPostPage() {
             post,
             brandName: siteName,
             description: pageDescription,
-            imageUrl: post.coverImageUrl
-              ? toAbsoluteSiteUrl(siteUrl, post.coverImageUrl)
-              : undefined,
+            imageUrl: blogImageUrl,
+            logoUrl: buildDefaultSeoImageUrl(siteUrl),
           }),
           buildBreadcrumbSchema(siteUrl, [
             { name: 'Ana Sayfa', path: '/' },

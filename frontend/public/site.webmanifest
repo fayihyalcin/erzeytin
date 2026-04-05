@@ -1,0 +1,19 @@
+{
+  "name": "Er Zeytincilik",
+  "short_name": "Er Zeytin",
+  "description": "Doğal, katkısız ve geleneksel zeytin ile zeytinyağı ürünleri.",
+  "lang": "tr-TR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbf7ec",
+  "theme_color": "#1f5b2c",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

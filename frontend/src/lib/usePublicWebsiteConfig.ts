@@ -4,6 +4,7 @@ import { createDefaultWebsiteConfig, parseWebsiteConfig } from './website-config
 import type { PublicSettingsDto, WebsiteConfig } from '../types/api';
 
 export function usePublicWebsiteConfig() {
+  const [settings, setSettings] = useState<PublicSettingsDto | null>(null);
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [currency, setCurrency] = useState('TRY');
   const [loading, setLoading] = useState(true);
@@ -18,6 +19,7 @@ export function usePublicWebsiteConfig() {
           return;
         }
 
+        setSettings(response.data);
         setConfig(parseWebsiteConfig(response.data.websiteConfig));
         setCurrency(response.data.currency ?? 'TRY');
       })
@@ -39,5 +41,5 @@ export function usePublicWebsiteConfig() {
     };
   }, []);
 
-  return { config, currency, loading };
+  return { config, currency, loading, settings };
 }

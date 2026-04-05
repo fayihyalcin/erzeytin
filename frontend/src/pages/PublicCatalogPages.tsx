@@ -16,7 +16,10 @@ import { resolveProductImage as resolveCatalogProductImage } from '../lib/produc
 import {
   buildBreadcrumbSchema,
   buildCollectionSchema,
+  buildDefaultSeoImageUrl,
+  buildKeywordSet,
   buildPageTitle,
+  buildSiteKeywords,
   buildWebPageSchema,
   summarizeText,
   toAbsoluteSiteUrl,
@@ -332,6 +335,9 @@ export function PublicCategoriesPage() {
   );
 
   const siteUrl = settings?.siteUrl ?? null;
+  const categoriesImageUrl = categorySummaries[0]?.category.imageUrl
+    ? toAbsoluteSiteUrl(siteUrl, categorySummaries[0].category.imageUrl)
+    : buildDefaultSeoImageUrl(siteUrl);
   const pageDescription = summarizeText(
     config.pages.categories.description ||
       'Er Zeytincilik kategori vitrini; zeytinyagi, zeytin ve gurme urunleri tek akista sunar.',
@@ -342,14 +348,22 @@ export function PublicCategoriesPage() {
     title: buildPageTitle('Kategori vitrini', config.theme.brandName),
     description: pageDescription,
     canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/kategoriler'),
-    keywords: ['kategori', 'zeytinyagi', 'zeytin', 'gurme urunler'],
+    keywords: buildSiteKeywords({
+      brandName: config.theme.brandName,
+      tagline: config.theme.tagline,
+      categoryNames: categorySummaries.map(({ category }) => category.name),
+      extra: ['kategori vitrini', 'ürün kategorileri'],
+    }),
     siteName: config.theme.brandName,
+    imageUrl: categoriesImageUrl,
+    imageAlt: `${config.theme.brandName} kategori vitrini`,
     jsonLd: [
       buildWebPageSchema({
         siteUrl,
         path: '/kategoriler',
         title: 'Kategori vitrini',
         description: pageDescription,
+        imageUrl: categoriesImageUrl,
       }),
       buildCollectionSchema({
         siteUrl,
@@ -567,8 +581,10 @@ export function PublicProductsPage() {
   }, [activeCategory, activePage, activeQuery]);
 
   const siteUrl = settings?.siteUrl ?? null;
+  const activeCategoryMeta =
+    sortedCategories.find((category) => category.slug === activeCategory) ?? null;
   const activeCategoryName =
-    sortedCategories.find((category) => category.slug === activeCategory)?.name ?? '';
+    activeCategoryMeta?.name ?? '';
   const canonicalParams = new URLSearchParams();
 
   if (activeCategory !== 'all') {
@@ -584,9 +600,24 @@ export function PublicProductsPage() {
   const pageTitle = activeCategoryName ? `${activeCategoryName} urunleri` : 'Tum urunler';
   const pageDescription = summarizeText(
     activeCategoryName
-      ? `${activeCategoryName} kategorisindeki urunleri filtreli katalog akisi ile inceleyin.`
+      ? activeCategoryMeta?.seoDescription ||
+        activeCategoryMeta?.description ||
+        `${activeCategoryName} kategorisindeki urunleri filtreli katalog akisi ile inceleyin.`
       : config.pages.products.description || 'Tum urunler filtreli katalog akisi ile listelenir.',
     155,
+  );
+  const productsImageUrl = activeCategoryMeta?.imageUrl
+    ? toAbsoluteSiteUrl(siteUrl, activeCategoryMeta.imageUrl)
+    : products[0]
+      ? toAbsoluteSiteUrl(siteUrl, resolveProductImage(products[0]))
+      : buildDefaultSeoImageUrl(siteUrl);
+  const productsKeywords = buildKeywordSet(
+    activeCategoryMeta?.seoKeywords,
+    activeCategoryMeta?.name,
+    activeCategoryMeta?.description,
+    products.slice(0, 8).flatMap((product) => [product.name, ...product.seoKeywords, ...product.tags]),
+    config.theme.brandName,
+    ['ürünler', 'zeytinyağı', 'zeytin'],
   );
 
   useSeo({
@@ -596,14 +627,19 @@ export function PublicProductsPage() {
     robots: activeQuery.trim()
       ? 'noindex,follow,max-image-preview:large'
       : 'index,follow,max-image-preview:large',
-    keywords: ['urunler', activeCategoryName, 'zeytinyagi', 'zeytin'].filter((item) => item),
+    keywords: productsKeywords,
     siteName: config.theme.brandName,
+    imageUrl: productsImageUrl,
+    imageAlt: activeCategoryName
+      ? `${activeCategoryName} ürünleri`
+      : `${config.theme.brandName} ürün listesi`,
     jsonLd: [
       buildWebPageSchema({
         siteUrl,
         path: canonicalPath,
         title: pageTitle,
         description: pageDescription,
+        imageUrl: productsImageUrl,
       }),
       buildCollectionSchema({
         siteUrl,
@@ -757,6 +793,9 @@ export function PublicCampaignsPage() {
   );
 
   const siteUrl = settings?.siteUrl ?? null;
+  const campaignImageUrl = discountedProducts[0]
+    ? toAbsoluteSiteUrl(siteUrl, resolveProductImage(discountedProducts[0]))
+    : buildDefaultSeoImageUrl(siteUrl);
   const pageDescription = summarizeText(
     config.pages.campaigns.description ||
       'Kampanyalar, indirimli urunler ve promo bloklari tek sayfada sergilenir.',
@@ -767,14 +806,21 @@ export function PublicCampaignsPage() {
     title: buildPageTitle('Kampanyalar', config.theme.brandName),
     description: pageDescription,
     canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/kampanyalar'),
-    keywords: ['kampanya', 'indirim', 'zeytinyagi', 'zeytin'],
+    keywords: buildKeywordSet(
+      discountedProducts.slice(0, 8).flatMap((product) => [product.name, ...product.seoKeywords]),
+      config.theme.brandName,
+      ['kampanya', 'indirimli ürünler', 'zeytinyağı', 'zeytin'],
+    ),
     siteName: config.theme.brandName,
+    imageUrl: campaignImageUrl,
+    imageAlt: `${config.theme.brandName} kampanyalar`,
     jsonLd: [
       buildWebPageSchema({
         siteUrl,
         path: '/kampanyalar',
         title: 'Kampanyalar',
         description: pageDescription,
+        imageUrl: campaignImageUrl,
       }),
       buildCollectionSchema({
         siteUrl,

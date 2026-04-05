@@ -1,11 +1,14 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { StorefrontBrandLink } from '../components/public/StorefrontBrandLink';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
+import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { resolvePublicProductPath } from '../lib/public-site';
+import { useSeo } from '../lib/seo';
 import { useStoreHeaderNavItems } from '../lib/storefront-navigation';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
@@ -244,6 +247,25 @@ export function CartPage() {
 
   const total = subtotal;
   const canCheckout = items.length > 0 && !checkoutLoading;
+  const siteName = config.theme.brandName;
+  const pageDescription = summarizeText(
+    items.length > 0
+      ? `Sepetinizde ${items.length} ürün bulunuyor. Siparişinizi gözden geçirip ödeme adımına geçebilirsiniz.`
+      : `${siteName} sepetiniz şu anda boş. Ürünleri inceleyip alışverişe devam edebilirsiniz.`,
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle('Sepetim', siteName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(null, '/cart'),
+    keywords: buildKeywordSet(siteName, ['sepet', 'alışveriş sepeti', 'sipariş özeti']),
+    robots: 'noindex,follow,max-image-preview:large',
+    siteName,
+    imageUrl: buildDefaultSeoImageUrl(null),
+    imageAlt: `${siteName} sepetim`,
+  });
+
   const checkoutPayload = {
     customerName: checkoutForm.fullName.trim(),
     customerEmail: checkoutForm.email.trim(),
@@ -417,13 +439,7 @@ export function CartPage() {
 
       <header className="sf-main-header">
         <div className="sf-container sf-brand-row">
-          <Link className="sf-logo" to="/">
-            <span className="sf-logo-mark">Z</span>
-            <span className="sf-logo-text">
-              <strong>{config.theme.brandName}</strong>
-              <small>{config.theme.tagline}</small>
-            </span>
-          </Link>
+          <StorefrontBrandLink brandName={config.theme.brandName} />
 
           <form
             className="sf-search-form"

@@ -19,9 +19,11 @@
 } from '../types/api';
 import { canonicalizeAssetUrl } from './asset-url';
 
+const DEFAULT_BRAND_TAGLINE = 'DOĞAL - KATKISIZ - GELENEKSEL';
+
 const DEFAULT_THEME: WebsiteThemeConfig = {
   brandName: 'Er Zeytincilik',
-  tagline: "Ege'den sofrana do\u011fal lezzet",
+  tagline: DEFAULT_BRAND_TAGLINE,
   adminButtonLabel: 'Y\u00f6netim Giri\u015fi',
 };
 
@@ -625,6 +627,15 @@ function normalizeMarketingText(value: string) {
     .replace(/\bSimdi\b/g, '\u015eimdi');
 }
 
+function normalizeTaglineText(value: string) {
+  const normalized = normalizeDisplayText(value).trim();
+  if (/^ege'?den sofrana doğal lezzet$/i.test(normalized) || /^egeden sofrana doğal lezzet$/i.test(normalized)) {
+    return DEFAULT_BRAND_TAGLINE;
+  }
+
+  return normalized;
+}
+
 function normalizeTheme(value: unknown, fallback: WebsiteThemeConfig): WebsiteThemeConfig {
   if (!value || typeof value !== 'object') {
     return { ...fallback };
@@ -633,7 +644,7 @@ function normalizeTheme(value: unknown, fallback: WebsiteThemeConfig): WebsiteTh
   const record = value as Partial<Record<keyof WebsiteThemeConfig, unknown>>;
   return {
     brandName: normalizeDisplayText(toStringValue(record.brandName, fallback.brandName)),
-    tagline: normalizeDisplayText(toStringValue(record.tagline, fallback.tagline)),
+    tagline: normalizeTaglineText(toStringValue(record.tagline, fallback.tagline)),
     adminButtonLabel: normalizeDisplayText(toStringValue(record.adminButtonLabel, fallback.adminButtonLabel)),
   };
 }

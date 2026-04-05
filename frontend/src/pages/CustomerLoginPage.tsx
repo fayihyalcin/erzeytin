@@ -2,6 +2,8 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PublicStorefrontLayout } from '../components/public/PublicStorefrontLayout';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
+import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
+import { useSeo } from '../lib/seo';
 import { usePublicWebsiteConfig } from '../lib/usePublicWebsiteConfig';
 import './CustomerAuthPage.css';
 
@@ -67,7 +69,7 @@ export function CustomerLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useCustomerAuth();
-  const { config, currency, loading: configLoading } = usePublicWebsiteConfig();
+  const { config, currency, loading: configLoading, settings } = usePublicWebsiteConfig();
 
   const nextPath = useMemo(() => resolveNextPath(location.search), [location.search]);
   const registerHref = location.search
@@ -77,6 +79,23 @@ export function CustomerLoginPage() {
   const [password, setPassword] = useState('123456');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const siteName = settings?.storeName?.trim() || config.theme.brandName;
+  const siteUrl = settings?.siteUrl ?? null;
+  const pageDescription = summarizeText(
+    `${config.theme.brandName} müşteri girişi ile sipariş takibi, teslimat durumu ve hesap işlemlerine erişin.`,
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle('Müşteri Girişi', siteName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/customer/login'),
+    keywords: buildKeywordSet(siteName, ['müşteri girişi', 'hesap girişi', 'sipariş takibi']),
+    robots: 'noindex,follow,max-image-preview:large',
+    siteName,
+    imageUrl: buildDefaultSeoImageUrl(siteUrl),
+    imageAlt: `${siteName} müşteri girişi`,
+  });
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

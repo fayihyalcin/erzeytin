@@ -155,39 +155,17 @@ body.sf-modal-open {
 .sf-logo {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-width: 230px;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.sf-logo-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-  background: var(--sf-teal);
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 29px;
-  font-weight: 700;
-}
-
-.sf-logo-text {
-  display: grid;
-  gap: 2px;
-  line-height: 1;
-}
-
-.sf-logo-text strong {
-  color: var(--sf-teal);
-  font-size: 36px;
-  font-family: 'Rajdhani', sans-serif;
-  letter-spacing: 0.01em;
-}
-
-.sf-logo-text small {
-  color: var(--sf-gold-strong);
-  font-size: 12px;
+.sf-logo-image {
+  display: block;
+  width: auto;
+  height: 76px;
+  max-width: min(100%, 340px);
+  object-fit: contain;
 }
 
 .sf-search-form {
@@ -3285,13 +3263,9 @@ body.sf-modal-open {
     min-width: 0;
   }
 
-  .sf-logo-text {
-    justify-items: center;
-    text-align: center;
-  }
-
-  .sf-logo-text strong {
-    font-size: 30px;
+  .sf-logo-image {
+    height: 66px;
+    max-width: min(100%, 300px);
   }
 
   .sf-search-form {
@@ -4917,18 +4891,12 @@ body.sf-modal-open {
 }
 
 .sf-logo {
-  min-width: 210px;
-  gap: 9px;
+  min-width: 0;
 }
 
-.sf-logo-mark {
-  width: 40px;
-  height: 40px;
-  font-size: 24px;
-}
-
-.sf-logo-text strong {
-  font-size: 30px;
+.sf-logo-image {
+  height: 60px;
+  max-width: min(100%, 280px);
 }
 
 .sf-search-form input {
@@ -5242,8 +5210,9 @@ body.sf-modal-open {
     row-gap: 8px;
   }
 
-  .sf-logo-text strong {
-    font-size: 24px;
+  .sf-logo-image {
+    height: 50px;
+    max-width: min(100%, 230px);
   }
 
   .sf-all-categories,
@@ -5501,7 +5470,8 @@ body.sf-modal-open {
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr);
   gap: 12px;
-  align-items: center;
+  align-items: start;
+  overflow: hidden;
 }
 
 .sf-hero-product-card.placeholder {
@@ -5512,12 +5482,16 @@ body.sf-modal-open {
 
 .sf-hero-product-media {
   position: relative;
-  height: 100%;
+  width: 100%;
+  max-width: 92px;
+  height: auto;
   min-height: 92px;
   border-radius: 16px;
   overflow: hidden;
   background: #f2f0e7;
   aspect-ratio: 1 / 1;
+  align-self: start;
+  justify-self: start;
 }
 
 .sf-hero-product-media--placeholder {
@@ -5552,6 +5526,8 @@ body.sf-modal-open {
   display: grid;
   gap: 6px;
   align-content: center;
+  position: relative;
+  z-index: 1;
 }
 
 .sf-hero-product-category,
@@ -5722,6 +5698,7 @@ body.sf-modal-open {
   }
 
   .sf-hero-product-media {
+    max-width: 84px;
     min-height: 84px;
   }
 }
@@ -5776,6 +5753,7 @@ body.sf-modal-open {
 
   .sf-hero-product-media {
     width: 100%;
+    max-width: none;
     min-height: 140px;
     height: auto;
     aspect-ratio: 16 / 10;

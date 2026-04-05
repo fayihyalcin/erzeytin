@@ -14,7 +14,9 @@ import {
 } from '../lib/public-site';
 import {
   buildBreadcrumbSchema,
+  buildDefaultSeoImageUrl,
   buildPageTitle,
+  buildProductKeywords,
   buildProductSchema,
   buildWebPageSchema,
   summarizeText,
@@ -761,17 +763,29 @@ export function ProductDetailPage() {
     : toAbsoluteSiteUrl(siteUrl, '/urunler');
   const productImageUrls = product
     ? uniqueGalleryImages(product).map((image) => toAbsoluteSiteUrl(siteUrl, image))
-    : [];
+    : [buildDefaultSeoImageUrl(siteUrl)];
+  const productKeywords = product ? buildProductKeywords(product, siteName) : [siteName, 'ürün detayı'];
+  const numericPrice = product ? Number(product.price ?? 0) : undefined;
+  const productAvailability = product
+    ? product.stock > 0
+      ? 'https://schema.org/InStock'
+      : 'https://schema.org/OutOfStock'
+    : undefined;
 
   useSeo({
     title: buildPageTitle(product?.seoTitle || product?.name || 'Urun detayi', siteName),
     description: pageDescription,
     canonicalUrl,
     robots: product ? 'index,follow,max-image-preview:large' : 'noindex,follow',
-    keywords: product?.seoKeywords ?? [],
+    keywords: productKeywords,
     siteName,
     type: 'product',
     imageUrl: productImageUrls[0],
+    imageAlt: product?.name || `${siteName} ürün detayı`,
+    modifiedTime: product?.updatedAt,
+    productPrice: numericPrice,
+    productCurrency: currency,
+    productAvailability,
     jsonLd: product
       ? [
           buildWebPageSchema({
@@ -779,6 +793,7 @@ export function ProductDetailPage() {
             path: resolvePublicProductPath(product),
             title: product.name,
             description: pageDescription,
+            imageUrl: productImageUrls[0],
           }),
           buildProductSchema({
             siteUrl,

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { StorefrontBrandLink } from '../components/public/StorefrontBrandLink';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
+import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
+import { useSeo } from '../lib/seo';
 import { useStoreHeaderNavItems } from '../lib/storefront-navigation';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type { Order, PublicSettingsDto, WebsiteConfig } from '../types/api';
@@ -131,6 +134,23 @@ export function CustomerDashboardPage() {
     newsletter: true,
     sms: false,
     campaignEmail: true,
+  });
+  const siteName = config.theme.brandName;
+  const activeTabLabel = TABS.find((item) => item.key === tab)?.label ?? 'Müşteri Paneli';
+  const pageDescription = summarizeText(
+    `${siteName} müşteri panelinde ${activeTabLabel.toLocaleLowerCase('tr-TR')} alanını yönetin.`,
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle(`${activeTabLabel} | Müşteri Paneli`, siteName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(null, '/customer/dashboard'),
+    keywords: buildKeywordSet(siteName, ['müşteri paneli', activeTabLabel, 'sipariş yönetimi']),
+    robots: 'noindex,follow,max-image-preview:large',
+    siteName,
+    imageUrl: buildDefaultSeoImageUrl(null),
+    imageAlt: `${siteName} müşteri paneli`,
   });
 
   useEffect(() => {
@@ -309,13 +329,7 @@ export function CustomerDashboardPage() {
 
       <header className="sf-main-header">
         <div className="sf-container sf-brand-row">
-          <Link className="sf-logo" to="/">
-            <span className="sf-logo-mark">Z</span>
-            <span className="sf-logo-text">
-              <strong>{config.theme.brandName}</strong>
-              <small>{config.theme.tagline}</small>
-            </span>
-          </Link>
+          <StorefrontBrandLink brandName={config.theme.brandName} />
 
           <form className="sf-search-form" onSubmit={(event) => event.preventDefault()}>
             <input

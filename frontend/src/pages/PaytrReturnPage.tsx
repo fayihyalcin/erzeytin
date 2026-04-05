@@ -4,6 +4,8 @@ import { PublicStorefrontLayout } from '../components/public/PublicStorefrontLay
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
+import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
+import { useSeo } from '../lib/seo';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type { Order, PublicSettingsDto, WebsiteConfig } from '../types/api';
 import './StorefrontPage.css';
@@ -150,6 +152,30 @@ export function PaytrReturnPage() {
       });
     }
   }, [orderCurrency]);
+  const siteName = config.theme.brandName;
+  const pageTitle =
+    order?.paymentStatus === 'PAID'
+      ? 'Ödeme Başarılı'
+      : order?.paymentStatus === 'FAILED'
+        ? 'Ödeme Başarısız'
+        : 'Ödeme Sonucu';
+  const pageDescription = summarizeText(
+    order
+      ? `${siteName} siparişiniz için ödeme sonucu görüntüleniyor. Sipariş no: ${order.orderNumber}.`
+      : `${siteName} ödeme sonucu sayfası yükleniyor.`,
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle(pageTitle, siteName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(null, '/checkout/paytr/return'),
+    keywords: buildKeywordSet(siteName, ['ödeme sonucu', 'paytr', 'sipariş durumu']),
+    robots: 'noindex,follow,max-image-preview:large',
+    siteName,
+    imageUrl: buildDefaultSeoImageUrl(null),
+    imageAlt: `${siteName} ödeme sonucu`,
+  });
 
   if (!orderNumber) {
     return <Navigate to="/cart" replace />;

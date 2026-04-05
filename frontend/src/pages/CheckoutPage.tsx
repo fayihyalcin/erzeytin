@@ -6,8 +6,10 @@ import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
+import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { resolvePublicProductPath } from '../lib/public-site';
+import { useSeo } from '../lib/seo';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
   Order,
@@ -213,6 +215,22 @@ export function CheckoutPage() {
 
   const total = subtotal;
   const canCheckout = items.length > 0 && !checkoutLoading;
+  const siteName = config.theme.brandName;
+  const pageDescription = summarizeText(
+    `Teslimat ve ödeme bilgilerinizi tamamlayarak ${siteName} siparişinizi güvenli şekilde oluşturun.`,
+    155,
+  );
+
+  useSeo({
+    title: buildPageTitle('Ödeme ve Teslimat', siteName),
+    description: pageDescription,
+    canonicalUrl: toAbsoluteSiteUrl(null, '/checkout'),
+    keywords: buildKeywordSet(siteName, ['ödeme', 'checkout', 'teslimat bilgileri']),
+    robots: 'noindex,follow,max-image-preview:large',
+    siteName,
+    imageUrl: buildDefaultSeoImageUrl(null),
+    imageAlt: `${siteName} ödeme`,
+  });
 
   const checkoutPayload = {
     customerName: checkoutForm.fullName.trim(),

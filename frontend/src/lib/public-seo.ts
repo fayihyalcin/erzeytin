@@ -10,12 +10,14 @@ interface OrganizationSchemaInput {
   name: string;
   email?: string | null;
   phone?: string | null;
+  logoUrl?: string | null;
 }
 
 interface WebsiteSchemaInput {
   siteUrl?: string | null;
   name: string;
   description: string;
+  imageUrl?: string | null;
 }
 
 interface WebPageSchemaInput {
@@ -23,6 +25,7 @@ interface WebPageSchemaInput {
   path: string;
   title: string;
   description: string;
+  imageUrl?: string | null;
 }
 
 interface CollectionSchemaInput {
@@ -50,10 +53,22 @@ interface ArticleSchemaInput {
   brandName: string;
   description: string;
   imageUrl?: string | null;
+  logoUrl?: string | null;
 }
 
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function splitKeywordSource(value: string) {
+  return value
+    .split(/[,|/]+/g)
+    .map((item) => normalizeWhitespace(item))
+    .filter((item) => item.length > 1);
+}
+
+function keywordCaseKey(value: string) {
+  return value.toLocaleLowerCase('tr-TR');
 }
 
 export function stripHtml(value: string | null | undefined) {
@@ -106,6 +121,71 @@ export function toAbsoluteSiteUrl(siteUrl: string | null | undefined, path: stri
   return new URL(normalizedPath, `${origin}/`).toString();
 }
 
+export function buildDefaultSeoImageUrl(siteUrl?: string | null) {
+  return toAbsoluteSiteUrl(siteUrl, '/brand-logo.jpg');
+}
+
+export function buildKeywordSet(...values: Array<string | string[] | null | undefined>) {
+  const keywords: string[] = [];
+  const seen = new Set<string>();
+
+  values.forEach((value) => {
+    const parts = Array.isArray(value)
+      ? value.flatMap((item) => splitKeywordSource(item))
+      : splitKeywordSource(value ?? '');
+
+    parts.forEach((part) => {
+      const key = keywordCaseKey(part);
+      if (seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+      keywords.push(part);
+    });
+  });
+
+  return keywords.slice(0, 18);
+}
+
+export function buildSiteKeywords(input: {
+  brandName: string;
+  tagline?: string | null;
+  categoryNames?: string[];
+  extra?: string[];
+}) {
+  return buildKeywordSet(
+    input.brandName,
+    input.tagline,
+    input.categoryNames ?? [],
+    input.extra ?? [],
+    ['zeytinyağı', 'zeytin', 'natürel sızma', 'doğal ürünler', 'katkısız gıda'],
+  );
+}
+
+export function buildProductKeywords(product: Product, brandName?: string | null) {
+  return buildKeywordSet(
+    product.seoKeywords,
+    product.tags,
+    product.name,
+    product.category?.name,
+    product.brand,
+    brandName ?? undefined,
+    ['zeytinyağı', 'zeytin', 'online sipariş'],
+  );
+}
+
+export function buildBlogKeywords(post: BlogPost, brandName?: string | null) {
+  return buildKeywordSet(
+    post.seoKeywords,
+    post.tags,
+    post.title,
+    post.category,
+    brandName ?? undefined,
+    ['zeytin', 'zeytinyağı', 'blog'],
+  );
+}
+
 export function buildPageTitle(pageTitle: string, brandName?: string | null) {
   const normalizedPageTitle = normalizeWhitespace(pageTitle);
   const normalizedBrandName = normalizeWhitespace(brandName ?? '');
@@ -145,8 +225,18 @@ export function buildOrganizationSchema(input: OrganizationSchemaInput) {
     '@type': 'Organization',
     name: input.name,
     url,
+    logo: input.logoUrl || buildDefaultSeoImageUrl(input.siteUrl),
     email: input.email || undefined,
     telephone: input.phone || undefined,
+    contactPoint: input.phone
+      ? {
+          '@type': 'ContactPoint',
+          contactType: 'customer support',
+          telephone: input.phone,
+          areaServed: 'TR',
+          availableLanguage: ['tr-TR'],
+        }
+      : undefined,
   };
 }
 
@@ -159,6 +249,8 @@ export function buildWebsiteSchema(input: WebsiteSchemaInput) {
     name: input.name,
     description: input.description,
     url,
+    inLanguage: 'tr-TR',
+    image: input.imageUrl || buildDefaultSeoImageUrl(input.siteUrl),
     potentialAction: {
       '@type': 'SearchAction',
       target: `${url.replace(/\/+$/, '')}/urunler?q={search_term_string}`,
@@ -176,6 +268,12 @@ export function buildWebPageSchema(input: WebPageSchemaInput) {
     name: input.title,
     description: input.description,
     url,
+    isPartOf: {
+      '@type': 'WebSite',
+      url: toAbsoluteSiteUrl(input.siteUrl, '/'),
+    },
+    inLanguage: 'tr-TR',
+    primaryImageOfPage: input.imageUrl || undefined,
   };
 }
 
@@ -188,6 +286,7 @@ export function buildCollectionSchema(input: CollectionSchemaInput) {
     name: input.name,
     description: input.description,
     url,
+    inLanguage: 'tr-TR',
     mainEntity: {
       '@type': 'ItemList',
       itemListElement: input.items.map((item, index) => ({
@@ -219,7 +318,7 @@ export function buildProductSchema(input: ProductSchemaInput) {
     },
     image: input.imageUrls,
     url,
-    keywords: input.product.seoKeywords,
+    keywords: buildProductKeywords(input.product, input.brandName),
     offers: {
       '@type': 'Offer',
       url,
@@ -234,9 +333,7 @@ export function buildProductSchema(input: ProductSchemaInput) {
 export function buildArticleSchema(input: ArticleSchemaInput) {
   const url = toAbsoluteSiteUrl(input.siteUrl, input.path);
   const publishedAt = input.post.publishedAt ?? input.post.updatedAt;
-  const keywords = input.post.seoKeywords && input.post.seoKeywords.length > 0
-    ? input.post.seoKeywords
-    : input.post.tags;
+  const keywords = buildBlogKeywords(input.post, input.brandName);
 
   return {
     '@context': 'https://schema.org',
@@ -255,6 +352,12 @@ export function buildArticleSchema(input: ArticleSchemaInput) {
     publisher: {
       '@type': 'Organization',
       name: input.brandName,
+      logo: input.logoUrl
+        ? {
+            '@type': 'ImageObject',
+            url: input.logoUrl,
+          }
+        : undefined,
     },
     mainEntityOfPage: url,
     url,

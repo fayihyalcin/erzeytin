@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { StorefrontBrandLink } from '../components/public/StorefrontBrandLink';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
@@ -10,8 +11,10 @@ import { resolveProductImage as resolveCatalogProductImage } from '../lib/produc
 import { buildStoreHeaderNavItems } from '../lib/storefront-navigation';
 import {
   buildBreadcrumbSchema,
+  buildDefaultSeoImageUrl,
   buildOrganizationSchema,
   buildPageTitle,
+  buildSiteKeywords,
   buildWebPageSchema,
   buildWebsiteSchema,
   summarizeText,
@@ -101,17 +104,10 @@ function ProductShowcaseCard({
   const discountPercent = hasDiscount
     ? Math.round(((compare - price) / compare) * 100)
     : 0;
-  const isUnfiltered = product.tags.some((tag) => tag.toLowerCase().includes('filtresiz'));
-  const processLabel = isUnfiltered ? 'Filtresiz' : 'Filtre Edilmiş';
 
   return (
     <article className="sf-product-card">
       <div className="sf-product-media">
-        <div className="sf-product-season-badge" aria-hidden="true">
-          <span className="year">2025-2026</span>
-          <strong>Yeni Sezon</strong>
-          <span>{processLabel}</span>
-        </div>
         <Link className="sf-card-link-media" to={resolvePublicProductPath(product)}>
           <img decoding="async" loading="lazy" src={resolveProductImage(product)} alt={product.name} />
         </Link>
@@ -936,6 +932,15 @@ export function StorefrontPage() {
   const promoSecondary = promoCards[1] ?? promoCards[0];
   const promoTertiary = promoCards[2] ?? promoCards[0];
   const siteUrl = settings?.siteUrl ?? null;
+  const homeImageUrl = highlightedSlide?.imageUrl
+    ? toAbsoluteSiteUrl(siteUrl, highlightedSlide.imageUrl)
+    : buildDefaultSeoImageUrl(siteUrl);
+  const homeKeywords = buildSiteKeywords({
+    brandName: config.theme.brandName,
+    tagline: config.theme.tagline,
+    categoryNames: categories.map((category) => category.name),
+    extra: heroFeaturedProducts.map((product) => product.name),
+  });
   const homeDescription = summarizeText(
     highlightedSlide?.description ||
       config.announcement ||
@@ -947,25 +952,30 @@ export function StorefrontPage() {
     title: buildPageTitle(config.theme.brandName || 'Er Zeytincilik', config.theme.brandName),
     description: homeDescription,
     canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/'),
-    keywords: ['zeytinyagi', 'zeytin', 'dogal urunler', 'erken hasat'],
+    keywords: homeKeywords,
     siteName: config.theme.brandName,
+    imageUrl: homeImageUrl,
+    imageAlt: `${config.theme.brandName} ana sayfa`,
     jsonLd: [
       buildWebPageSchema({
         siteUrl,
         path: '/',
         title: config.theme.brandName,
         description: homeDescription,
+        imageUrl: homeImageUrl,
       }),
       buildOrganizationSchema({
         siteUrl,
         name: config.theme.brandName,
         email: contact.email,
         phone: contact.phoneDisplay,
+        logoUrl: buildDefaultSeoImageUrl(siteUrl),
       }),
       buildWebsiteSchema({
         siteUrl,
         name: config.theme.brandName,
         description: homeDescription,
+        imageUrl: homeImageUrl,
       }),
       buildBreadcrumbSchema(siteUrl, [{ name: 'Ana Sayfa', path: '/' }]),
     ],
@@ -1078,13 +1088,7 @@ export function StorefrontPage() {
 
       <header className="sf-main-header">
         <div className="sf-container sf-brand-row">
-          <Link className="sf-logo" to="/">
-            <span className="sf-logo-mark">Z</span>
-            <span className="sf-logo-text">
-              <strong>{config.theme.brandName}</strong>
-              <small>{config.theme.tagline}</small>
-            </span>
-          </Link>
+          <StorefrontBrandLink brandName={config.theme.brandName} />
 
           <form
             className="sf-search-form"

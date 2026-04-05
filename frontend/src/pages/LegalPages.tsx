@@ -6,6 +6,8 @@ import { api } from '../lib/api';
 import { isInternalRoute, resolveStoreFooterHref } from '../lib/public-site';
 import {
   buildBreadcrumbSchema,
+  buildDefaultSeoImageUrl,
+  buildKeywordSet,
   buildPageTitle,
   buildWebPageSchema,
   summarizeText,
@@ -110,18 +112,23 @@ function LegalDocumentPage({ documentKey }: { documentKey: LegalDocumentKey }) {
   const siteUrl = settings?.siteUrl ?? null;
   const siteName = settings?.storeName?.trim() || config.theme.brandName;
   const pageDescription = summarizeText(document.subtitle, 155);
+  const legalImageUrl = buildDefaultSeoImageUrl(siteUrl);
 
   useSeo({
     title: buildPageTitle(document.title, siteName),
     description: pageDescription,
     canonicalUrl: toAbsoluteSiteUrl(siteUrl, pagePath),
+    keywords: buildKeywordSet(document.title, document.subtitle, siteName, ['hukuki metinler', 'kurumsal bilgiler']),
     siteName,
+    imageUrl: legalImageUrl,
+    imageAlt: `${siteName} ${document.title}`,
     jsonLd: [
       buildWebPageSchema({
         siteUrl,
         path: pagePath,
         title: document.title,
         description: pageDescription,
+        imageUrl: legalImageUrl,
       }),
       buildBreadcrumbSchema(siteUrl, [
         { name: 'Ana Sayfa', path: '/' },
@@ -187,18 +194,28 @@ export function ContactPage() {
     [config],
   );
   const pageDescription = summarizeText(config.contactPage.description, 155);
+  const contactImageUrl = buildDefaultSeoImageUrl(siteUrl);
 
   useSeo({
     title: buildPageTitle(config.contactPage.title, siteName),
     description: pageDescription,
     canonicalUrl: toAbsoluteSiteUrl(siteUrl, '/iletisim'),
+    keywords: buildKeywordSet(
+      config.contactPage.title,
+      config.contact.address,
+      siteName,
+      ['iletişim', 'müşteri desteği', 'zeytinyağı', 'zeytin'],
+    ),
     siteName,
+    imageUrl: contactImageUrl,
+    imageAlt: `${siteName} iletişim`,
     jsonLd: [
       buildWebPageSchema({
         siteUrl,
         path: '/iletisim',
         title: config.contactPage.title,
         description: pageDescription,
+        imageUrl: contactImageUrl,
       }),
       buildBreadcrumbSchema(siteUrl, [
         { name: 'Ana Sayfa', path: '/' },

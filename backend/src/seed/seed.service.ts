@@ -10,7 +10,7 @@ import { Product } from '../catalog/product.entity';
 const DEFAULT_WEBSITE_CONFIG = JSON.stringify({
   theme: {
     brandName: 'Er Zeytin',
-    tagline: 'Egeden Sofrana Dogal Lezzet',
+    tagline: 'DOGAL - KATKISIZ - GELENEKSEL',
     adminButtonLabel: 'Admin Giris',
   },
   announcement: 'Yeni hasat soğuk sıkım zeytinyağları stokta.',

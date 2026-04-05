@@ -9,6 +9,7 @@ interface ParsedBlogPost {
   slug: string;
   publishedAt: string | null;
   updatedAt: string;
+  coverImageUrl: string | null;
 }
 
 interface SitemapEntry {
@@ -16,6 +17,7 @@ interface SitemapEntry {
   lastModified?: string | null;
   priority?: string;
   changeFrequency?: string;
+  imageUrls?: string[];
 }
 
 @Injectable()
@@ -38,7 +40,12 @@ export class SeoService {
       'Allow: /',
       'Disallow: /dashboard',
       'Disallow: /admin',
+      'Disallow: /login',
+      'Disallow: /cart',
+      'Disallow: /checkout',
+      'Disallow: /customer/',
       'Disallow: /api/',
+      `Host: ${siteUrl}`,
       `Sitemap: ${this.toAbsoluteUrl(siteUrl, '/sitemap.xml')}`,
     ].join('\n');
   }
@@ -53,59 +60,83 @@ export class SeoService {
       this.productsRepository.find({
         where: { isActive: true },
         order: { updatedAt: 'DESC' },
+        relations: ['category'],
       }),
     ]);
 
     const siteUrl = this.resolveSiteUrl(settingsMap.siteUrl);
-    const staticLastModified = settingsMap.websiteConfig?.updatedAt.toISOString();
     const blogPosts = this.parseBlogPosts(settingsMap.blogPosts?.value);
+    const contentTimestamps = [
+      settingsMap.websiteConfig?.updatedAt.toISOString(),
+      ...categories.map((category) => category.updatedAt.toISOString()),
+      ...products.map((product) => product.updatedAt.toISOString()),
+      ...blogPosts.map((post) => post.publishedAt ?? post.updatedAt),
+    ].filter((value): value is string => Boolean(value));
+
+    const latestContentUpdatedAt = this.findLatestTimestamp(contentTimestamps);
+    const latestCatalogUpdatedAt = this.findLatestTimestamp([
+      ...categories.map((category) => category.updatedAt.toISOString()),
+      ...products.map((product) => product.updatedAt.toISOString()),
+      latestContentUpdatedAt ?? undefined,
+    ]);
+    const latestCampaignUpdatedAt = this.findLatestTimestamp([
+      ...products
+        .filter((product) => {
+          const compareAtPrice = Number(product.compareAtPrice ?? 0);
+          const price = Number(product.price ?? 0);
+          return compareAtPrice > 0 && compareAtPrice > price;
+        })
+        .map((product) => product.updatedAt.toISOString()),
+      latestCatalogUpdatedAt ?? undefined,
+    ]);
 
     const entries: SitemapEntry[] = [
       {
         path: '/',
-        lastModified: staticLastModified,
+        lastModified: latestContentUpdatedAt,
         priority: '1.0',
         changeFrequency: 'daily',
+        imageUrls: [this.toAbsoluteUrl(siteUrl, '/brand-logo.jpg')],
       },
       {
         path: '/kategoriler',
-        lastModified: staticLastModified,
+        lastModified: latestCatalogUpdatedAt,
         priority: '0.9',
         changeFrequency: 'daily',
       },
       {
         path: '/urunler',
-        lastModified: staticLastModified,
+        lastModified: latestCatalogUpdatedAt,
         priority: '0.9',
         changeFrequency: 'daily',
       },
       {
         path: '/kampanyalar',
-        lastModified: staticLastModified,
+        lastModified: latestCampaignUpdatedAt,
         priority: '0.8',
         changeFrequency: 'daily',
       },
       {
         path: '/iletisim',
-        lastModified: staticLastModified,
+        lastModified: latestContentUpdatedAt,
         priority: '0.7',
         changeFrequency: 'monthly',
       },
       {
         path: '/kvkk',
-        lastModified: staticLastModified,
+        lastModified: settingsMap.websiteConfig?.updatedAt.toISOString(),
         priority: '0.3',
         changeFrequency: 'yearly',
       },
       {
         path: '/gizlilik',
-        lastModified: staticLastModified,
+        lastModified: settingsMap.websiteConfig?.updatedAt.toISOString(),
         priority: '0.3',
         changeFrequency: 'yearly',
       },
       {
         path: '/satis-sozlesmesi',
-        lastModified: staticLastModified,
+        lastModified: settingsMap.websiteConfig?.updatedAt.toISOString(),
         priority: '0.3',
         changeFrequency: 'yearly',
       },
@@ -114,27 +145,37 @@ export class SeoService {
         lastModified: category.updatedAt.toISOString(),
         priority: '0.7',
         changeFrequency: 'weekly',
+        imageUrls: category.imageUrl ? [category.imageUrl] : [],
       })),
       ...products.map((product) => ({
         path: product.slug ? `/urun/${product.slug}` : `/product/${product.id}`,
         lastModified: product.updatedAt.toISOString(),
         priority: '0.8',
         changeFrequency: 'weekly',
+        imageUrls: this.productImageUrls(product),
       })),
       ...blogPosts.map((post) => ({
         path: `/blog/${post.slug}`,
         lastModified: post.publishedAt ?? post.updatedAt,
         priority: '0.6',
         changeFrequency: 'monthly',
+        imageUrls: post.coverImageUrl ? [post.coverImageUrl] : [],
       })),
     ];
 
-    const body = entries
+    const dedupedEntries = Array.from(
+      new Map(entries.map((entry) => [entry.path, entry] satisfies [string, SitemapEntry])).values(),
+    );
+    const body = dedupedEntries
       .map((entry) => this.renderSitemapUrl(siteUrl, entry))
       .join('');
 
-    return `<?xml version="1.0" encoding="UTF-8"?>` +
-      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`;
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?>` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" ` +
+      `xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">` +
+      `${body}</urlset>`
+    );
   }
 
   private async getSettingsMap(keys: string[]) {
@@ -177,6 +218,12 @@ export class SeoService {
       ? `<changefreq>${this.escapeXml(entry.changeFrequency)}</changefreq>`
       : '';
     const priority = entry.priority ? `<priority>${this.escapeXml(entry.priority)}</priority>` : '';
+    const images = (entry.imageUrls ?? [])
+      .filter((value) => value.trim().length > 0)
+      .map((value) => this.toAbsoluteUrl(siteUrl, value))
+      .filter((value, index, array) => array.indexOf(value) === index)
+      .map((value) => `<image:image><image:loc>${this.escapeXml(value)}</image:loc></image:image>`)
+      .join('');
 
     return (
       `<url>` +
@@ -184,6 +231,7 @@ export class SeoService {
       lastModified +
       changeFrequency +
       priority +
+      images +
       `</url>`
     );
   }
@@ -218,12 +266,28 @@ export class SeoService {
             slug,
             publishedAt: record.publishedAt ? String(record.publishedAt) : null,
             updatedAt,
+            coverImageUrl: record.coverImageUrl ? String(record.coverImageUrl) : null,
           } satisfies ParsedBlogPost;
         })
         .filter((item): item is ParsedBlogPost => item !== null);
     } catch {
       return [] as ParsedBlogPost[];
     }
+  }
+
+  private productImageUrls(product: Product) {
+    const candidates = [product.featuredImage, ...(product.images ?? [])];
+    return candidates.filter((value): value is string => Boolean(value && value.trim().length > 0));
+  }
+
+  private findLatestTimestamp(values: Array<string | undefined>) {
+    const validDates = values
+      .filter((value): value is string => Boolean(value))
+      .map((value) => new Date(value))
+      .filter((value) => !Number.isNaN(value.getTime()))
+      .sort((left, right) => right.getTime() - left.getTime());
+
+    return validDates[0]?.toISOString();
   }
 
   private escapeXml(value: string) {

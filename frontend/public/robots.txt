@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /login
+Disallow: /cart
+Disallow: /checkout
+Disallow: /customer/
+Disallow: /api/
+
+Sitemap: https://erzeytinyagi.com/sitemap.xml

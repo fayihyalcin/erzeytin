@@ -167,10 +167,10 @@ export class OrdersService {
     });
 
     const subtotal = items.reduce((accumulator, item) => accumulator + item.lineTotal, 0);
-    const shippingFee = Number((dto.shippingFee ?? 0).toFixed(2));
-    const discountAmount = Number((dto.discountAmount ?? 0).toFixed(2));
-    const taxAmount = Number((dto.taxAmount ?? 0).toFixed(2));
-    const grandTotal = Number((subtotal + shippingFee + taxAmount - discountAmount).toFixed(2));
+    const shippingFee = 0;
+    const discountAmount = 0;
+    const taxAmount = 0;
+    const grandTotal = Number(subtotal.toFixed(2));
     const orderNumber = await this.generateOrderNumber();
     const paymentStatus = dto.paymentStatus ?? 'PENDING';
 

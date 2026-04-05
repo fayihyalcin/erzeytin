@@ -240,13 +240,9 @@ export function CartPage() {
       });
     }
   }, [currency]);
+  const contact = config.contact.phoneDisplay ? config.contact : defaultConfig.contact;
 
-  const freeShippingThreshold = 1000;
-  const shipping = itemCount > 0 && subtotal < freeShippingThreshold ? 79.9 : 0;
-  const total = subtotal + shipping;
-  const remainingForFreeShipping = Math.max(freeShippingThreshold - subtotal, 0);
-  const freeShippingProgress =
-    freeShippingThreshold > 0 ? Math.min((subtotal / freeShippingThreshold) * 100, 100) : 100;
+  const total = subtotal;
   const canCheckout = items.length > 0 && !checkoutLoading;
   const checkoutPayload = {
     customerName: checkoutForm.fullName.trim(),
@@ -280,7 +276,7 @@ export function CartPage() {
       unitPrice: parsePrice(item.product.price),
       imageUrl: resolveCartImage(item.product) || undefined,
     })),
-    shippingFee: Number(shipping.toFixed(2)),
+    shippingFee: 0,
     taxAmount: 0,
     discountAmount: 0,
     currency,
@@ -397,9 +393,9 @@ export function CartPage() {
       <div className="sf-top-strip">
         <div className="sf-container sf-top-inner">
           <div className="sf-top-left">
-            <span>Desteğe mi ihtiyacınız var?</span>
-            <strong>Bizi Arayın</strong>
-            <a href="tel:+905305165498">0530 516 54 98</a>
+            <span>Destek ve sipariş hattı</span>
+            <strong>Bizi Ara</strong>
+            <a href={contact.phoneLink}>{contact.phoneDisplay}</a>
           </div>
 
           <div className="sf-top-center">
@@ -437,7 +433,7 @@ export function CartPage() {
           >
             <input
               type="search"
-              placeholder="Zeytinyağı, zeytin, kategoriler ara"
+              placeholder="Zeytinyağı, zeytin, kategori ara"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -488,7 +484,10 @@ export function CartPage() {
 
         <div className="sf-nav-row">
           <div className="sf-container sf-nav-inner">
-            <nav className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}>
+            <nav
+              aria-label="Mağaza gezinme"
+              className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}
+            >
               {headerNavItems.map((item) => (
                 <Link
                   key={`${item.label}-${item.href}`}
@@ -501,8 +500,8 @@ export function CartPage() {
             </nav>
 
             <div className="sf-support-right">
-              <span>7/24 Destek</span>
-              <strong>0530 516 54 98</strong>
+              <span>{contact.workingHours}</span>
+              <strong>{contact.phoneDisplay}</strong>
             </div>
           </div>
         </div>
@@ -568,23 +567,10 @@ export function CartPage() {
                   <strong>{formatter.format(subtotal)}</strong>
                 </article>
                 <article>
-                  <span>Kargo Durumu</span>
-                  <strong>{shipping > 0 ? 'Standart' : 'Ücretsiz'}</strong>
+                  <span>Ödenecek Tutar</span>
+                  <strong>{formatter.format(total)}</strong>
                 </article>
               </div>
-
-              <section className="sf-cart-shipping-meter" aria-label="Ücretsiz kargo ilerleme durumu">
-                {remainingForFreeShipping > 0 ? (
-                  <p>
-                    Ücretsiz kargo için <strong>{formatter.format(remainingForFreeShipping)}</strong> daha ekleyin.
-                  </p>
-                ) : (
-                  <p>Ücretsiz kargo aktif. Siparişiniz avantajlı şekilde hazırlandı.</p>
-                )}
-                <div className="sf-cart-shipping-track">
-                  <span style={{ width: `${freeShippingProgress}%` }} />
-                </div>
-              </section>
 
               <div className="sf-cart-layout">
                 <section className="sf-cart-items">
@@ -671,10 +657,6 @@ export function CartPage() {
                     <span>Ara Toplam</span>
                     <strong>{formatter.format(subtotal)}</strong>
                   </div>
-                  <div className="sf-cart-summary-row">
-                    <span>Kargo</span>
-                    <strong>{shipping > 0 ? formatter.format(shipping) : 'Ücretsiz'}</strong>
-                  </div>
                   <div className="sf-cart-summary-row total">
                     <span>Genel Toplam</span>
                     <strong>{formatter.format(total)}</strong>
@@ -693,7 +675,7 @@ export function CartPage() {
                   <Link to="/" className="sf-cart-summary-link">
                     Alışverişe Devam Et
                   </Link>
-                  <small>{freeShippingThreshold} TL ve üzeri siparişlerde kargo ücretsizdir.</small>
+                  <small>Görünen ürün fiyatı dışında ek ücret yansıtılmaz.</small>
                 </aside>
               </div>
             </>
@@ -1012,10 +994,6 @@ export function CartPage() {
                 <div className="sf-cart-checkout-side-row">
                   <span>Ara Toplam</span>
                   <strong>{formatter.format(subtotal)}</strong>
-                </div>
-                <div className="sf-cart-checkout-side-row">
-                  <span>Kargo</span>
-                  <strong>{shipping > 0 ? formatter.format(shipping) : 'Ücretsiz'}</strong>
                 </div>
                 <div className="sf-cart-checkout-side-row total">
                   <span>Genel Toplam</span>

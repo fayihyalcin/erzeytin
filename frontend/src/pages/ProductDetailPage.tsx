@@ -394,7 +394,7 @@ function ProductDetailContent({
               {hasDiscount ? <span>{formatter.format(compare)}</span> : null}
             </div>
             {hasDiscount ? <p className="sf-pd-discount">%{discountPercent} indirim</p> : null}
-            <p className="sf-pd-shipping">{formatter.format(2000)} uzeri kargo bedava</p>
+            <p className="sf-pd-shipping">Sepette ekstra ücret çıkmaz</p>
             {!canPurchase ? <p className="sf-pd-stock-note">Bu ürün geçici olarak stokta yok.</p> : null}
 
             <div className="sf-pd-service-strip">

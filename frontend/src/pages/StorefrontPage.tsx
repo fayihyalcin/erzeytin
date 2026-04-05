@@ -135,7 +135,7 @@ function ProductShowcaseCard({
         <p className="sf-product-discount-tag">%{discountPercent} indirim</p>
       ) : null}
 
-      <p className="sf-product-shipping-note">{formatter.format(2000)} üzeri kargo bedava</p>
+      <p className="sf-product-shipping-note">Sepette ekstra ücret çıkmaz</p>
 
       <div className="sf-product-card-footer">
         <div className="sf-price-row">

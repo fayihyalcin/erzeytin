@@ -278,6 +278,7 @@ export function CustomerDashboardPage() {
     [orders],
   );
   const paidPaymentsCount = paymentRows.filter((item) => item.payment.status === 'PAID').length;
+  const contact = config.contact.phoneDisplay ? config.contact : defaultConfig.contact;
 
   if (!user) {
     return null;
@@ -288,20 +289,20 @@ export function CustomerDashboardPage() {
       <div className="sf-top-strip">
         <div className="sf-container sf-top-inner">
           <div className="sf-top-left">
-            <span>Need Support?</span>
-            <strong>Call Us</strong>
-            <a href="tel:+905305165498">0530 516 54 98</a>
+            <span>Destek ve sipariş hattı</span>
+            <strong>Bizi Ara</strong>
+            <a href={contact.phoneLink}>{contact.phoneDisplay}</a>
           </div>
           <div className="sf-top-center">
-            <span>English</span>
+            <span>Türkçe</span>
             <span>{currency}</span>
-            <span className="sf-top-badge">%25 OFF</span>
+            <span className="sf-top-badge">%25 İndirim</span>
             <span>{config.announcement}</span>
           </div>
           <div className="sf-top-right">
-            <Link to="/satis-sozlesmesi">Satis Sozlesmesi</Link>
-            <Link to="/kvkk">KVKK</Link>
-            <Link to="/iletisim">Iletisim</Link>
+            <Link to="/customer/dashboard">Hesabım</Link>
+            <Link to="/satis-sozlesmesi">Satış Sözleşmesi</Link>
+            <Link to="/iletisim">İletişim</Link>
           </div>
         </div>
       </div>
@@ -317,28 +318,62 @@ export function CustomerDashboardPage() {
           </Link>
 
           <form className="sf-search-form" onSubmit={(event) => event.preventDefault()}>
-            <input type="search" placeholder="Search products" value={search} onChange={(event) => setSearch(event.target.value)} />
-            <button type="submit" aria-label="Search products">Ara</button>
+            <input
+              type="search"
+              placeholder="Zeytinyağı, zeytin, kategori ara"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <button type="submit" aria-label="Ürün ara">
+              Ara
+            </button>
           </form>
 
           <div className="sf-header-actions">
-            <Link className="sf-customer-btn" to="/customer/dashboard">Hesabim</Link>
-            <Link className="sf-cart-btn" to="/cart">Sepetim<span>{cartCount} ürün</span></Link>
+            <Link className="sf-customer-btn" to="/customer/dashboard">
+              Hesabım
+            </Link>
+            <button
+              className="sf-account-btn"
+              type="button"
+              onClick={() => {
+                logout();
+                navigate('/customer/login');
+              }}
+            >
+              Çıkış
+            </button>
+            <Link className="sf-cart-btn" to="/cart">
+              Sepetim
+              <span>{cartCount} ürün</span>
+            </Link>
           </div>
 
-          <button className="sf-mobile-toggle" type="button" onClick={() => setMobileMenuOpen((current) => !current)}>MENU</button>
+          <button
+            className="sf-mobile-toggle"
+            type="button"
+            onClick={() => setMobileMenuOpen((current) => !current)}
+          >
+            MENÜ
+          </button>
         </div>
 
         <div className="sf-nav-row">
           <div className="sf-container sf-nav-inner">
-            <nav className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}>
+            <nav
+              aria-label="Mağaza gezinme"
+              className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}
+            >
               {headerNavItems.map((item) => (
                 <Link key={`${item.label}-${item.href}`} onClick={() => setMobileMenuOpen(false)} to={item.href}>
                   {item.label}
                 </Link>
               ))}
             </nav>
-            <div className="sf-support-right"><span>24/7 Support</span><strong>0530 516 54 98</strong></div>
+            <div className="sf-support-right">
+              <span>{contact.workingHours}</span>
+              <strong>{contact.phoneDisplay}</strong>
+            </div>
           </div>
         </div>
       </header>

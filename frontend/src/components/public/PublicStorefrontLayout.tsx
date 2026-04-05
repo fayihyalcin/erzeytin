@@ -1,16 +1,19 @@
-﻿import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useStoreCart } from '../../context/StoreCartContext';
 import {
+  PUBLIC_PRODUCTS_SECTION_ID,
   isActiveStoreHref,
   isInternalRoute,
+  resolvePublicCategoryResultsPath,
   resolveStoreFooterHref,
   resolveStoreHref,
   resolveStoreNavItemHref,
 } from '../../lib/public-site';
 import { useStoreHeaderNavItems } from '../../lib/storefront-navigation';
 import type { WebsiteConfig } from '../../types/api';
+import '../../pages/StorefrontPage.css';
 import './PublicStorefrontLayout.css';
 
 function StoreLink({
@@ -52,73 +55,115 @@ export function PublicStorefrontLayout({
 }) {
   const { itemCount } = useStoreCart();
   const { isAuthenticated, logout } = useCustomerAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const headerNavItems = useStoreHeaderNavItems();
   const contact = config.contact;
+  const activeSearch = new URLSearchParams(location.search).get('q') ?? '';
+
+  useEffect(() => {
+    setSearch(activeSearch);
+  }, [activeSearch]);
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const params = new URLSearchParams();
+    if (search.trim()) {
+      params.set('q', search.trim());
+    }
+
+    const targetPath = params.toString()
+      ? `/urunler?${params.toString()}#${PUBLIC_PRODUCTS_SECTION_ID}`
+      : resolvePublicCategoryResultsPath();
+
+    setMobileMenuOpen(false);
+    navigate(targetPath);
+  };
 
   return (
     <div className="ps-site">
-      <div className="ps-top-strip">
-        <div className="ps-container ps-top-inner">
-          <div className="ps-top-support">
-            <span>Destek hatti</span>
+      <div className="sf-top-strip">
+        <div className="sf-container sf-top-inner">
+          <div className="sf-top-left">
+            <span>Destek ve sipariş hattı</span>
+            <strong>Bizi Ara</strong>
             <a href={contact.phoneLink}>{contact.phoneDisplay}</a>
           </div>
 
-          <div className="ps-top-announcement">
+          <div className="sf-top-center">
+            <span>Türkçe</span>
             <span>{currency}</span>
-            <strong>Online mağaza</strong>
-            <p>{config.announcement}</p>
+            <span className="sf-top-badge">%25 İndirim</span>
+            <span>{config.announcement}</span>
           </div>
 
-          <div className="ps-top-links">
+          <div className="sf-top-right">
             <Link to={isAuthenticated ? '/customer/dashboard' : '/customer/login'}>
               {isAuthenticated ? 'Hesabım' : 'Müşteri Girişi'}
             </Link>
-            <Link to="/cart">Sepet</Link>
+            <Link to="/satis-sozlesmesi">Satış Sözleşmesi</Link>
             <Link to="/iletisim">İletişim</Link>
           </div>
         </div>
       </div>
 
-      <header className="ps-header">
-        <div className="ps-container ps-header-main">
-          <Link className="ps-brand" to="/">
-            <span className="ps-brand-mark">EZ</span>
-            <span className="ps-brand-text">
+      <header className="sf-main-header">
+        <div className="sf-container sf-brand-row">
+          <Link className="sf-logo" to="/">
+            <span className="sf-logo-mark">Z</span>
+            <span className="sf-logo-text">
               <strong>{config.theme.brandName}</strong>
               <small>{config.theme.tagline}</small>
             </span>
           </Link>
 
-          <div className="ps-header-actions">
-            <Link className="ps-account-btn" to={isAuthenticated ? '/customer/dashboard' : '/customer/login'}>
+          <form className="sf-search-form" onSubmit={handleSearchSubmit}>
+            <input
+              type="search"
+              placeholder="Zeytinyağı, zeytin, kategori ara"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <button type="submit" aria-label="Ürün ara">
+              Ara
+            </button>
+          </form>
+
+          <div className="sf-header-actions">
+            <Link
+              className="sf-customer-btn"
+              to={isAuthenticated ? '/customer/dashboard' : '/customer/login'}
+            >
               {isAuthenticated ? 'Hesabım' : 'Müşteri Girişi'}
             </Link>
             {isAuthenticated ? (
-              <button className="ps-account-btn ps-account-logout" onClick={() => logout()} type="button">
+              <button className="sf-account-btn" onClick={() => logout()} type="button">
                 Çıkış
               </button>
             ) : null}
-            <Link className="ps-cart-btn" to="/cart">
-              <span>Sepetim</span>
-              <strong>{itemCount} ürün</strong>
+            <Link className="sf-cart-btn" to="/cart">
+              Sepetim
+              <span>{itemCount} ürün</span>
             </Link>
-            <button
-              className="ps-mobile-toggle"
-              onClick={() => setMobileMenuOpen((current) => !current)}
-              type="button"
-            >
-              Menü
-            </button>
           </div>
+
+          <button
+            className="sf-mobile-toggle"
+            onClick={() => setMobileMenuOpen((current) => !current)}
+            type="button"
+          >
+            MENÜ
+          </button>
         </div>
 
-        <div className="ps-nav-row">
-          <div className="ps-container ps-nav-inner">
+        <div className="sf-nav-row">
+          <div className="sf-container sf-nav-inner">
             <nav
-              aria-label="Magaza gezinme"
-              className={mobileMenuOpen ? 'ps-nav ps-nav-open' : 'ps-nav'}
+              aria-label="Mağaza gezinme"
+              className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}
             >
               {headerNavItems.map((item) => {
                 const href = resolveStoreNavItemHref(item);
@@ -137,7 +182,7 @@ export function PublicStorefrontLayout({
               })}
             </nav>
 
-            <div className="ps-support-meta">
+            <div className="sf-support-right">
               <span>{contact.workingHours}</span>
               <strong>{contact.phoneDisplay}</strong>
             </div>
@@ -186,7 +231,7 @@ export function PublicStorefrontLayout({
           <span>
             {config.theme.brandName} - {new Date().getFullYear()} Tüm hakları saklıdır.
           </span>
-          <div className="ps-footer-legal" aria-label="Yasal baglantilar">
+          <div className="ps-footer-legal" aria-label="Yasal bağlantılar">
             {[
               { label: config.legalPages.kvkk.title, href: '/kvkk' },
               { label: config.legalPages.privacy.title, href: '/gizlilik' },
@@ -203,4 +248,3 @@ export function PublicStorefrontLayout({
     </div>
   );
 }
-

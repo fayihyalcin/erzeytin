@@ -3280,7 +3280,14 @@ body.sf-modal-open {
   }
 
   .sf-logo {
+    flex: 0 0 100%;
+    justify-content: center;
     min-width: 0;
+  }
+
+  .sf-logo-text {
+    justify-items: center;
+    text-align: center;
   }
 
   .sf-logo-text strong {
@@ -3294,17 +3301,21 @@ body.sf-modal-open {
 
   .sf-header-actions {
     margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .sf-mobile-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: none;
+  }
+
+  .sf-nav-row {
+    overflow: hidden;
   }
 
   .sf-nav-inner {
-    min-height: 58px;
-    position: relative;
+    min-height: 54px;
+    position: static;
   }
 
   .sf-support-right {
@@ -3312,28 +3323,50 @@ body.sf-modal-open {
   }
 
   .sf-nav {
+    display: flex;
+    position: static;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0 0 2px;
+    z-index: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .sf-nav::-webkit-scrollbar {
     display: none;
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(100% - 1px);
-    border: 1px solid #dfe6ef;
-    border-radius: 12px;
-    background: #ffffff;
-    box-shadow: 0 16px 28px rgba(17, 31, 54, 0.13);
-    padding: 10px;
-    z-index: 35;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 2px;
   }
 
   .sf-nav a {
-    min-height: 42px;
+    min-height: 46px;
+    flex: 0 0 auto;
+    padding: 0 14px;
+    border-radius: 0;
+    white-space: nowrap;
+    color: #fffaf2;
+    font-size: 15px;
+    font-weight: 700;
+    background: transparent;
   }
 
   .sf-nav.sf-nav-open {
     display: flex;
+  }
+
+  .sf-nav a.active,
+  .sf-nav a:hover {
+    color: #fffaf2;
+    background: transparent;
+    box-shadow: inset 0 -3px 0 rgba(255, 250, 242, 0.96);
   }
 
   .sf-hero-card {
@@ -5206,6 +5239,7 @@ body.sf-modal-open {
 
   .sf-brand-row {
     min-height: 68px;
+    row-gap: 8px;
   }
 
   .sf-logo-text strong {
@@ -5218,6 +5252,23 @@ body.sf-modal-open {
   .sf-account-btn,
   .sf-cart-btn {
     font-size: 12px;
+  }
+
+  .sf-header-actions {
+    gap: 6px;
+  }
+
+  .sf-nav-inner {
+    min-height: 50px;
+  }
+
+  .sf-nav {
+    gap: 2px;
+  }
+
+  .sf-nav a {
+    min-height: 44px;
+    padding: 0 12px;
   }
 
   .sf-hero-section .sf-hero-card {

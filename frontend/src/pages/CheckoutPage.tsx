@@ -99,7 +99,7 @@ function paymentMethodLabel(method: CheckoutPaymentMethod) {
 export function CheckoutPage() {
   const navigate = useNavigate();
   const defaultConfig = useMemo(() => createDefaultWebsiteConfig(), []);
-  const { items, itemCount, subtotal, clearCart } = useStoreCart();
+  const { items, subtotal, clearCart } = useStoreCart();
   const {
     user: customerUser,
     isAuthenticated: isCustomerAuthenticated,
@@ -211,8 +211,7 @@ export function CheckoutPage() {
     }
   }, [currency]);
 
-  const shipping = itemCount > 0 && subtotal < 1000 ? 79.9 : 0;
-  const total = subtotal + shipping;
+  const total = subtotal;
   const canCheckout = items.length > 0 && !checkoutLoading;
 
   const checkoutPayload = {
@@ -247,7 +246,7 @@ export function CheckoutPage() {
       unitPrice: parsePrice(item.product.price),
       imageUrl: resolveCartImage(item.product) || undefined,
     })),
-    shippingFee: Number(shipping.toFixed(2)),
+    shippingFee: 0,
     taxAmount: 0,
     discountAmount: 0,
     currency,
@@ -710,10 +709,6 @@ export function CheckoutPage() {
                   <div className="sf-cart-checkout-side-row">
                     <span>Ara Toplam</span>
                     <strong>{formatter.format(subtotal)}</strong>
-                  </div>
-                  <div className="sf-cart-checkout-side-row">
-                    <span>Kargo</span>
-                    <strong>{shipping > 0 ? formatter.format(shipping) : 'Ücretsiz'}</strong>
                   </div>
                   <div className="sf-cart-checkout-side-row total">
                     <span>Genel Toplam</span>

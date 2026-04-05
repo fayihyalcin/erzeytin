@@ -66,6 +66,14 @@ export function PublicStorefrontLayout({
   const activeSearch = new URLSearchParams(location.search).get('q') ?? '';
 
   useEffect(() => {
+    document.body.classList.add('storefront-body');
+
+    return () => {
+      document.body.classList.remove('storefront-body');
+    };
+  }, []);
+
+  useEffect(() => {
     setSearch(activeSearch);
   }, [activeSearch]);
 
@@ -86,7 +94,7 @@ export function PublicStorefrontLayout({
   };
 
   return (
-    <div className="ps-site">
+    <div className="ps-site storefront-page">
       <div className="sf-top-strip">
         <div className="sf-container sf-top-inner">
           <div className="sf-top-left">

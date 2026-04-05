@@ -28,7 +28,7 @@
   background:
     radial-gradient(circle at 16% 16%, rgba(255, 255, 255, 0.18), transparent 24%),
     radial-gradient(circle at 86% 14%, rgba(238, 208, 140, 0.42), transparent 22%),
-    linear-gradient(135deg, #143a35 0%, #0f8c80 46%, #e8d3ad 180%);
+    linear-gradient(135deg, var(--public-olive-strong) 0%, var(--public-olive) 46%, var(--public-gold-soft) 180%);
 }
 
 .customer-auth-intro::after {
@@ -111,7 +111,7 @@
 
 .customer-auth-primary-link {
   background: #ffffff;
-  color: #143a35;
+  color: var(--public-olive-strong);
 }
 
 .customer-auth-secondary-link {
@@ -211,7 +211,7 @@
   position: absolute;
   inset: 0 0 auto;
   height: 4px;
-  background: linear-gradient(90deg, #0f8c80, #e6ba59);
+  background: linear-gradient(90deg, var(--public-olive), var(--public-gold));
 }
 
 .customer-auth-card-head {
@@ -220,8 +220,8 @@
 }
 
 .customer-auth-badge {
-  color: #0f6e66;
-  background: rgba(15, 140, 128, 0.1);
+  color: var(--public-olive-strong);
+  background: rgba(var(--public-olive-rgb), 0.1);
 }
 
 .customer-auth-card h2 {
@@ -264,8 +264,8 @@
 .customer-auth-notice {
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid rgba(15, 140, 128, 0.14);
-  background: linear-gradient(135deg, rgba(15, 140, 128, 0.08), rgba(230, 186, 89, 0.16));
+  border: 1px solid rgba(var(--public-olive-rgb), 0.14);
+  background: linear-gradient(135deg, rgba(var(--public-olive-rgb), 0.08), rgba(var(--public-gold-rgb), 0.16));
   color: #264146;
   font-size: 12px;
   font-weight: 600;
@@ -306,19 +306,19 @@
 }
 
 .customer-auth-form input:focus {
-  border-color: rgba(15, 140, 128, 0.48);
-  box-shadow: 0 0 0 4px rgba(15, 140, 128, 0.1);
+  border-color: rgba(var(--public-olive-rgb), 0.48);
+  box-shadow: 0 0 0 4px rgba(var(--public-olive-rgb), 0.1);
 }
 
 .customer-auth-form button {
   min-height: 48px;
   border: 0;
   border-radius: 16px;
-  background: linear-gradient(135deg, #0f8c80 0%, #145b53 100%);
+  background: linear-gradient(135deg, var(--public-olive) 0%, var(--public-olive-strong) 100%);
   color: #ffffff;
   font-size: 14px;
   font-weight: 800;
-  box-shadow: 0 14px 24px rgba(15, 140, 128, 0.14);
+  box-shadow: 0 14px 24px rgba(var(--public-olive-rgb), 0.14);
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 
@@ -419,7 +419,7 @@
 }
 
 .customer-auth-bottom a {
-  color: #0f8c80;
+  color: var(--public-olive);
   font-weight: 800;
 }
 

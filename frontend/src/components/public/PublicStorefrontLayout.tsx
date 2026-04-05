@@ -9,6 +9,7 @@ import {
   resolveStoreHref,
   resolveStoreNavItemHref,
 } from '../../lib/public-site';
+import { useStoreHeaderNavItems } from '../../lib/storefront-navigation';
 import type { WebsiteConfig } from '../../types/api';
 import './PublicStorefrontLayout.css';
 
@@ -52,6 +53,7 @@ export function PublicStorefrontLayout({
   const { itemCount } = useStoreCart();
   const { isAuthenticated, logout } = useCustomerAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const headerNavItems = useStoreHeaderNavItems();
   const contact = config.contact;
 
   return (
@@ -114,15 +116,11 @@ export function PublicStorefrontLayout({
 
         <div className="ps-nav-row">
           <div className="ps-container ps-nav-inner">
-            <Link className="ps-all-categories" to="/kategoriler">
-              Tüm Kategorileri Keşfet
-            </Link>
-
             <nav
               aria-label="Magaza gezinme"
               className={mobileMenuOpen ? 'ps-nav ps-nav-open' : 'ps-nav'}
             >
-              {config.navItems.map((item) => {
+              {headerNavItems.map((item) => {
                 const href = resolveStoreNavItemHref(item);
                 const active = isActiveStoreHref(activePath, href);
 

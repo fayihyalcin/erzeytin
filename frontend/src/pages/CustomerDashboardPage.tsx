@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
+import { useStoreHeaderNavItems } from '../lib/storefront-navigation';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type { Order, PublicSettingsDto, WebsiteConfig } from '../types/api';
 import './StorefrontPage.css';
@@ -26,16 +27,6 @@ const TABS: Array<{ key: DashboardTab; label: string }> = [
   { key: 'addresses', label: 'Adreslerim' },
   { key: 'settings', label: 'Ayarlar' },
 ];
-
-function resolveStorefrontHref(href: string) {
-  if (!href) {
-    return '/';
-  }
-  if (href.startsWith('#')) {
-    return `/${href}`;
-  }
-  return href;
-}
 
 function parsePrice(value: string | number) {
   const number = Number(value);
@@ -116,6 +107,7 @@ export function CustomerDashboardPage() {
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [currency, setCurrency] = useState('TRY');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const headerNavItems = useStoreHeaderNavItems();
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -239,7 +231,6 @@ export function CustomerDashboardPage() {
     }
   }, [currency]);
 
-  const navItems = config.navItems.length > 0 ? config.navItems : defaultConfig.navItems;
   const selectedTrackingOrder = orders.find((item) => item.orderNumber === trackingOrderNo) || orders[0] || null;
   const totalSpent = orders.reduce((acc, order) => acc + parsePrice(order.grandTotal), 0);
   const paymentRows = useMemo(
@@ -340,12 +331,11 @@ export function CustomerDashboardPage() {
 
         <div className="sf-nav-row">
           <div className="sf-container sf-nav-inner">
-            <a className="sf-all-categories" href="/#categories">Explore All Categories</a>
             <nav className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}>
-              {navItems.map((item) => (
-                <a key={`${item.label}-${item.href}`} href={resolveStorefrontHref(item.href)} onClick={() => setMobileMenuOpen(false)}>
+              {headerNavItems.map((item) => (
+                <Link key={`${item.label}-${item.href}`} onClick={() => setMobileMenuOpen(false)} to={item.href}>
                   {item.label}
-                </a>
+                </Link>
               ))}
             </nav>
             <div className="sf-support-right"><span>24/7 Support</span><strong>0530 516 54 98</strong></div>

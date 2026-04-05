@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { resolvePublicProductPath } from '../lib/public-site';
+import { useStoreHeaderNavItems } from '../lib/storefront-navigation';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
   Order,
@@ -86,18 +87,6 @@ function parseBooleanSetting(value?: string) {
   return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
 
-function resolveStorefrontHref(href: string) {
-  if (!href) {
-    return '/';
-  }
-
-  if (href.startsWith('#')) {
-    return `/${href}`;
-  }
-
-  return href;
-}
-
 function paymentMethodLabel(method: CheckoutPaymentMethod) {
   if (method === 'CASH_ON_DELIVERY') {
     return 'Kapıda Ödeme';
@@ -133,6 +122,7 @@ export function CartPage() {
   const [checkoutError, setCheckoutError] = useState('');
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
   const [paytrSession, setPaytrSession] = useState<PaytrCheckoutSession | null>(null);
+  const headerNavItems = useStoreHeaderNavItems();
   const [checkoutForm, setCheckoutForm] = useState<CheckoutFormState>({
     fullName: '',
     email: '',
@@ -257,8 +247,6 @@ export function CartPage() {
   const remainingForFreeShipping = Math.max(freeShippingThreshold - subtotal, 0);
   const freeShippingProgress =
     freeShippingThreshold > 0 ? Math.min((subtotal / freeShippingThreshold) * 100, 100) : 100;
-  const navItems = config.navItems.length > 0 ? config.navItems : defaultConfig.navItems;
-
   const canCheckout = items.length > 0 && !checkoutLoading;
   const checkoutPayload = {
     customerName: checkoutForm.fullName.trim(),
@@ -500,19 +488,15 @@ export function CartPage() {
 
         <div className="sf-nav-row">
           <div className="sf-container sf-nav-inner">
-            <a className="sf-all-categories" href="/#categories">
-              Tüm Kategorileri Keşfet
-            </a>
-
             <nav className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}>
-              {navItems.map((item) => (
-                <a
+              {headerNavItems.map((item) => (
+                <Link
                   key={`${item.label}-${item.href}`}
-                  href={resolveStorefrontHref(item.href)}
                   onClick={() => setMobileMenuOpen(false)}
+                  to={item.href}
                 >
                   {item.label}
-                </a>
+                </Link>
               ))}
             </nav>
 

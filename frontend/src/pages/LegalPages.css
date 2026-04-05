@@ -1,9 +1,9 @@
 .legal-page {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 8% 0%, rgba(15, 143, 134, 0.14), transparent 36%),
-    radial-gradient(circle at 92% 0%, rgba(242, 223, 103, 0.24), transparent 34%),
-    linear-gradient(180deg, #f4f8fd 0%, #eef3fb 100%);
+    radial-gradient(circle at 8% 0%, rgba(var(--public-olive-rgb), 0.14), transparent 36%),
+    radial-gradient(circle at 92% 0%, rgba(var(--public-gold-rgb), 0.22), transparent 34%),
+    linear-gradient(180deg, var(--public-cream) 0%, var(--public-cream-strong) 100%);
   color: #1d2d48;
 }
 
@@ -31,7 +31,7 @@
 }
 
 .legal-brand {
-  color: #0e7e75;
+  color: var(--public-olive);
   font-size: 32px;
   font-weight: 700;
   font-family: 'Rajdhani', sans-serif;
@@ -149,7 +149,7 @@
   min-height: 44px;
   border: 0;
   border-radius: 12px;
-  background: linear-gradient(90deg, #0a766e, #0f8f86);
+  background: linear-gradient(90deg, var(--public-olive-strong), var(--public-olive));
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
@@ -202,15 +202,15 @@
 }
 
 .contact-page {
-  --contact-teal: #0f8f86;
-  --contact-teal-dark: #0a736d;
+  --contact-teal: var(--public-olive);
+  --contact-teal-dark: var(--public-olive-strong);
   --contact-ink: #18263d;
   --contact-muted: #5a6c85;
   --contact-line: #d8e3ef;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 8% 0%, rgba(15, 143, 134, 0.13), transparent 34%),
-    radial-gradient(circle at 92% 4%, rgba(242, 223, 103, 0.2), transparent 30%),
+    radial-gradient(circle at 8% 0%, rgba(var(--public-olive-rgb), 0.13), transparent 34%),
+    radial-gradient(circle at 92% 4%, rgba(var(--public-gold-rgb), 0.18), transparent 30%),
     linear-gradient(180deg, #f6f9fc 0%, #edf3fb 100%);
   color: var(--contact-ink);
   overflow-x: clip;
@@ -361,7 +361,7 @@
   display: grid;
   gap: 14px;
   background:
-    radial-gradient(circle at 100% 0%, rgba(242, 223, 103, 0.24), transparent 28%),
+    radial-gradient(circle at 100% 0%, rgba(var(--public-gold-rgb), 0.22), transparent 28%),
     linear-gradient(145deg, #0b7e76, #0e968c);
   color: #ffffff;
   border: 0;
@@ -543,8 +543,8 @@
 
 .contact-form input:focus,
 .contact-form textarea:focus {
-  border-color: rgba(15, 143, 134, 0.48);
-  box-shadow: 0 0 0 3px rgba(15, 143, 134, 0.1);
+  border-color: rgba(var(--public-olive-rgb), 0.48);
+  box-shadow: 0 0 0 3px rgba(var(--public-olive-rgb), 0.1);
 }
 
 .contact-form textarea {
@@ -560,7 +560,7 @@
   min-height: 46px;
   border: 0;
   border-radius: 12px;
-  background: linear-gradient(90deg, #0a766e, #0f8f86);
+  background: linear-gradient(90deg, var(--public-olive-strong), var(--public-olive));
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;

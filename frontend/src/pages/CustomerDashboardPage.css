@@ -1,5 +1,5 @@
 .sf-customer-page {
-  background: #f6f8fb;
+  background: var(--public-cream);
   min-height: 100vh;
   padding: 20px 0 28px;
 }
@@ -59,7 +59,7 @@
 
 .sf-customer-menu-item.active {
   border-color: transparent;
-  background: #0f8f86;
+  background: var(--public-olive);
   color: #ffffff;
 }
 
@@ -307,7 +307,7 @@
   padding: 0 14px;
   display: inline-flex;
   align-items: center;
-  background: #0f8f86;
+  background: var(--public-olive);
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
@@ -365,7 +365,7 @@
 .sf-payment-security-note {
   border: 1px solid #dbe4ef;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(15, 143, 134, 0.08), rgba(242, 223, 103, 0.16));
+  background: linear-gradient(135deg, rgba(var(--public-olive-rgb), 0.08), rgba(var(--public-gold-rgb), 0.16));
   padding: 14px;
 }
 

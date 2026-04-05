@@ -17,6 +17,8 @@ const LEGACY_ROUTE_MAP: Record<string, string> = {
   '#blog': '/#blog',
 };
 
+export const PUBLIC_PRODUCTS_SECTION_ID = 'products-results';
+
 export function normalizeStoreLabel(value: string) {
   return value
     .toLocaleLowerCase('tr-TR')
@@ -127,4 +129,9 @@ export function resolvePublicCategoryFilterPath(slug?: string | null) {
   }
 
   return `/urunler?kategori=${encodeURIComponent(slug.trim())}`;
+}
+
+export function resolvePublicCategoryResultsPath(slug?: string | null) {
+  const basePath = resolvePublicCategoryFilterPath(slug);
+  return `${basePath}#${PUBLIC_PRODUCTS_SECTION_ID}`;
 }

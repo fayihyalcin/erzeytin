@@ -167,7 +167,7 @@ function ScrollManager() {
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [location.hash, location.pathname]);
+  }, [location.hash, location.pathname, location.search]);
 
   return null;
 }

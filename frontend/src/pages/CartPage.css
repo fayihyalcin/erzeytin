@@ -3,9 +3,9 @@
   min-height: calc(100vh - 132px);
   padding: 24px 0 42px;
   background:
-    radial-gradient(circle at 2% 0%, rgba(15, 143, 134, 0.14), transparent 36%),
-    radial-gradient(circle at 98% 6%, rgba(242, 223, 103, 0.2), transparent 30%),
-    linear-gradient(180deg, #f4f7fb 0%, #eef3fa 62%, #edf4f8 100%);
+    radial-gradient(circle at 2% 0%, rgba(var(--public-olive-rgb), 0.14), transparent 36%),
+    radial-gradient(circle at 98% 6%, rgba(var(--public-gold-rgb), 0.18), transparent 30%),
+    linear-gradient(180deg, var(--public-cream) 0%, var(--public-cream-strong) 62%, #f5f0e5 100%);
 }
 
 .sf-cart-breadcrumb {
@@ -32,7 +32,7 @@
   border-radius: 20px;
   padding: 20px;
   background:
-    radial-gradient(circle at right top, rgba(15, 143, 134, 0.16), transparent 58%),
+    radial-gradient(circle at right top, rgba(var(--public-olive-rgb), 0.16), transparent 58%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 251, 255, 0.92));
   box-shadow: 0 16px 36px rgba(18, 32, 55, 0.09);
   display: flex;
@@ -142,7 +142,7 @@
   height: 100%;
   display: block;
   border-radius: 999px;
-  background: linear-gradient(90deg, #0c776f, #0f8f86, #62a724);
+  background: linear-gradient(90deg, var(--public-olive-strong), var(--public-olive), var(--public-gold));
 }
 
 .sf-cart-layout {
@@ -209,7 +209,7 @@
 }
 
 .sf-cart-item-title:hover {
-  color: #0f8f86;
+  color: var(--public-olive);
 }
 
 .sf-cart-item-price {
@@ -307,7 +307,7 @@
   border-radius: 16px;
   padding: 16px;
   background:
-    radial-gradient(circle at left top, rgba(15, 143, 134, 0.14), transparent 58%),
+    radial-gradient(circle at left top, rgba(var(--public-olive-rgb), 0.14), transparent 58%),
     linear-gradient(180deg, #ffffff, #f8fbff);
   box-shadow: 0 12px 26px rgba(16, 28, 51, 0.1);
   display: grid;
@@ -351,7 +351,7 @@
   min-height: 48px;
   border: 0;
   border-radius: 12px;
-  background: linear-gradient(90deg, #0a766e, #0f8f86);
+  background: linear-gradient(90deg, var(--public-olive-strong), var(--public-olive));
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
@@ -419,7 +419,7 @@
   border: 0;
   border-radius: 12px;
   padding: 0 16px;
-  background: linear-gradient(90deg, #0a766e, #0f8f86);
+  background: linear-gradient(90deg, var(--public-olive-strong), var(--public-olive));
   color: #ffffff;
   font-size: 13px;
   font-weight: 800;
@@ -432,7 +432,7 @@
   border: 1px solid #d8e2ee;
   border-radius: 20px;
   background:
-    radial-gradient(circle at center top, rgba(15, 143, 134, 0.12), transparent 56%),
+    radial-gradient(circle at center top, rgba(var(--public-olive-rgb), 0.12), transparent 56%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.95));
   box-shadow: 0 16px 34px rgba(18, 30, 51, 0.08);
   padding: 30px;
@@ -481,7 +481,7 @@
 
 .sf-cart-order-success h2 {
   margin: 0;
-  color: #146945;
+  color: var(--public-olive);
   font-size: 22px;
 }
 
@@ -553,7 +553,7 @@
   display: grid;
   gap: 10px;
   background:
-    radial-gradient(circle at right top, rgba(15, 143, 134, 0.08), transparent 48%),
+    radial-gradient(circle at right top, rgba(var(--public-olive-rgb), 0.08), transparent 48%),
     linear-gradient(180deg, #ffffff, #fbfdff);
 }
 
@@ -569,7 +569,7 @@
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: #0f8f86;
+  background: var(--public-olive);
   color: #ffffff;
   font-size: 12px;
   font-weight: 800;
@@ -631,8 +631,8 @@
 .sf-cart-checkout-form input:focus,
 .sf-cart-checkout-form select:focus,
 .sf-cart-checkout-form textarea:focus {
-  border-color: rgba(15, 143, 134, 0.48);
-  box-shadow: 0 0 0 3px rgba(15, 143, 134, 0.1);
+  border-color: rgba(var(--public-olive-rgb), 0.48);
+  box-shadow: 0 0 0 3px rgba(var(--public-olive-rgb), 0.1);
 }
 
 .sf-cart-checkout-form button {
@@ -658,7 +658,7 @@
   border: 1px solid #d8e2ef;
   border-radius: 20px;
   background:
-    radial-gradient(circle at right top, rgba(15, 143, 134, 0.12), transparent 56%),
+    radial-gradient(circle at right top, rgba(var(--public-olive-rgb), 0.12), transparent 56%),
     linear-gradient(180deg, #f8fbff 0%, #f3f8fd 100%);
   overflow: hidden;
   box-shadow: 0 30px 60px rgba(5, 12, 22, 0.34);
@@ -777,8 +777,8 @@
 }
 
 .sf-cart-payment-card.active {
-  border-color: rgba(15, 143, 134, 0.56);
-  box-shadow: 0 0 0 3px rgba(15, 143, 134, 0.1);
+  border-color: rgba(var(--public-olive-rgb), 0.56);
+  box-shadow: 0 0 0 3px rgba(var(--public-olive-rgb), 0.1);
   transform: translateY(-1px);
 }
 
@@ -826,7 +826,7 @@
   min-width: 140px;
   border: 0;
   border-radius: 11px;
-  background: linear-gradient(90deg, #0a766e, #0f8f86);
+  background: linear-gradient(90deg, var(--public-olive-strong), var(--public-olive));
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
@@ -1048,8 +1048,8 @@
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 12% 0%, rgba(15, 143, 134, 0.14), transparent 30%),
-    radial-gradient(circle at 88% 0%, rgba(242, 223, 103, 0.22), transparent 28%),
+    radial-gradient(circle at 12% 0%, rgba(var(--public-olive-rgb), 0.14), transparent 30%),
+    radial-gradient(circle at 88% 0%, rgba(var(--public-gold-rgb), 0.2), transparent 28%),
     linear-gradient(180deg, #f6f9fc 0%, #eef4fb 100%);
 }
 
@@ -1156,7 +1156,7 @@
 
 .sf-paytr-return-actions a:first-child {
   border: 0;
-  background: linear-gradient(90deg, #0a766e, #0f8f86);
+  background: linear-gradient(90deg, var(--public-olive-strong), var(--public-olive));
   color: #ffffff;
 }
 

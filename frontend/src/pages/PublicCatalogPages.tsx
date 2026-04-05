@@ -6,6 +6,7 @@ import { PublicStorefrontLayout } from '../components/public/PublicStorefrontLay
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
 import {
+  PUBLIC_PRODUCTS_SECTION_ID,
   isInternalRoute,
   resolvePublicCategoryFilterPath,
   resolvePublicProductPath,
@@ -671,7 +672,7 @@ export function PublicProductsPage() {
             </div>
           </aside>
 
-          <section className="pc-products-main">
+          <section className="pc-products-main" id={PUBLIC_PRODUCTS_SECTION_ID}>
             <div className="pc-products-toolbar">
               <div>
                 <span>Katalog</span>

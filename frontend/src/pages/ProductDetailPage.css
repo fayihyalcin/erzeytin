@@ -2,8 +2,8 @@
   min-height: 100vh;
   padding: 24px 0 34px;
   background:
-    radial-gradient(circle at 2% 0%, rgba(48, 91, 159, 0.08), transparent 32%),
-    linear-gradient(180deg, #f4f5f8 0%, #eceff5 62%, #edf0f6 100%);
+    radial-gradient(circle at 2% 0%, rgba(var(--public-olive-rgb), 0.12), transparent 34%),
+    linear-gradient(180deg, var(--public-cream) 0%, var(--public-cream-strong) 62%, #f5f0e5 100%);
 }
 
 .sf-pd-head {
@@ -15,7 +15,7 @@
 
 .sf-pd-head h1 {
   margin: 0;
-  color: #55688d;
+  color: var(--public-olive);
   font-size: clamp(30px, 3.2vw, 45px);
   font-weight: 500;
   line-height: 1.2;
@@ -23,7 +23,7 @@
 
 .sf-pd-head p {
   margin: 0;
-  color: #61749a;
+  color: var(--public-muted);
   font-size: 16px;
 }
 
@@ -580,7 +580,7 @@
 }
 
 .sf-pd-mobile-dock-actions .primary {
-  background: linear-gradient(90deg, #0f8f86, #0a746d);
+  background: linear-gradient(90deg, var(--public-olive), var(--public-olive-strong));
   color: #ffffff;
 }
 

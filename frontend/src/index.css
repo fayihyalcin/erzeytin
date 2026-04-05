@@ -20,6 +20,22 @@
   --admin-success-soft: #def8ea;
   --admin-shadow: 0 20px 45px rgba(17, 38, 67, 0.08);
   --admin-shadow-soft: 0 10px 24px rgba(17, 38, 67, 0.06);
+  --public-olive: #1f4f2a;
+  --public-olive-alt: #2f6533;
+  --public-olive-strong: #183b20;
+  --public-olive-soft: #edf3e8;
+  --public-olive-soft-strong: #dce7d2;
+  --public-olive-rgb: 31, 79, 42;
+  --public-gold: #b59a6b;
+  --public-gold-strong: #9a7f52;
+  --public-gold-soft: #efe3ce;
+  --public-gold-rgb: 181, 154, 107;
+  --public-cream: #f7f3ea;
+  --public-cream-strong: #efe8db;
+  --public-paper: #fffdf8;
+  --public-line: #ddd5c6;
+  --public-ink: #233126;
+  --public-muted: #6c7464;
 }
 
 * {

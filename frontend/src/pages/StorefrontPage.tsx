@@ -7,6 +7,7 @@ import { parseBlogPosts } from '../lib/admin-content';
 import { resolveAssetUrl } from '../lib/asset-url';
 import { resolvePublicProductPath, resolveStoreNavItemHref } from '../lib/public-site';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
+import { buildStoreHeaderNavItems } from '../lib/storefront-navigation';
 import {
   buildBreadcrumbSchema,
   buildOrganizationSchema,
@@ -223,6 +224,85 @@ function FeaturedProductCard({
         <button className="ghost" type="button" onClick={() => onPreview(product)}>
           Ön İzleme
         </button>
+      </div>
+    </article>
+  );
+}
+
+function HeroFeaturedProductCard({
+  product,
+  formatter,
+  onAdd,
+}: {
+  product: Product;
+  formatter: Intl.NumberFormat;
+  onAdd: (id: string) => void;
+}) {
+  const price = Number(product.price ?? 0);
+  const compare = Number(product.compareAtPrice ?? 0);
+  const hasDiscount = compare > price && price > 0;
+  const discountPercent = hasDiscount
+    ? Math.round(((compare - price) / compare) * 100)
+    : 0;
+  const inStock = product.stock > 0;
+
+  return (
+    <article className="sf-hero-product-card">
+      <Link className="sf-hero-product-media" to={resolvePublicProductPath(product)}>
+        {hasDiscount ? <span className="sf-hero-product-badge">%{discountPercent}</span> : null}
+        <img decoding="async" loading="lazy" src={resolveProductImage(product)} alt={product.name} />
+      </Link>
+
+      <div className="sf-hero-product-copy">
+        <p className="sf-hero-product-category">{product.category?.name || 'Zeytin ve Zeytinyağı'}</p>
+        <h3>
+          <Link to={resolvePublicProductPath(product)}>{product.name}</Link>
+        </h3>
+        <p className={inStock ? 'sf-hero-product-stock in' : 'sf-hero-product-stock out'}>
+          {inStock ? 'Stokta, hızlı gönderi' : 'Tükendi'}
+        </p>
+
+        <div className="sf-hero-product-footer">
+          <div className="sf-hero-product-price">
+            {hasDiscount ? <span className="old">{formatter.format(compare)}</span> : null}
+            <strong>{formatter.format(price)}</strong>
+          </div>
+
+          <button disabled={!inStock} type="button" onClick={() => onAdd(product.id)}>
+            {inStock ? 'Sepete Ekle' : 'Tükendi'}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function HeroFeaturedPlaceholderCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <article className="sf-hero-product-card placeholder" aria-hidden="true">
+      <div className="sf-hero-product-media sf-hero-product-media--placeholder" />
+
+      <div className="sf-hero-product-copy">
+        <p className="sf-hero-product-category">Vitrin Alanı</p>
+        <h3>{title}</h3>
+        <p className="sf-hero-product-stock pending">{description}</p>
+
+        <div className="sf-hero-product-footer">
+          <div className="sf-hero-product-price">
+            <span className="old">Ürün slotu</span>
+            <strong>Yakında</strong>
+          </div>
+
+          <button disabled type="button">
+            Beklemede
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -655,9 +735,6 @@ export function StorefrontPage() {
   }, []);
 
   const heroSlides = config.heroSlides.length > 0 ? config.heroSlides : defaultConfig.heroSlides;
-  const navItems = config.navItems.length > 0 ? config.navItems : defaultConfig.navItems;
-  const parallaxCards =
-    config.parallaxCards.length > 0 ? config.parallaxCards : defaultConfig.parallaxCards;
   const promoCards = config.promoCards.length > 0 ? config.promoCards : defaultConfig.promoCards;
   const featureItems =
     config.featureItems.length > 0 ? config.featureItems : defaultConfig.featureItems;
@@ -741,34 +818,7 @@ export function StorefrontPage() {
 
   const productPool = filteredProducts.length > 0 ? filteredProducts : products;
 
-  const categoryItemCount = useMemo(() => {
-    return products.reduce<Record<string, number>>((acc, product) => {
-      const categoryId = product.category?.id;
-      if (!categoryId) {
-        return acc;
-      }
-
-      acc[categoryId] = (acc[categoryId] ?? 0) + 1;
-      return acc;
-    }, {});
-  }, [products]);
-
-  const categoryShowcase = useMemo(() => {
-    if (categories.length > 0) {
-      return categories.slice(0, 6).map((category) => ({
-        id: category.id,
-        name: category.name,
-        count: categoryItemCount[category.id] ?? 0,
-      }));
-    }
-
-    return [
-      { id: 'olive-oil', name: 'Sızma Zeytinyağı', count: productPool.length },
-      { id: 'black-olive', name: 'Gemlik Siyah Zeytin', count: Math.max(3, productPool.length) },
-      { id: 'green-olive', name: 'Kırılmış Yeşil Zeytin', count: Math.max(2, productPool.length) },
-      { id: 'special', name: 'Gurme Seriler', count: Math.max(1, productPool.length) },
-    ];
-  }, [categories, categoryItemCount, productPool.length]);
+  const headerNavItems = useMemo(() => buildStoreHeaderNavItems(categories), [categories]);
 
   useEffect(() => {
     if (productPool.length <= 5) {
@@ -791,6 +841,33 @@ export function StorefrontPage() {
     const doubled = [...productPool, ...productPool];
     return doubled.slice(hotStart, hotStart + 5);
   }, [productPool, hotStart]);
+
+  const heroFeaturedProducts = useMemo(() => {
+    const inStockProducts = productPool.filter((product) => product.stock > 0);
+    const soldOutProducts = productPool.filter((product) => product.stock <= 0);
+
+    return [...inStockProducts, ...soldOutProducts].slice(0, 3);
+  }, [productPool]);
+
+  const heroFeaturedPlaceholders = useMemo(() => {
+    return [
+      {
+        id: 'hero-slot-1',
+        title: 'Yeni Sezon Seçkisi',
+        description: 'Ürün yüklendiğinde burada görünecek.',
+      },
+      {
+        id: 'hero-slot-2',
+        title: 'Günlük Favori',
+        description: 'Sağ kolondaki ürün vitrini için hazır.',
+      },
+      {
+        id: 'hero-slot-3',
+        title: 'Vitrin Ürünü',
+        description: 'Bu kart otomatik olarak ürünle dolacak.',
+      },
+    ].slice(Math.max(heroFeaturedProducts.length, 0), 3);
+  }, [heroFeaturedProducts.length]);
 
   const featuredProducts = useMemo(() => productPool.slice(0, 10), [productPool]);
   const bestSellerProducts = useMemo(() => productPool.slice(0, 6), [productPool]);
@@ -1055,12 +1132,8 @@ export function StorefrontPage() {
 
         <div className="sf-nav-row">
           <div className="sf-container sf-nav-inner">
-            <Link className="sf-all-categories" to="/kategoriler">
-              Tüm Kategorileri Keşfet
-            </Link>
-
             <nav className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}>
-              {navItems.map((item) => {
+              {headerNavItems.map((item) => {
                 const href = resolveStoreNavItemHref(item);
 
                 if (isInternalRoute(href)) {
@@ -1089,94 +1162,83 @@ export function StorefrontPage() {
 
       <main className="sf-main">
         <section className="sf-hero-section" id="hero">
-          {highlightedSlide ? (
-            <article className="sf-hero-card sf-hero-card--media-only" aria-label="Acilis slider">
-              <div className="sf-hero-modern">
-                <div className="sf-hero-slides">
-                  {heroSlides.map((slide, index) => {
-                    const isActive = index === slideIndex;
-                    const posterUrl = resolveHeroPoster(slide);
+          <div className="sf-container sf-hero-layout has-featured-products">
+            {highlightedSlide ? (
+              <article className="sf-hero-card sf-hero-card--media-only" aria-label="Acilis slider">
+                <div className="sf-hero-modern">
+                  <div className="sf-hero-slides">
+                    {heroSlides.map((slide, index) => {
+                      const isActive = index === slideIndex;
+                      const posterUrl = resolveHeroPoster(slide);
 
-                    return (
-                      <section
-                        key={`hero-modern-${slide.title}-${index}`}
-                        className={isActive ? 'sf-hero-slide active' : 'sf-hero-slide'}
-                        aria-hidden={!isActive}
-                      >
-                        <img
-                          alt={slide.title}
-                          className="sf-hero-slide-image"
-                          fetchPriority={index === 0 ? 'high' : 'auto'}
-                          src={posterUrl}
-                        />
-                      </section>
-                    );
-                  })}
-                </div>
-
-                <button
-                  aria-label="Onceki slider gorseli"
-                  className="sf-hero-media-arrow left"
-                  type="button"
-                  onClick={goToPrevSlide}
-                >
-                  {'<'}
-                </button>
-                <button
-                  aria-label="Sonraki slider gorseli"
-                  className="sf-hero-media-arrow right"
-                  type="button"
-                  onClick={goToNextSlide}
-                >
-                  {'>'}
-                </button>
-
-                <div className="sf-hero-media-dots" aria-label="Slider noktaları">
-                  {heroSlides.map((slide, index) => (
-                    <button
-                      key={`hero-media-dot-${slide.title}-${index}`}
-                      aria-label={`${index + 1}. slider gorseli`}
-                      className={index === slideIndex ? 'sf-hero-media-dot active' : 'sf-hero-media-dot'}
-                      type="button"
-                      onClick={() => setSlideIndex(index)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </article>
-          ) : null}
-        </section>
-
-        <section className="sf-category-row" id="categories">
-          <div className="sf-container">
-            <div className="sf-category-grid">
-              {categoryShowcase.map((category) => (
-                <a key={category.id} className="sf-category-chip" href="#products">
-                  <strong>{category.name}</strong>
-                  <span>{category.count} ürün</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="sf-parallax-gallery" aria-label="Parallax campaign cards">
-          <div className="sf-container">
-            <div className="sf-parallax-grid">
-              {parallaxCards.map((item) => (
-                <article
-                  key={item.title}
-                  className="sf-parallax-card"
-                  style={{ backgroundImage: `url(${item.imageUrl})` }}
-                >
-                  <div className="sf-parallax-content">
-                    <p>{item.subtitle}</p>
-                    <h3>{item.title}</h3>
-                    <a href={item.ctaHref}>{item.ctaLabel}</a>
+                      return (
+                        <section
+                          key={`hero-modern-${slide.title}-${index}`}
+                          className={isActive ? 'sf-hero-slide active' : 'sf-hero-slide'}
+                          aria-hidden={!isActive}
+                        >
+                          <img
+                            alt={slide.title}
+                            className="sf-hero-slide-image"
+                            fetchPriority={index === 0 ? 'high' : 'auto'}
+                            src={posterUrl}
+                          />
+                        </section>
+                      );
+                    })}
                   </div>
-                </article>
-              ))}
-            </div>
+
+                  <button
+                    aria-label="Onceki slider gorseli"
+                    className="sf-hero-media-arrow left"
+                    type="button"
+                    onClick={goToPrevSlide}
+                  >
+                    {'<'}
+                  </button>
+                  <button
+                    aria-label="Sonraki slider gorseli"
+                    className="sf-hero-media-arrow right"
+                    type="button"
+                    onClick={goToNextSlide}
+                  >
+                    {'>'}
+                  </button>
+
+                  <div className="sf-hero-media-dots" aria-label="Slider noktaları">
+                    {heroSlides.map((slide, index) => (
+                      <button
+                        key={`hero-media-dot-${slide.title}-${index}`}
+                        aria-label={`${index + 1}. slider gorseli`}
+                        className={index === slideIndex ? 'sf-hero-media-dot active' : 'sf-hero-media-dot'}
+                        type="button"
+                        onClick={() => setSlideIndex(index)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </article>
+            ) : null}
+
+            <aside className="sf-hero-featured-panel" aria-label="Öne çıkan ürünler">
+              <div className="sf-hero-featured-list">
+                {heroFeaturedProducts.map((product) => (
+                  <HeroFeaturedProductCard
+                    key={`hero-featured-${product.id}`}
+                    product={product}
+                    formatter={formatter}
+                    onAdd={addToCart}
+                  />
+                ))}
+                {heroFeaturedPlaceholders.map((item) => (
+                  <HeroFeaturedPlaceholderCard
+                    key={item.id}
+                    title={item.title}
+                    description={item.description}
+                  />
+                ))}
+              </div>
+            </aside>
           </div>
         </section>
 

@@ -158,5 +158,9 @@ export class CreateShopOrderDto {
 
   @IsOptional()
   @IsString()
+  bankTransferAccountId?: string;
+
+  @IsOptional()
+  @IsString()
   customerNote?: string;
 }

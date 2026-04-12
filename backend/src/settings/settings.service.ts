@@ -12,6 +12,8 @@ const PUBLIC_SETTING_KEYS = [
   'timezone',
   'taxRate',
   'siteUrl',
+  'bankAccounts',
+  'eftPaymentInstructions',
   'websiteConfig',
   'blogPosts',
   'paytrEnabled',

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,13 +12,25 @@ import {
   Post,
   Query,
   Req,
+  UnsupportedMediaTypeException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { randomUUID } from 'node:crypto';
 import type { Request } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import {
+  ensureUploadTargetDir,
+  resolveFileExtension,
+  sanitizeFileNameBase,
+} from '../media/media.utils';
 import { CreateShopOrderDto } from './dto/create-shop-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
+import { UploadBankTransferReceiptDto } from './dto/upload-bank-transfer-receipt.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrdersService } from './orders.service';
 import { PaytrService } from './paytr.service';
@@ -27,6 +40,28 @@ type CurrentUserPayload = {
   username: string;
   role: 'ADMIN' | 'REPRESENTATIVE';
 };
+
+const ALLOWED_RECEIPT_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
+
+function resolveReceiptMaxFileSizeBytes() {
+  const raw = Number(process.env.UPLOAD_MAX_FILE_SIZE_MB ?? '8');
+  const safeValue = Number.isFinite(raw) && raw > 0 ? raw : 8;
+  return Math.trunc(safeValue * 1024 * 1024);
+}
+
+function createStoredReceiptFilename(originalName: string, mimeType: string) {
+  const extension = resolveFileExtension(originalName, mimeType);
+  const baseName = originalName.includes('.')
+    ? originalName.slice(0, originalName.lastIndexOf('.'))
+    : originalName;
+
+  return `${Date.now()}-${randomUUID()}-${sanitizeFileNameBase(baseName)}${extension}`;
+}
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -116,6 +151,74 @@ export class ShopOrdersController {
   @Get(':orderNumber')
   findByOrderNumber(@Param('orderNumber') orderNumber: string) {
     return this.ordersService.findByOrderNumber(orderNumber);
+  }
+
+  @Post(':orderNumber/bank-transfer-receipt')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (_request, file, callback) => {
+        if (!ALLOWED_RECEIPT_MIME_TYPES.has(file.mimetype)) {
+          callback(
+            new UnsupportedMediaTypeException(
+              'Dekont olarak sadece PDF, JPG, PNG veya WEBP yukleyebilirsiniz.',
+            ) as unknown as Error,
+            false,
+          );
+          return;
+        }
+
+        callback(null, true);
+      },
+      limits: {
+        fileSize: resolveReceiptMaxFileSizeBytes(),
+      },
+      storage: diskStorage({
+        destination: (_request, _file, callback) => {
+          try {
+            callback(
+              null,
+              ensureUploadTargetDir(process.env.UPLOAD_DIR, 'eft-dekont'),
+            );
+          } catch (error) {
+            callback(error as Error, '');
+          }
+        },
+        filename: (_request, file, callback) => {
+          try {
+            callback(
+              null,
+              createStoredReceiptFilename(file.originalname, file.mimetype),
+            );
+          } catch (error) {
+            callback(error as Error, '');
+          }
+        },
+      }),
+    }),
+  )
+  uploadBankTransferReceipt(
+    @Param('orderNumber') orderNumber: string,
+    @Body() dto: UploadBankTransferReceiptDto,
+    @UploadedFile()
+    file: {
+      filename: string;
+      mimetype: string;
+      originalname: string;
+      path: string;
+      size: number;
+    } | null,
+    @Req() request: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Dekont dosyasi secmelisiniz.');
+    }
+
+    return this.ordersService.uploadBankTransferReceipt(
+      orderNumber,
+      dto,
+      file,
+      request,
+    );
   }
 }
 

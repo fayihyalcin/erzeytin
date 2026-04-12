@@ -59,6 +59,17 @@ export interface OrderAddress {
   line2?: string;
 }
 
+export interface BankTransferAccountSnapshot {
+  id: string;
+  bankName: string;
+  branchName?: string;
+  accountHolder: string;
+  iban: string;
+  accountNumber?: string;
+  currency: string;
+  note?: string;
+}
+
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
@@ -172,6 +183,29 @@ export class Order {
 
   @Column({ name: 'tracking_url', type: 'text', nullable: true })
   trackingUrl: string | null;
+
+  @Column({ name: 'bank_transfer_account', type: 'jsonb', nullable: true })
+  bankTransferAccount: BankTransferAccountSnapshot | null;
+
+  @Column({ name: 'bank_transfer_receipt_url', type: 'text', nullable: true })
+  bankTransferReceiptUrl: string | null;
+
+  @Column({
+    name: 'bank_transfer_receipt_original_name',
+    type: 'text',
+    nullable: true,
+  })
+  bankTransferReceiptOriginalName: string | null;
+
+  @Column({ name: 'bank_transfer_receipt_note', type: 'text', nullable: true })
+  bankTransferReceiptNote: string | null;
+
+  @Column({
+    name: 'bank_transfer_receipt_uploaded_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  bankTransferReceiptUploadedAt: Date | null;
 
   @Column({ name: 'stock_deducted', default: true })
   stockDeducted: boolean;

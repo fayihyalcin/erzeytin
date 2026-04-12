@@ -1246,6 +1246,27 @@ export function StorefrontPage() {
           </div>
         </section>
 
+        <section className="sf-free-shipping-band" aria-label="Ücretsiz kargo avantajı">
+          <div className="sf-container">
+            <article className="sf-free-shipping-band-card">
+              <div className="sf-free-shipping-band-copy">
+                <span className="sf-free-shipping-kicker">Teslimat Avantajı</span>
+                <h2>Ücretsiz Kargo</h2>
+                <p>
+                  Türkiye geneline gönderilen siparişlerde ekstra kargo ücreti çıkmaz.
+                  Koruyucu paketleme ile hızlı sevkiyat birlikte sunulur.
+                </p>
+              </div>
+
+              <div className="sf-free-shipping-points" aria-label="Ücretsiz kargo detayları">
+                <span>Ekstra ücret yok</span>
+                <span>Güvenli paketleme</span>
+                <span>Hızlı sevkiyat</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
         <section className="sf-hot-picks" id="products">
           <div className="sf-container">
             <div className="sf-section-head">
@@ -1442,6 +1463,26 @@ export function StorefrontPage() {
                 <PromoCta card={promoTertiary} className="sf-promo-tone-aqua" />
               ) : null}
             </div>
+          </div>
+        </section>
+
+        <section className="sf-free-shipping-showcase" aria-label="Ücretsiz kargo bannerı">
+          <div className="sf-container">
+            <article className="sf-free-shipping-showcase-card">
+              <div className="sf-free-shipping-showcase-copy">
+                <span className="sf-free-shipping-kicker">Kargo Ayrıcalığı</span>
+                <h3>Siparişlerinize ücretsiz kargo avantajı ekledik</h3>
+                <p>
+                  Ürün fiyatı neyse ödeme de o olur. Sepette ekstra kargo ücreti
+                  çıkmadan siparişinizi güvenle tamamlayabilirsiniz.
+                </p>
+              </div>
+
+              <div className="sf-free-shipping-showcase-actions">
+                <span className="sf-free-shipping-chip">Tüm siparişlerde geçerli</span>
+                <a href="#product-list">Ürünleri İncele</a>
+              </div>
+            </article>
           </div>
         </section>
 

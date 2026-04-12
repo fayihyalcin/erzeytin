@@ -881,7 +881,20 @@ export function ProductFormPage() {
             <div className="admin-form-grid">
               <label className="admin-label">
                 <span>Satis fiyati</span>
-                <input className="admin-input" min="0" onChange={(event) => setForm({ ...form, price: event.target.value })} step="0.01" type="number" value={form.price} />
+                <input
+                  className="admin-input"
+                  min="0"
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      price: event.target.value,
+                      autoPriceFromPolicy: false,
+                    })
+                  }
+                  step="0.01"
+                  type="number"
+                  value={form.price}
+                />
               </label>
               <label className="admin-label">
                 <span>Liste fiyati</span>

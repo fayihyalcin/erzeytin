@@ -1,19 +1,32 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { Request } from 'express';
+import { relative, sep } from 'node:path';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Product } from '../catalog/product.entity';
+import {
+  buildPublicUploadUrl,
+  PUBLIC_UPLOAD_PATH,
+  resolveUploadRoot,
+} from '../media/media.utils';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
+import { SettingsService } from '../settings/settings.service';
 import { AdminUser } from '../users/admin-user.entity';
 import { CreateShopOrderDto } from './dto/create-shop-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderActivity } from './order-activity.entity';
-import { Order, OrderItem } from './order.entity';
+import {
+  BankTransferAccountSnapshot,
+  Order,
+  OrderItem,
+} from './order.entity';
 import { PaymentTransaction } from './payment-transaction.entity';
 
 type ActorContext = {
@@ -30,6 +43,18 @@ type ActivityInput = {
 
 type StockAction = 'DEDUCT' | 'RESTORE';
 
+type UploadedReceiptFile = {
+  filename: string;
+  mimetype: string;
+  originalname: string;
+  path: string;
+  size: number;
+};
+
+type BankAccountSetting = BankTransferAccountSnapshot & {
+  isActive?: boolean;
+};
+
 const STOCK_BLOCKING_STATUSES: Order['status'][] = ['CANCELLED', 'REFUNDED'];
 
 @Injectable()
@@ -44,6 +69,7 @@ export class OrdersService {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly realtimeEventsService: RealtimeEventsService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async findAll(query: OrderQueryDto, actor: ActorContext) {
@@ -152,32 +178,26 @@ export class OrdersService {
   }
 
   async createFromWebsite(dto: CreateShopOrderDto) {
-    const items = dto.items.map<OrderItem>((item) => {
-      const lineTotal = Number((item.quantity * item.unitPrice).toFixed(2));
-      return {
-        productId: item.productId,
-        productName: item.productName,
-        sku: item.sku,
-        quantity: item.quantity,
-        unitPrice: Number(item.unitPrice.toFixed(2)),
-        lineTotal,
-        imageUrl: item.imageUrl,
-        variantTitle: item.variantTitle,
-      };
-    });
-
-    const subtotal = items.reduce((accumulator, item) => accumulator + item.lineTotal, 0);
-    const shippingFee = 0;
-    const discountAmount = 0;
-    const taxAmount = 0;
-    const grandTotal = Number(subtotal.toFixed(2));
     const orderNumber = await this.generateOrderNumber();
     const paymentStatus = dto.paymentStatus ?? 'PENDING';
+    const bankTransferAccount = await this.resolveBankTransferAccountSnapshot(
+      dto.paymentMethod,
+      dto.bankTransferAccountId,
+    );
 
     const saved = await this.dataSource.transaction(async (manager) => {
       const productRepository = manager.getRepository(Product);
       const orderRepository = manager.getRepository(Order);
       const activityRepository = manager.getRepository(OrderActivity);
+      const items = await this.buildWebsiteOrderItems(dto.items, productRepository);
+      const subtotal = items.reduce(
+        (accumulator, item) => accumulator + item.lineTotal,
+        0,
+      );
+      const shippingFee = 0;
+      const discountAmount = 0;
+      const taxAmount = 0;
+      const grandTotal = Number(subtotal.toFixed(2));
 
       await this.applyStockForOrderItems(items, productRepository, 'DEDUCT');
 
@@ -212,6 +232,11 @@ export class OrdersService {
         shippingCompany: null,
         trackingNumber: null,
         trackingUrl: null,
+        bankTransferAccount,
+        bankTransferReceiptUrl: null,
+        bankTransferReceiptOriginalName: null,
+        bankTransferReceiptNote: null,
+        bankTransferReceiptUploadedAt: null,
         paidAt: paymentStatus === 'PAID' ? new Date() : null,
         confirmedAt: null,
         shippedAt: null,
@@ -264,6 +289,99 @@ export class OrdersService {
       where: { id: saved.id },
       relations: ['assignedRepresentative', 'paymentTransactions'],
     });
+  }
+
+  async uploadBankTransferReceipt(
+    orderNumber: string,
+    input: { email: string; note?: string },
+    file: UploadedReceiptFile,
+    request: Request,
+  ) {
+    const order = await this.ordersRepository.findOne({
+      where: { orderNumber },
+      relations: ['assignedRepresentative', 'paymentTransactions'],
+    });
+
+    if (!order) {
+      throw new NotFoundException('Siparis bulunamadi.');
+    }
+
+    if (
+      !['EFT_HAVALE', 'BANK_TRANSFER'].includes(order.paymentMethod) ||
+      !order.bankTransferAccount
+    ) {
+      throw new BadRequestException(
+        'Bu siparis icin EFT/Havale dekontu kabul edilmiyor.',
+      );
+    }
+
+    if (
+      order.status === 'CANCELLED' ||
+      order.status === 'REFUNDED' ||
+      order.paymentStatus === 'REFUNDED'
+    ) {
+      throw new BadRequestException(
+        'Iptal veya iade edilmis siparise dekont yuklenemez.',
+      );
+    }
+
+    if (
+      order.customerEmail.trim().toLowerCase() !== input.email.trim().toLowerCase()
+    ) {
+      throw new ForbiddenException(
+        'Siparis e-postasi dogrulanamadi.',
+      );
+    }
+
+    const uploadRoot = resolveUploadRoot(process.env.UPLOAD_DIR);
+    const relativePath = relative(uploadRoot, file.path).split(sep).join('/');
+    const publicPath = `${PUBLIC_UPLOAD_PATH}/${relativePath}`;
+    const receiptUrl = buildPublicUploadUrl(request, publicPath);
+    const uploadedAt = new Date();
+    const hasPreviousReceipt = Boolean(order.bankTransferReceiptUrl);
+
+    order.bankTransferReceiptUrl = receiptUrl;
+    order.bankTransferReceiptOriginalName = file.originalname;
+    order.bankTransferReceiptNote = this.toNullable(input.note);
+    order.bankTransferReceiptUploadedAt = uploadedAt;
+
+    await this.dataSource.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const activityRepository = manager.getRepository(OrderActivity);
+      const persisted = await orderRepository.save(order);
+
+      await this.addActivities(
+        persisted.id,
+        null,
+        [
+          {
+            eventType: hasPreviousReceipt
+              ? 'BANK_TRANSFER_RECEIPT_REPLACED'
+              : 'BANK_TRANSFER_RECEIPT_UPLOADED',
+            message: hasPreviousReceipt
+              ? 'EFT/Havale dekontu guncellendi.'
+              : 'EFT/Havale dekontu yuklendi.',
+            meta: {
+              receiptUrl,
+              originalName: file.originalname,
+              uploadedAt: uploadedAt.toISOString(),
+            },
+          },
+        ],
+        activityRepository,
+      );
+    });
+
+    await this.realtimeEventsService.emit('orders.updated', {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      fulfillmentStatus: order.fulfillmentStatus,
+      assignedRepresentativeId: order.assignedRepresentativeId,
+    });
+
+    return this.findByOrderNumber(order.orderNumber);
   }
 
   async updateOrder(id: string, dto: UpdateOrderDto, actor: ActorContext) {
@@ -867,6 +985,61 @@ export class OrdersService {
     }
   }
 
+  private async buildWebsiteOrderItems(
+    sourceItems: CreateShopOrderDto['items'],
+    productRepository: Repository<Product>,
+  ) {
+    const items: OrderItem[] = [];
+
+    for (const item of sourceItems) {
+      const lookupItem: OrderItem = {
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice.toFixed(2)),
+        lineTotal: Number((item.quantity * item.unitPrice).toFixed(2)),
+        imageUrl: item.imageUrl,
+        variantTitle: item.variantTitle,
+      };
+      const linkedProduct = await this.resolveProductForOrderItem(
+        lookupItem,
+        productRepository,
+      );
+
+      if (!linkedProduct) {
+        throw new NotFoundException(
+          `Siparis urunu eslestirilemedi: ${item.productName}`,
+        );
+      }
+
+      const linkedVariant = this.resolveVariantForOrderItem(
+        linkedProduct,
+        lookupItem.sku,
+      );
+      const unitPrice = Number(
+        (
+          linkedVariant
+            ? Number(linkedVariant.price ?? 0)
+            : Number(linkedProduct.price ?? 0)
+        ).toFixed(2),
+      );
+
+      items.push({
+        productId: linkedProduct.id,
+        productName: linkedProduct.name,
+        sku: lookupItem.sku ?? linkedProduct.sku,
+        quantity: lookupItem.quantity,
+        unitPrice,
+        lineTotal: Number((lookupItem.quantity * unitPrice).toFixed(2)),
+        imageUrl: item.imageUrl,
+        variantTitle: item.variantTitle ?? linkedVariant?.title,
+      });
+    }
+
+    return items;
+  }
+
   private async resolveProductForOrderItem(
     item: OrderItem,
     productRepository: Repository<Product>,
@@ -905,6 +1078,105 @@ export class OrdersService {
     }
 
     return null;
+  }
+
+  private resolveVariantForOrderItem(product: Product, sku?: string) {
+    if (!sku || !product.hasVariants || product.variants.length === 0) {
+      return null;
+    }
+
+    return product.variants.find((variant) => variant.sku === sku) ?? null;
+  }
+
+  private async resolveBankTransferAccountSnapshot(
+    paymentMethod?: string,
+    requestedAccountId?: string,
+  ) {
+    if (!paymentMethod || !['EFT_HAVALE', 'BANK_TRANSFER'].includes(paymentMethod)) {
+      return null;
+    }
+
+    const settings = await this.settingsService.findAll();
+    const bankAccounts = this.parseBankAccounts(settings.bankAccounts);
+    const activeAccounts = bankAccounts.filter((account) => account.isActive !== false);
+    const selectedAccountId = requestedAccountId?.trim();
+
+    if (activeAccounts.length === 0) {
+      throw new BadRequestException(
+        'EFT/Havale odemesi icin aktif banka hesabi bulunamadi.',
+      );
+    }
+
+    if (!selectedAccountId) {
+      throw new BadRequestException(
+        'EFT/Havale odemesi icin banka hesabi secmelisiniz.',
+      );
+    }
+
+    const selected = activeAccounts.find((account) => account.id === selectedAccountId);
+    if (!selected) {
+      throw new BadRequestException('Secilen banka hesabi gecersiz veya pasif.');
+    }
+
+    return {
+      id: selected.id,
+      bankName: selected.bankName,
+      branchName: selected.branchName,
+      accountHolder: selected.accountHolder,
+      iban: selected.iban,
+      accountNumber: selected.accountNumber,
+      currency: selected.currency,
+      note: selected.note,
+    } satisfies BankTransferAccountSnapshot;
+  }
+
+  private parseBankAccounts(rawValue?: string): BankAccountSetting[] {
+    if (!rawValue?.trim()) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as unknown;
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      const accounts: BankAccountSetting[] = [];
+
+      parsed.forEach((item, index) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+
+        const account = item as Partial<BankAccountSetting>;
+        const id = String(account.id ?? `bank-account-${index + 1}`).trim();
+        const bankName = String(account.bankName ?? '').trim();
+        const accountHolder = String(account.accountHolder ?? '').trim();
+        const iban = String(account.iban ?? '')
+          .replace(/\s+/g, '')
+          .toUpperCase();
+
+        if (!id || !bankName || !accountHolder || !iban) {
+          return;
+        }
+
+        accounts.push({
+          id,
+          bankName,
+          branchName: String(account.branchName ?? '').trim() || undefined,
+          accountHolder,
+          iban,
+          accountNumber: String(account.accountNumber ?? '').trim() || undefined,
+          currency: String(account.currency ?? 'TRY').trim().toUpperCase() || 'TRY',
+          note: String(account.note ?? '').trim() || undefined,
+          isActive: account.isActive !== false,
+        });
+      });
+
+      return accounts;
+    } catch {
+      return [];
+    }
   }
 
   private async addActivities(

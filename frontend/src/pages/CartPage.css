@@ -744,19 +744,25 @@
 .sf-cart-payment-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 }
 
 .sf-cart-payment-card {
   position: relative;
-  border: 1px solid #d7e1ee;
-  border-radius: 14px;
-  padding: 12px;
+  border: 1px solid #cfdae8;
+  border-radius: 16px;
+  padding: 14px;
   display: grid;
-  gap: 8px;
-  background: #ffffff;
+  gap: 12px;
+  min-height: 132px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+  box-shadow: 0 10px 24px rgba(28, 45, 71, 0.06);
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    background 0.2s ease;
 }
 
 .sf-cart-payment-card input {
@@ -765,27 +771,110 @@
   pointer-events: none;
 }
 
+.sf-cart-payment-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sf-cart-payment-card-dot {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #98aac1;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 4px transparent;
+  flex-shrink: 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.sf-cart-payment-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eaf0f7;
+  color: #51627d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sf-cart-payment-card-copy {
+  display: grid;
+  gap: 8px;
+}
+
 .sf-cart-payment-card strong {
+  display: block;
   color: #1c2d47;
-  font-size: 14px;
+  font-size: 20px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
 .sf-cart-payment-card small {
+  display: block;
   color: #61708a;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
+.sf-cart-payment-card:hover:not(.disabled),
+.sf-cart-payment-card:focus-within:not(.disabled) {
+  border-color: #9db2c9;
+  box-shadow: 0 16px 28px rgba(28, 45, 71, 0.1);
+  transform: translateY(-2px);
+}
+
 .sf-cart-payment-card.active {
-  border-color: rgba(var(--public-olive-rgb), 0.56);
-  box-shadow: 0 0 0 3px rgba(var(--public-olive-rgb), 0.1);
-  transform: translateY(-1px);
+  border-color: rgba(var(--public-olive-rgb), 0.82);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(var(--public-olive-rgb), 0.12) 100%
+  );
+  box-shadow:
+    0 18px 32px rgba(var(--public-olive-rgb), 0.18),
+    0 0 0 4px rgba(var(--public-olive-rgb), 0.13);
+  transform: translateY(-3px);
+}
+
+.sf-cart-payment-card.active .sf-cart-payment-card-dot {
+  border-color: var(--public-olive-strong);
+  background: rgba(var(--public-olive-rgb), 0.08);
+  box-shadow: inset 0 0 0 5px var(--public-olive-strong);
+}
+
+.sf-cart-payment-card.active .sf-cart-payment-card-badge {
+  background: var(--public-olive-strong);
+  color: #ffffff;
+}
+
+.sf-cart-payment-card.active strong {
+  color: #18351d;
 }
 
 .sf-cart-payment-card.disabled {
   cursor: not-allowed;
-  background: #f7f9fc;
-  opacity: 0.62;
+  background: linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+.sf-cart-payment-card.disabled .sf-cart-payment-card-dot {
+  border-color: #bcc9d8;
+  background: #f9fbfd;
+}
+
+.sf-cart-payment-card.disabled .sf-cart-payment-card-badge {
+  background: #dce5ef;
+  color: #6a7b94;
 }
 
 .sf-cart-checkout-preview {
@@ -1296,6 +1385,19 @@
 
   .sf-cart-item-info {
     gap: 8px;
+  }
+
+  .sf-cart-payment-card {
+    min-height: auto;
+    padding: 13px;
+  }
+
+  .sf-cart-payment-card strong {
+    font-size: 18px;
+  }
+
+  .sf-cart-payment-card small {
+    font-size: 13px;
   }
 
   .sf-cart-item-title {

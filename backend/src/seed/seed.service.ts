@@ -401,6 +401,9 @@ export class SeedService implements OnModuleInit {
       taxRate: '20',
       siteUrl: 'http://localhost:5173',
       apiBaseUrl: 'http://localhost:3000/api',
+      bankAccounts: '[]',
+      eftPaymentInstructions:
+        'EFT/Havale secildiginde, odeme sonrasinda dekontunuzu musteri panelinden yukleyebilirsiniz.',
       paytrEnabled: 'false',
       paytrMerchantId: '',
       paytrMerchantKey: '',

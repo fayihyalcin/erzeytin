@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { api } from '../lib/api';
 import { resolveProductGallery, resolveProductImage } from '../lib/product-images';
 import type { Product } from '../types/api';
 import { useToast } from './ToastContext';
@@ -88,6 +89,13 @@ function parsePrice(value: string) {
   return 0;
 }
 
+function buildCartSyncKey(items: StoreCartItem[]) {
+  return items
+    .map((item) => `${item.productId}:${item.quantity}`)
+    .sort()
+    .join('|');
+}
+
 function loadInitialCart() {
   if (typeof window === 'undefined') {
     return [] as StoreCartItem[];
@@ -157,6 +165,7 @@ export function StoreCartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<StoreCartItem[]>(loadInitialCart);
   const itemsRef = useRef(items);
   const { showToast } = useToast();
+  const cartSyncKey = useMemo(() => buildCartSyncKey(items), [items]);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -167,6 +176,66 @@ export function StoreCartProvider({ children }: { children: ReactNode }) {
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncLatestProductSnapshots = async () => {
+      const currentItems = itemsRef.current;
+      if (currentItems.length === 0) {
+        return;
+      }
+
+      const responses = await Promise.all(
+        currentItems.map(async (item) => {
+          try {
+            const response = await api.get<Product>(
+              `/catalog/public/products/${encodeURIComponent(item.productId)}`,
+            );
+
+            return [item.productId, response.data] as const;
+          } catch {
+            return [item.productId, null] as const;
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      const latestProducts = new Map(
+        responses.filter((entry): entry is readonly [string, Product] => entry[1] !== null),
+      );
+      const nextItems = currentItems.map((item) => {
+        const latestProduct = latestProducts.get(item.productId);
+        if (!latestProduct) {
+          return item;
+        }
+        const latestStock = Math.max(Number(latestProduct.stock ?? 0), 0);
+
+        return {
+          ...item,
+          quantity: latestStock > 0 ? Math.min(item.quantity, latestStock) : item.quantity,
+          product: toProductSnapshot(latestProduct),
+        } satisfies StoreCartItem;
+      });
+
+      if (JSON.stringify(nextItems) !== JSON.stringify(currentItems)) {
+        setItems(nextItems);
+      }
+    };
+
+    void syncLatestProductSnapshots();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cartSyncKey, items.length]);
 
   const addProduct = useCallback((product: Product, quantity = 1) => {
     const maxStock = Math.max(Number(product.stock ?? 0), 0);

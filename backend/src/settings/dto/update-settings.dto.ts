@@ -56,6 +56,14 @@ export class UpdateSettingsDto {
 
   @IsOptional()
   @IsString()
+  bankAccounts?: string;
+
+  @IsOptional()
+  @IsString()
+  eftPaymentInstructions?: string;
+
+  @IsOptional()
+  @IsString()
   paytrEnabled?: string;
 
   @IsOptional()

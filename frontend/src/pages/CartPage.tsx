@@ -5,6 +5,7 @@ import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
+import { getActiveBankAccounts, parseBankAccounts } from '../lib/bank-transfer';
 import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { resolvePublicProductPath } from '../lib/public-site';
@@ -12,6 +13,7 @@ import { useSeo } from '../lib/seo';
 import { useStoreHeaderNavItems } from '../lib/storefront-navigation';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
+  BankAccount,
   Order,
   PaytrCheckoutSession,
   PublicSettingsDto,
@@ -118,6 +120,8 @@ export function CartPage() {
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [currency, setCurrency] = useState('TRY');
   const [paytrEnabled, setPaytrEnabled] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -159,6 +163,13 @@ export function CartPage() {
 
         setConfig(parseWebsiteConfig(response.data.websiteConfig));
         setPaytrEnabled(parseBooleanSetting(response.data.paytrEnabled));
+        const parsedBankAccounts = getActiveBankAccounts(
+          parseBankAccounts(response.data.bankAccounts),
+        );
+        setBankAccounts(parsedBankAccounts);
+        setSelectedBankAccountId((current) =>
+          current || parsedBankAccounts[0]?.id || '',
+        );
 
         if (response.data.currency) {
           setCurrency(response.data.currency.toUpperCase());
@@ -227,6 +238,19 @@ export function CartPage() {
       paymentMethod: 'CASH_ON_DELIVERY',
     }));
   }, [checkoutForm.paymentMethod, paytrEnabled]);
+
+  useEffect(() => {
+    if (bankAccounts.length === 0) {
+      setSelectedBankAccountId('');
+      return;
+    }
+
+    if (bankAccounts.some((account) => account.id === selectedBankAccountId)) {
+      return;
+    }
+
+    setSelectedBankAccountId(bankAccounts[0].id);
+  }, [bankAccounts, selectedBankAccountId]);
 
   const formatter = useMemo(() => {
     try {
@@ -306,6 +330,10 @@ export function CartPage() {
     paymentStatus: 'PENDING' as const,
     paymentProvider: checkoutForm.paymentMethod === 'CARD' ? 'PAYTR' : 'MANUAL',
     shippingMethod: 'Standart Kargo',
+    bankTransferAccountId:
+      checkoutForm.paymentMethod === 'EFT_HAVALE'
+        ? selectedBankAccountId || undefined
+        : undefined,
     customerNote: checkoutForm.note.trim(),
   };
 
@@ -328,6 +356,11 @@ export function CartPage() {
     const isMissingRequired = requiredFields.some((field) => checkoutForm[field].trim().length === 0);
     if (isMissingRequired || !checkoutForm.email.includes('@')) {
       setCheckoutError('Lütfen zorunlu teslimat ve iletişim alanlarını doldurun.');
+      return;
+    }
+
+    if (checkoutForm.paymentMethod === 'EFT_HAVALE' && !selectedBankAccountId) {
+      setCheckoutError('EFT / Havale icin once bir banka hesabi secin.');
       return;
     }
 
@@ -952,7 +985,17 @@ export function CartPage() {
                                 }))
                               }
                             />
-                            <div>
+                            <div className="sf-cart-payment-card-head">
+                              <span className="sf-cart-payment-card-dot" aria-hidden="true" />
+                              <span className="sf-cart-payment-card-badge">
+                                {isSelected
+                                  ? 'Secili'
+                                  : isDisabled
+                                    ? 'Kapali'
+                                    : 'Hazir'}
+                              </span>
+                            </div>
+                            <div className="sf-cart-payment-card-copy">
                               <strong>{option.label}</strong>
                               <small>
                                 {option.value === 'CARD' && !paytrEnabled

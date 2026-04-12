@@ -29,6 +29,8 @@ export interface SettingsDto {
   taxRate: string;
   siteUrl: string;
   apiBaseUrl: string;
+  bankAccounts: string;
+  eftPaymentInstructions: string;
   paytrEnabled: string;
   paytrMerchantId: string;
   paytrMerchantKey: string;
@@ -200,7 +202,21 @@ export interface WebsiteConfig {
 export interface PublicSettingsDto extends Partial<SettingsDto> {
   websiteConfig?: string;
   blogPosts?: string;
+  bankAccounts?: string;
+  eftPaymentInstructions?: string;
   paytrEnabled?: string;
+}
+
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  branchName?: string;
+  accountHolder: string;
+  iban: string;
+  accountNumber?: string;
+  currency: string;
+  note?: string;
+  isActive: boolean;
 }
 
 export type MediaItemType = 'image' | 'video' | 'document';
@@ -443,6 +459,11 @@ export interface Order {
   shippingCompany: string | null;
   trackingNumber: string | null;
   trackingUrl: string | null;
+  bankTransferAccount: BankAccount | null;
+  bankTransferReceiptUrl: string | null;
+  bankTransferReceiptOriginalName: string | null;
+  bankTransferReceiptNote: string | null;
+  bankTransferReceiptUploadedAt: string | null;
   stockDeducted: boolean;
   placedAt: string;
   paidAt: string | null;

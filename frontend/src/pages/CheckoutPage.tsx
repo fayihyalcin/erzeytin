@@ -6,12 +6,14 @@ import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
+import { formatIban, getActiveBankAccounts, parseBankAccounts } from '../lib/bank-transfer';
 import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { resolvePublicProductPath } from '../lib/public-site';
 import { useSeo } from '../lib/seo';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
+  BankAccount,
   Order,
   PaytrCheckoutSession,
   PublicSettingsDto,
@@ -113,6 +115,9 @@ export function CheckoutPage() {
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [currency, setCurrency] = useState('TRY');
   const [paytrEnabled, setPaytrEnabled] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [eftPaymentInstructions, setEftPaymentInstructions] = useState('');
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
@@ -150,6 +155,14 @@ export function CheckoutPage() {
 
         setConfig(parseWebsiteConfig(response.data.websiteConfig));
         setPaytrEnabled(parseBooleanSetting(response.data.paytrEnabled));
+        const parsedBankAccounts = getActiveBankAccounts(
+          parseBankAccounts(response.data.bankAccounts),
+        );
+        setBankAccounts(parsedBankAccounts);
+        setEftPaymentInstructions(response.data.eftPaymentInstructions ?? '');
+        setSelectedBankAccountId((current) =>
+          current || parsedBankAccounts[0]?.id || '',
+        );
         if (response.data.currency) {
           setCurrency(response.data.currency.toUpperCase());
         }
@@ -196,6 +209,19 @@ export function CheckoutPage() {
       paymentMethod: 'CASH_ON_DELIVERY',
     }));
   }, [checkoutForm.paymentMethod, paytrEnabled]);
+
+  useEffect(() => {
+    if (bankAccounts.length === 0) {
+      setSelectedBankAccountId('');
+      return;
+    }
+
+    if (bankAccounts.some((account) => account.id === selectedBankAccountId)) {
+      return;
+    }
+
+    setSelectedBankAccountId(bankAccounts[0].id);
+  }, [bankAccounts, selectedBankAccountId]);
 
   const formatter = useMemo(() => {
     try {
@@ -272,6 +298,10 @@ export function CheckoutPage() {
     paymentStatus: 'PENDING' as const,
     paymentProvider: checkoutForm.paymentMethod === 'CARD' ? 'PAYTR' : 'MANUAL',
     shippingMethod: 'Standart Kargo',
+    bankTransferAccountId:
+      checkoutForm.paymentMethod === 'EFT_HAVALE'
+        ? selectedBankAccountId || undefined
+        : undefined,
     customerNote: checkoutForm.note.trim(),
   };
 
@@ -296,6 +326,11 @@ export function CheckoutPage() {
     );
     if (isMissingRequired || !checkoutForm.email.includes('@')) {
       setCheckoutError('Lütfen zorunlu teslimat ve iletişim alanlarını doldurun.');
+      return;
+    }
+
+    if (checkoutForm.paymentMethod === 'EFT_HAVALE' && !selectedBankAccountId) {
+      setCheckoutError('EFT / Havale icin once bir banka hesabi secin.');
       return;
     }
 
@@ -523,6 +558,66 @@ export function CheckoutPage() {
                         </label>
                       </div>
 
+                      {checkoutForm.paymentMethod === 'EFT_HAVALE' ? (
+                        <div className="sf-cart-bank-transfer-panel">
+                          <div className="sf-cart-bank-transfer-head">
+                            <strong>Banka hesap bilgileri</strong>
+                            <small>
+                              EFT / Havale odemesinde once hesap secin, sonra dekontu
+                              musteri panelinden yukleyin.
+                            </small>
+                          </div>
+
+                          {bankAccounts.length > 0 ? (
+                            <div className="sf-cart-bank-transfer-list">
+                              {bankAccounts.map((account) => {
+                                const isSelected = selectedBankAccountId === account.id;
+
+                                return (
+                                  <label
+                                    key={account.id}
+                                    className={
+                                      isSelected
+                                        ? 'sf-cart-bank-card active'
+                                        : 'sf-cart-bank-card'
+                                    }
+                                  >
+                                    <input
+                                      checked={isSelected}
+                                      name="bankTransferAccount"
+                                      onChange={() => setSelectedBankAccountId(account.id)}
+                                      type="radio"
+                                      value={account.id}
+                                    />
+                                    <strong>{account.bankName}</strong>
+                                    <span>{account.accountHolder}</span>
+                                    <b>{formatIban(account.iban)}</b>
+                                    <small>
+                                      {account.branchName ? `${account.branchName} / ` : ''}
+                                      {account.currency}
+                                      {account.accountNumber
+                                        ? ` / Hesap No: ${account.accountNumber}`
+                                        : ''}
+                                    </small>
+                                    {account.note ? <small>{account.note}</small> : null}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="sf-cart-bank-transfer-empty">
+                              Su anda aktif banka hesabi tanimli degil.
+                            </p>
+                          )}
+
+                          {eftPaymentInstructions ? (
+                            <p className="sf-cart-bank-transfer-instructions">
+                              {eftPaymentInstructions}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+
                       <label>
                         E-posta
                         <input
@@ -666,7 +761,17 @@ export function CheckoutPage() {
                                   }))
                                 }
                               />
-                              <div>
+                              <div className="sf-cart-payment-card-head">
+                                <span className="sf-cart-payment-card-dot" aria-hidden="true" />
+                                <span className="sf-cart-payment-card-badge">
+                                  {isSelected
+                                    ? 'Secili'
+                                    : isDisabled
+                                      ? 'Kapali'
+                                      : 'Hazir'}
+                                </span>
+                              </div>
+                              <div className="sf-cart-payment-card-copy">
                                 <strong>{option.label}</strong>
                                 <small>
                                   {option.value === 'CARD' && !paytrEnabled

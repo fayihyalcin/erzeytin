@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, extractApiError } from '../lib/api';
-import type { SettingsDto } from '../types/api';
+import { parseBankAccounts, stringifyBankAccounts } from '../lib/bank-transfer';
+import type { BankAccount, SettingsDto } from '../types/api';
 import type { AdminWizardStep } from '../components/admin/AdminFormWizard';
 
 const defaultSettings: SettingsDto = {
@@ -11,6 +12,9 @@ const defaultSettings: SettingsDto = {
   taxRate: '20',
   siteUrl: 'http://localhost:5173',
   apiBaseUrl: 'http://localhost:3000/api',
+  bankAccounts: '[]',
+  eftPaymentInstructions:
+    'EFT/Havale odemesi sonrasinda dekontunuzu musteri panelinden yukleyin.',
   paytrEnabled: 'false',
   paytrMerchantId: '',
   paytrMerchantKey: '',
@@ -33,6 +37,11 @@ const settingsSteps = [
     id: 'routing',
     title: 'Alan Adı ve URL',
     description: 'Callback, storefront ve API adresleri.',
+  },
+  {
+    id: 'bank-transfer',
+    title: 'Banka Hesaplari',
+    description: 'EFT / havale icin gorunecek hesaplar ve talimatlar.',
   },
   {
     id: 'paytr-mode',
@@ -65,6 +74,9 @@ function normalizeSettings(settings: Partial<SettingsDto> = {}): SettingsDto {
     taxRate: settings.taxRate ?? defaultSettings.taxRate,
     siteUrl: settings.siteUrl ?? defaultSettings.siteUrl,
     apiBaseUrl: settings.apiBaseUrl ?? defaultSettings.apiBaseUrl,
+    bankAccounts: settings.bankAccounts ?? defaultSettings.bankAccounts,
+    eftPaymentInstructions:
+      settings.eftPaymentInstructions ?? defaultSettings.eftPaymentInstructions,
     paytrEnabled: settings.paytrEnabled ?? defaultSettings.paytrEnabled,
     paytrMerchantId: settings.paytrMerchantId ?? defaultSettings.paytrMerchantId,
     paytrMerchantKey: settings.paytrMerchantKey ?? defaultSettings.paytrMerchantKey,
@@ -87,6 +99,20 @@ function hasPaytrSettings(settings: Partial<SettingsDto>) {
     'paytrMerchantId' in settings ||
     'paytrTestMode' in settings
   );
+}
+
+function createEmptyBankAccount(index: number): BankAccount {
+  return {
+    id: `bank-account-${Date.now()}-${index + 1}`,
+    bankName: '',
+    branchName: '',
+    accountHolder: '',
+    iban: '',
+    accountNumber: '',
+    currency: 'TRY',
+    note: '',
+    isActive: true,
+  };
 }
 
 export function SettingsPage() {
@@ -128,10 +154,36 @@ export function SettingsPage() {
     const apiBase = form.apiBaseUrl.trim().replace(/\/+$/, '');
     return apiBase ? `${apiBase}/shop/payments/paytr/callback` : '-';
   }, [form.apiBaseUrl]);
+  const bankAccounts = useMemo(() => parseBankAccounts(form.bankAccounts), [form.bankAccounts]);
 
   const currentStepIndex = settingsSteps.findIndex((step) => step.id === currentStep);
   const activeStep = settingsSteps[currentStepIndex] ?? settingsSteps[0];
   const progress = Math.round(((currentStepIndex + 1) / settingsSteps.length) * 100);
+
+  const updateBankAccounts = (nextAccounts: BankAccount[]) => {
+    setForm((current) => ({
+      ...current,
+      bankAccounts: stringifyBankAccounts(nextAccounts),
+    }));
+  };
+
+  const updateBankAccount = (
+    index: number,
+    key: keyof BankAccount,
+    value: string | boolean,
+  ) => {
+    const nextAccounts = [...bankAccounts];
+    const currentAccount = nextAccounts[index];
+    if (!currentAccount) {
+      return;
+    }
+
+    nextAccounts[index] = {
+      ...currentAccount,
+      [key]: value,
+    } as BankAccount;
+    updateBankAccounts(nextAccounts);
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -390,6 +442,171 @@ export function SettingsPage() {
                   <p>{callbackUrl}</p>
                   <small>Bu adresi PAYTR panelinde Bildirim URL alanına ekleyin.</small>
                 </div>
+              </section>
+            </>
+          ) : null}
+
+          {currentStep === 'bank-transfer' ? (
+            <>
+              <section className="admin-stage-intro">
+                <span className="admin-eyebrow">Adim 3</span>
+                <h3>Banka hesaplarini yonetin</h3>
+                <p>EFT / havale seceneginde musterinin gorecegi hesaplar ve aciklama metni.</p>
+              </section>
+
+              <section className="admin-panel">
+                <div className="admin-panel-header">
+                  <div>
+                    <h3>Banka hesaplari ve IBAN bilgileri</h3>
+                    <p>Aktif hesaplar checkout ekraninda EFT secildiginde gorunur.</p>
+                  </div>
+                  <button
+                    className="admin-secondary-button"
+                    onClick={() =>
+                      updateBankAccounts([
+                        ...bankAccounts,
+                        createEmptyBankAccount(bankAccounts.length),
+                      ])
+                    }
+                    type="button"
+                  >
+                    Hesap ekle
+                  </button>
+                </div>
+
+                <div className="variant-list">
+                  {bankAccounts.length === 0 ? (
+                    <article className="admin-inline-note">
+                      <strong>Henuz banka hesabi eklenmedi</strong>
+                      <p>EFT / Havale odemesinde gosterilecek banka hesaplarini buradan ekleyin.</p>
+                    </article>
+                  ) : null}
+
+                  {bankAccounts.map((account, index) => (
+                    <article key={account.id} className="admin-panel">
+                      <div className="admin-panel-header">
+                        <div>
+                          <h3>{account.bankName || `Banka Hesabi ${index + 1}`}</h3>
+                          <p>Secilen hesap siparise snapshot olarak kaydedilir.</p>
+                        </div>
+                        <button
+                          className="admin-danger-button"
+                          onClick={() =>
+                            updateBankAccounts(
+                              bankAccounts.filter((item) => item.id !== account.id),
+                            )
+                          }
+                          type="button"
+                        >
+                          Sil
+                        </button>
+                      </div>
+
+                      <div className="admin-form-grid">
+                        <label className="admin-label">
+                          <span>Banka adi</span>
+                          <input
+                            className="admin-input"
+                            onChange={(event) =>
+                              updateBankAccount(index, 'bankName', event.target.value)
+                            }
+                            value={account.bankName}
+                          />
+                        </label>
+                        <label className="admin-label">
+                          <span>Sube</span>
+                          <input
+                            className="admin-input"
+                            onChange={(event) =>
+                              updateBankAccount(index, 'branchName', event.target.value)
+                            }
+                            value={account.branchName ?? ''}
+                          />
+                        </label>
+                        <label className="admin-label">
+                          <span>Hesap sahibi</span>
+                          <input
+                            className="admin-input"
+                            onChange={(event) =>
+                              updateBankAccount(index, 'accountHolder', event.target.value)
+                            }
+                            value={account.accountHolder}
+                          />
+                        </label>
+                        <label className="admin-label">
+                          <span>IBAN</span>
+                          <input
+                            className="admin-input"
+                            onChange={(event) =>
+                              updateBankAccount(index, 'iban', event.target.value)
+                            }
+                            value={account.iban}
+                          />
+                        </label>
+                        <label className="admin-label">
+                          <span>Hesap numarasi</span>
+                          <input
+                            className="admin-input"
+                            onChange={(event) =>
+                              updateBankAccount(index, 'accountNumber', event.target.value)
+                            }
+                            value={account.accountNumber ?? ''}
+                          />
+                        </label>
+                        <label className="admin-label">
+                          <span>Para birimi</span>
+                          <select
+                            className="admin-select"
+                            onChange={(event) =>
+                              updateBankAccount(index, 'currency', event.target.value)
+                            }
+                            value={account.currency}
+                          >
+                            <option value="TRY">TRY</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                          </select>
+                        </label>
+                        <label className="admin-label admin-span-full">
+                          <span>Not</span>
+                          <input
+                            className="admin-input"
+                            onChange={(event) =>
+                              updateBankAccount(index, 'note', event.target.value)
+                            }
+                            value={account.note ?? ''}
+                          />
+                        </label>
+                      </div>
+
+                      <label className="admin-checkbox-card" style={{ marginTop: 12 }}>
+                        <input
+                          checked={account.isActive}
+                          onChange={(event) =>
+                            updateBankAccount(index, 'isActive', event.target.checked)
+                          }
+                          type="checkbox"
+                        />
+                        <div>
+                          <strong>Checkout ekraninda goster</strong>
+                          <span>Kapali hesaplar musteri tarafinda listelenmez.</span>
+                        </div>
+                      </label>
+                    </article>
+                  ))}
+                </div>
+
+                <label className="admin-label" style={{ marginTop: 14 }}>
+                  <span>EFT / Havale talimati</span>
+                  <textarea
+                    className="admin-input"
+                    onChange={(event) =>
+                      setForm({ ...form, eftPaymentInstructions: event.target.value })
+                    }
+                    rows={4}
+                    value={form.eftPaymentInstructions}
+                  />
+                </label>
               </section>
             </>
           ) : null}

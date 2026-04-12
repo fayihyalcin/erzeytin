@@ -585,6 +585,7 @@ export function PublicProductsPage() {
     sortedCategories.find((category) => category.slug === activeCategory) ?? null;
   const activeCategoryName =
     activeCategoryMeta?.name ?? '';
+  const showProductsHero = activeCategory === 'all';
   const canonicalParams = new URLSearchParams();
 
   if (activeCategory !== 'all') {
@@ -669,7 +670,9 @@ export function PublicProductsPage() {
             ...(activeCategoryName ? [{ label: activeCategoryName }] : []),
           ]}
         />
-        <ManagedPageHero eyebrow="Ürünler" page={config.pages.products} />
+        {showProductsHero ? (
+          <ManagedPageHero eyebrow="Ürünler" page={config.pages.products} />
+        ) : null}
 
         <section className="pc-products-layout">
           <aside className="pc-products-sidebar">
@@ -697,15 +700,6 @@ export function PublicProductsPage() {
               </div>
             </div>
 
-            <div className="pc-sidebar-card accent">
-              <strong>{config.pages.products.summaryTitle}</strong>
-              <p>{config.pages.products.summaryText}</p>
-              <ul>
-                {config.pages.products.highlights.map((item, index) => (
-                  <li key={`products-highlight-${index}`}>{item}</li>
-                ))}
-              </ul>
-            </div>
           </aside>
 
           <section className="pc-products-main" id={PUBLIC_PRODUCTS_SECTION_ID}>

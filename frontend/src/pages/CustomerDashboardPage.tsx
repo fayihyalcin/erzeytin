@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { StorefrontBrandLink } from '../components/public/StorefrontBrandLink';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
-import { api } from '../lib/api';
+import { api, extractApiError } from '../lib/api';
+import { formatIban } from '../lib/bank-transfer';
 import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
 import { useSeo } from '../lib/seo';
 import { useStoreHeaderNavItems } from '../lib/storefront-navigation';
@@ -71,6 +72,10 @@ function paymentMethodLabel(method: Order['paymentMethod']) {
   return 'Diger';
 }
 
+function isBankTransferPaymentMethod(method: Order['paymentMethod']) {
+  return method === 'EFT_HAVALE' || method === 'BANK_TRANSFER';
+}
+
 function downloadReceipt(order: Order) {
   const lines = [
     `Siparis No: ${order.orderNumber}`,
@@ -117,6 +122,12 @@ export function CustomerDashboardPage() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
   const [trackingOrderNo, setTrackingOrderNo] = useState('');
+  const [trackingMessage, setTrackingMessage] = useState('');
+  const [trackingError, setTrackingError] = useState('');
+  const [receiptEmail, setReceiptEmail] = useState('');
+  const [receiptNote, setReceiptNote] = useState('');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptUploading, setReceiptUploading] = useState(false);
   const [manualOrderNo, setManualOrderNo] = useState('');
   const [profileForm, setProfileForm] = useState({ fullName: '', phone: '' });
   const [addressForm, setAddressForm] = useState({
@@ -159,6 +170,36 @@ export function CustomerDashboardPage() {
       document.body.classList.remove('storefront-body');
     };
   }, []);
+
+  useEffect(() => {
+    const className = 'sf-mobile-nav-open';
+    if (mobileMenuOpen) {
+      document.body.classList.add(className);
+    } else {
+      document.body.classList.remove(className);
+    }
+
+    return () => {
+      document.body.classList.remove(className);
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     const requestedTab = searchParams.get('tab');
@@ -300,6 +341,76 @@ export function CustomerDashboardPage() {
   const paidPaymentsCount = paymentRows.filter((item) => item.payment.status === 'PAID').length;
   const contact = config.contact.phoneDisplay ? config.contact : defaultConfig.contact;
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    if (!selectedTrackingOrder) {
+      setReceiptEmail(user.email);
+      setReceiptNote('');
+      setReceiptFile(null);
+      setTrackingMessage('');
+      setTrackingError('');
+      return;
+    }
+
+    setReceiptEmail(selectedTrackingOrder.customerEmail || user.email);
+    setReceiptNote(selectedTrackingOrder.bankTransferReceiptNote ?? '');
+    setReceiptFile(null);
+    setTrackingMessage('');
+    setTrackingError('');
+  }, [selectedTrackingOrder?.orderNumber, user]);
+
+  const handleReceiptUpload = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedTrackingOrder) {
+      return;
+    }
+
+    if (!receiptFile) {
+      setTrackingError('Lutfen once dekont dosyasi secin.');
+      return;
+    }
+
+    if (!receiptEmail.trim()) {
+      setTrackingError('Sipariste kullanilan e-posta adresini girin.');
+      return;
+    }
+
+    setReceiptUploading(true);
+    setTrackingMessage('');
+    setTrackingError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('email', receiptEmail.trim());
+      if (receiptNote.trim()) {
+        formData.append('note', receiptNote.trim());
+      }
+      formData.append('file', receiptFile);
+
+      const response = await api.post<Order>(
+        `/shop/orders/${encodeURIComponent(selectedTrackingOrder.orderNumber)}/bank-transfer-receipt`,
+        formData,
+      );
+
+      setOrders((current) =>
+        current.map((order) => (order.id === response.data.id ? response.data : order)),
+      );
+      setReceiptFile(null);
+      setReceiptNote(response.data.bankTransferReceiptNote ?? '');
+      setTrackingMessage(
+        'Dekontunuz yüklendi. Onay sürecinde siparis durumunuz guncellenecektir.',
+      );
+    } catch (error) {
+      setTrackingError(extractApiError(error, 'Dekont yuklenemedi.'));
+    } finally {
+      setReceiptUploading(false);
+    }
+  };
+
   if (!user) {
     return null;
   }
@@ -367,14 +478,37 @@ export function CustomerDashboardPage() {
             className="sf-mobile-toggle"
             type="button"
             onClick={() => setMobileMenuOpen((current) => !current)}
+            aria-controls="customer-mobile-nav"
+            aria-expanded={mobileMenuOpen}
           >
-            MENÜ
+            {mobileMenuOpen ? 'Kapat' : 'Menu'}
           </button>
         </div>
 
+        <button
+          type="button"
+          aria-label="Menüyü kapat"
+          className={mobileMenuOpen ? 'sf-mobile-backdrop active' : 'sf-mobile-backdrop'}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+
         <div className="sf-nav-row">
-          <div className="sf-container sf-nav-inner">
+          <div
+            className={
+              mobileMenuOpen
+                ? 'sf-container sf-nav-inner sf-nav-inner-open'
+                : 'sf-container sf-nav-inner'
+            }
+          >
+            <button
+              type="button"
+              className="sf-mobile-nav-close"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Kapat
+            </button>
             <nav
+              id="customer-mobile-nav"
               aria-label="Mağaza gezinme"
               className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}
             >
@@ -384,6 +518,34 @@ export function CustomerDashboardPage() {
                 </Link>
               ))}
             </nav>
+            <div className="sf-mobile-nav-actions">
+              <Link
+                className="sf-mobile-nav-primary"
+                onClick={() => setMobileMenuOpen(false)}
+                to="/customer/dashboard"
+              >
+                Hesabim
+              </Link>
+              <Link onClick={() => setMobileMenuOpen(false)} to="/cart">
+                Sepetim ({cartCount})
+              </Link>
+              <Link onClick={() => setMobileMenuOpen(false)} to="/satis-sozlesmesi">
+                Satis Sozlesmesi
+              </Link>
+              <Link onClick={() => setMobileMenuOpen(false)} to="/iletisim">
+                Iletisim
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  logout();
+                  navigate('/customer/login');
+                }}
+              >
+                Cikis Yap
+              </button>
+            </div>
             <div className="sf-support-right">
               <span>{contact.workingHours}</span>
               <strong>{contact.phoneDisplay}</strong>
@@ -468,7 +630,12 @@ export function CustomerDashboardPage() {
                     <select value={selectedTrackingOrder.orderNumber} onChange={(event) => setTrackingOrderNo(event.target.value)}>
                       {orders.map((order) => <option key={order.id} value={order.orderNumber}>{order.orderNumber}</option>)}
                     </select>
-                    <p>Kargo: {selectedTrackingOrder.shippingCompany || 'Atama bekleniyor'} / Takip No: {selectedTrackingOrder.trackingNumber || 'Yok'}</p>
+                    <p>
+                      Kargo: {selectedTrackingOrder.shippingCompany || 'Atama bekleniyor'} / Takip No: {selectedTrackingOrder.trackingNumber || 'Yok'}
+                    </p>
+                    <p>
+                      Odeme: {paymentMethodLabel(selectedTrackingOrder.paymentMethod)} / {paymentMeta(selectedTrackingOrder.paymentStatus).label}
+                    </p>
                   </div>
                   <div className="sf-tracking-stepper">
                     <article className="done"><strong>Siparis alindi</strong><small>{formatDate(selectedTrackingOrder.placedAt)}</small></article>
@@ -477,11 +644,135 @@ export function CustomerDashboardPage() {
                     <article className={selectedTrackingOrder.status === 'DELIVERED' ? 'done' : ''}><strong>Teslimat</strong><small>{formatDate(selectedTrackingOrder.deliveredAt)}</small></article>
                   </div>
                   {selectedTrackingOrder.trackingUrl ? <a className="sf-tracking-link" href={selectedTrackingOrder.trackingUrl} target="_blank" rel="noreferrer">Canli Kargo Takip</a> : null}
+
+                  {isBankTransferPaymentMethod(selectedTrackingOrder.paymentMethod) ? (
+                    <div className="sf-tracking-bank-grid">
+                      <article className="sf-tracking-bank-panel">
+                        <div className="sf-tracking-bank-head">
+                          <strong>Havale / EFT banka bilgileri</strong>
+                          <span className={`sf-payment-badge ${paymentMeta(selectedTrackingOrder.paymentStatus).className}`}>
+                            {paymentMeta(selectedTrackingOrder.paymentStatus).label}
+                          </span>
+                        </div>
+
+                        {selectedTrackingOrder.bankTransferAccount ? (
+                          <div className="sf-tracking-bank-card">
+                            <strong>{selectedTrackingOrder.bankTransferAccount.bankName}</strong>
+                            <span>{selectedTrackingOrder.bankTransferAccount.accountHolder}</span>
+                            <b>{formatIban(selectedTrackingOrder.bankTransferAccount.iban)}</b>
+                            <small>
+                              {selectedTrackingOrder.bankTransferAccount.branchName
+                                ? `${selectedTrackingOrder.bankTransferAccount.branchName} / `
+                                : ''}
+                              {selectedTrackingOrder.bankTransferAccount.currency}
+                              {selectedTrackingOrder.bankTransferAccount.accountNumber
+                                ? ` / Hesap No: ${selectedTrackingOrder.bankTransferAccount.accountNumber}`
+                                : ''}
+                            </small>
+                            {selectedTrackingOrder.bankTransferAccount.note ? (
+                              <small>{selectedTrackingOrder.bankTransferAccount.note}</small>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <p className="sf-customer-empty">Bu siparise ait banka bilgisi bulunamadi.</p>
+                        )}
+                      </article>
+
+                      <form className="sf-receipt-upload-form" onSubmit={handleReceiptUpload}>
+                        <div className="sf-tracking-bank-head">
+                          <strong>Dekont gonder</strong>
+                          <span>
+                            {selectedTrackingOrder.bankTransferReceiptUrl ? 'Yuklendi' : 'Bekleniyor'}
+                          </span>
+                        </div>
+
+                        <p className="sf-receipt-upload-copy">
+                          Odemenizi tamamladiktan sonra PDF, JPG, PNG veya WEBP olarak dekont yukleyebilirsiniz.
+                        </p>
+
+                        {selectedTrackingOrder.bankTransferReceiptUrl ? (
+                          <a
+                            className="sf-tracking-receipt-link"
+                            href={selectedTrackingOrder.bankTransferReceiptUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Yuklenen dekontu ac
+                          </a>
+                        ) : null}
+
+                        <label>
+                          Siparis e-postasi
+                          <input
+                            type="email"
+                            value={receiptEmail}
+                            onChange={(event) => setReceiptEmail(event.target.value)}
+                            placeholder="Sipariste kullanilan e-posta"
+                            required
+                          />
+                        </label>
+
+                        <label>
+                          Not (opsiyonel)
+                          <textarea
+                            rows={3}
+                            value={receiptNote}
+                            onChange={(event) => setReceiptNote(event.target.value)}
+                            placeholder="Ornek: Odeme aciklamasi ZYT..."
+                          />
+                        </label>
+
+                        <label className="sf-receipt-file-field">
+                          Dekont dosyasi
+                          <input
+                            accept="application/pdf,image/jpeg,image/png,image/webp"
+                            onChange={(event) => setReceiptFile(event.target.files?.[0] ?? null)}
+                            type="file"
+                          />
+                        </label>
+
+                        {selectedTrackingOrder.bankTransferReceiptOriginalName ? (
+                          <small className="sf-receipt-upload-meta">
+                            Son yuklenen: {selectedTrackingOrder.bankTransferReceiptOriginalName} / {formatDate(selectedTrackingOrder.bankTransferReceiptUploadedAt)}
+                          </small>
+                        ) : null}
+
+                        {trackingMessage ? <p className="sf-customer-msg success">{trackingMessage}</p> : null}
+                        {trackingError ? <p className="sf-customer-msg error">{trackingError}</p> : null}
+
+                        <button type="submit" disabled={receiptUploading}>
+                          {receiptUploading ? 'Dekont Yukleniyor...' : 'Dekontu Gonder'}
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <article className="sf-tracking-note-card">
+                      <strong>Bu sipariste dekont gerekmiyor</strong>
+                      <p>
+                        Bu siparis {paymentMethodLabel(selectedTrackingOrder.paymentMethod)} ile olusturuldugu icin
+                        dekont yukleme alani acik degil.
+                      </p>
+                    </article>
+                  )}
                 </> : <p className="sf-customer-empty">Takip edilecek siparis yok.</p>}
               </div> : null}
 
               {tab === 'receipts' ? <div className="sf-customer-panel"><div className="sf-receipt-grid">
-                {orders.map((order) => <article key={order.id}><strong>{order.orderNumber}</strong><small>{formatDate(order.placedAt)}</small><p>{formatter.format(parsePrice(order.grandTotal))}</p><button type="button" onClick={() => downloadReceipt(order)}>Makbuz Indir</button></article>)}
+                {orders.map((order) => <article key={order.id}>
+                  <strong>{order.orderNumber}</strong>
+                  <small>{formatDate(order.placedAt)}</small>
+                  <p>{formatter.format(parsePrice(order.grandTotal))}</p>
+                  <div className="sf-receipt-actions">
+                    <button type="button" onClick={() => downloadReceipt(order)}>Makbuz Indir</button>
+                    {isBankTransferPaymentMethod(order.paymentMethod) ? (
+                      order.bankTransferReceiptUrl ? (
+                        <a href={order.bankTransferReceiptUrl} target="_blank" rel="noreferrer">Dekontu Ac</a>
+                      ) : (
+                        <button type="button" onClick={() => { setTrackingOrderNo(order.orderNumber); setTab('tracking'); }}>Dekont Gonder</button>
+                      )
+                    ) : null}
+                  </div>
+                </article>)}
               </div></div> : null}
 
               {tab === 'payments' ? <div className="sf-customer-panel">

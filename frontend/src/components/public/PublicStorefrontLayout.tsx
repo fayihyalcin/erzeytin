@@ -78,6 +78,40 @@ export function PublicStorefrontLayout({
     setSearch(activeSearch);
   }, [activeSearch]);
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    const className = 'sf-mobile-nav-open';
+    if (mobileMenuOpen) {
+      document.body.classList.add(className);
+    } else {
+      document.body.classList.remove(className);
+    }
+
+    return () => {
+      document.body.classList.remove(className);
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -159,14 +193,37 @@ export function PublicStorefrontLayout({
             className="sf-mobile-toggle"
             onClick={() => setMobileMenuOpen((current) => !current)}
             type="button"
+            aria-controls="storefront-mobile-nav"
+            aria-expanded={mobileMenuOpen}
           >
-            MENÜ
+            {mobileMenuOpen ? 'Kapat' : 'Menu'}
           </button>
         </div>
 
+        <button
+          type="button"
+          aria-label="Menüyü kapat"
+          className={mobileMenuOpen ? 'sf-mobile-backdrop active' : 'sf-mobile-backdrop'}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+
         <div className="sf-nav-row">
-          <div className="sf-container sf-nav-inner">
+          <div
+            className={
+              mobileMenuOpen
+                ? 'sf-container sf-nav-inner sf-nav-inner-open'
+                : 'sf-container sf-nav-inner'
+            }
+          >
+            <button
+              type="button"
+              className="sf-mobile-nav-close"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Kapat
+            </button>
             <nav
+              id="storefront-mobile-nav"
               aria-label="Mağaza gezinme"
               className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}
             >
@@ -186,6 +243,36 @@ export function PublicStorefrontLayout({
                 );
               })}
             </nav>
+
+            <div className="sf-mobile-nav-actions">
+              <Link
+                className="sf-mobile-nav-primary"
+                onClick={() => setMobileMenuOpen(false)}
+                to={isAuthenticated ? '/customer/dashboard' : '/customer/login'}
+              >
+                {isAuthenticated ? 'Hesabim' : 'Musteri Girisi'}
+              </Link>
+              <Link onClick={() => setMobileMenuOpen(false)} to="/cart">
+                Sepetim ({itemCount})
+              </Link>
+              <Link onClick={() => setMobileMenuOpen(false)} to="/satis-sozlesmesi">
+                Satis Sozlesmesi
+              </Link>
+              <Link onClick={() => setMobileMenuOpen(false)} to="/iletisim">
+                Iletisim
+              </Link>
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    logout();
+                  }}
+                >
+                  Cikis Yap
+                </button>
+              ) : null}
+            </div>
 
             <div className="sf-support-right">
               <span>{contact.workingHours}</span>

@@ -194,8 +194,7 @@ body {
 .dashboard-brand-block small,
 .dashboard-menu-group-title,
 .dashboard-footer-link,
-.dashboard-footer-button,
-.dashboard-topbar-label {
+.dashboard-footer-button {
   color: rgba(244, 247, 251, 0.88);
 }
 
@@ -219,12 +218,40 @@ body {
 }
 
 .dashboard-collapse-button,
-.dashboard-mobile-toggle {
+.dashboard-sidebar-close {
   min-height: 38px;
   border-radius: 12px;
   border-color: rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
   color: #f4f7fb;
+}
+
+.dashboard-mobile-toggle {
+  min-height: 42px;
+  padding: 0 16px;
+  border-color: rgba(23, 95, 88, 0.18);
+  background: linear-gradient(135deg, #175f58, #214b84);
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(12, 23, 38, 0.12);
+}
+
+.dashboard-mobile-toggle:hover {
+  filter: brightness(1.04);
+}
+
+.dashboard-mobile-toggle-icon {
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.dashboard-topbar-label {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(23, 95, 88, 0.08);
+  color: var(--admin-primary-strong);
 }
 
 .dashboard-sidebar-insight {
@@ -1225,6 +1252,14 @@ td {
 
   .dashboard-topbar {
     padding: 14px;
+  }
+
+  .dashboard-mobile-toggle {
+    align-self: flex-start;
+  }
+
+  .admin-stage-actions {
+    align-items: stretch;
   }
 
   .admin-settings-intro-top {

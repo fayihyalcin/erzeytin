@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PublicBreadcrumbs } from '../components/public/PublicBreadcrumbs';
 import { PublicStorefrontLayout } from '../components/public/PublicStorefrontLayout';
@@ -120,8 +120,10 @@ export function CheckoutPage() {
   const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
   const [paytrSession, setPaytrSession] = useState<PaytrCheckoutSession | null>(null);
+  const bankTransferPanelRef = useRef<HTMLDivElement | null>(null);
   const [checkoutForm, setCheckoutForm] = useState<CheckoutFormState>({
     fullName: '',
     email: '',
@@ -223,6 +225,36 @@ export function CheckoutPage() {
     setSelectedBankAccountId(bankAccounts[0].id);
   }, [bankAccounts, selectedBankAccountId]);
 
+  useEffect(() => {
+    if (checkoutForm.paymentMethod !== 'EFT_HAVALE') {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const panel = bankTransferPanelRef.current;
+      if (!panel) {
+        return;
+      }
+
+      const rect = panel.getBoundingClientRect();
+      const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight;
+      const isBelowViewport = rect.bottom > viewportHeight - 24;
+      const isAboveViewport = rect.top < 96;
+
+      if (isBelowViewport || isAboveViewport) {
+        panel.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [checkoutForm.paymentMethod]);
+
   const formatter = useMemo(() => {
     try {
       return new Intl.NumberFormat('tr-TR', {
@@ -241,6 +273,11 @@ export function CheckoutPage() {
 
   const total = subtotal;
   const canCheckout = items.length > 0 && !checkoutLoading;
+  const createdBankTransferOrder =
+    createdOrder &&
+    ['EFT_HAVALE', 'BANK_TRANSFER'].includes(createdOrder.paymentMethod)
+      ? createdOrder
+      : null;
   const siteName = config.theme.brandName;
   const pageDescription = summarizeText(
     `Teslimat ve ödeme bilgilerinizi tamamlayarak ${siteName} siparişinizi güvenli şekilde oluşturun.`,
@@ -307,6 +344,7 @@ export function CheckoutPage() {
 
   const submitOrder = async () => {
     setCheckoutError('');
+    setCreatedOrder(null);
     setCreatedOrderNumber('');
 
     if (!canCheckout) {
@@ -391,6 +429,7 @@ export function CheckoutPage() {
 
       const response = await api.post<Order>('/shop/orders', checkoutPayload);
       const orderNumber = response.data.orderNumber;
+      setCreatedOrder(response.data);
       setCreatedOrderNumber(orderNumber);
       setPaytrSession(null);
       clearCart();
@@ -431,9 +470,48 @@ export function CheckoutPage() {
                 Sipariş numaranız: <strong>{createdOrderNumber}</strong>
               </p>
               <div className="sf-cart-order-success-actions">
+                <Link to="/customer/dashboard?tab=tracking">Sipariş Takibine Git</Link>
                 <Link to="/customer/dashboard">Müşteri Paneline Git</Link>
                 <Link to="/">Alışverişe Dön</Link>
               </div>
+
+              {createdBankTransferOrder?.bankTransferAccount ? (
+                <div className="sf-cart-bank-transfer-panel sf-cart-bank-transfer-summary">
+                  <div className="sf-cart-bank-transfer-head">
+                    <strong>Havale / EFT icin banka bilgileri</strong>
+                    <small>
+                      Odemenizi tamamladiktan sonra musteri panelindeki Siparis Takip
+                      alanindan dekont yukleyebilirsiniz.
+                    </small>
+                  </div>
+
+                  <div className="sf-cart-bank-transfer-list">
+                    <article className="sf-cart-bank-card active">
+                      <strong>{createdBankTransferOrder.bankTransferAccount.bankName}</strong>
+                      <span>{createdBankTransferOrder.bankTransferAccount.accountHolder}</span>
+                      <b>{formatIban(createdBankTransferOrder.bankTransferAccount.iban)}</b>
+                      <small>
+                        {createdBankTransferOrder.bankTransferAccount.branchName
+                          ? `${createdBankTransferOrder.bankTransferAccount.branchName} / `
+                          : ''}
+                        {createdBankTransferOrder.bankTransferAccount.currency}
+                        {createdBankTransferOrder.bankTransferAccount.accountNumber
+                          ? ` / Hesap No: ${createdBankTransferOrder.bankTransferAccount.accountNumber}`
+                          : ''}
+                      </small>
+                      {createdBankTransferOrder.bankTransferAccount.note ? (
+                        <small>{createdBankTransferOrder.bankTransferAccount.note}</small>
+                      ) : null}
+                    </article>
+                  </div>
+
+                  {eftPaymentInstructions ? (
+                    <p className="sf-cart-bank-transfer-instructions">
+                      {eftPaymentInstructions}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -557,66 +635,6 @@ export function CheckoutPage() {
                           />
                         </label>
                       </div>
-
-                      {checkoutForm.paymentMethod === 'EFT_HAVALE' ? (
-                        <div className="sf-cart-bank-transfer-panel">
-                          <div className="sf-cart-bank-transfer-head">
-                            <strong>Banka hesap bilgileri</strong>
-                            <small>
-                              EFT / Havale odemesinde once hesap secin, sonra dekontu
-                              musteri panelinden yukleyin.
-                            </small>
-                          </div>
-
-                          {bankAccounts.length > 0 ? (
-                            <div className="sf-cart-bank-transfer-list">
-                              {bankAccounts.map((account) => {
-                                const isSelected = selectedBankAccountId === account.id;
-
-                                return (
-                                  <label
-                                    key={account.id}
-                                    className={
-                                      isSelected
-                                        ? 'sf-cart-bank-card active'
-                                        : 'sf-cart-bank-card'
-                                    }
-                                  >
-                                    <input
-                                      checked={isSelected}
-                                      name="bankTransferAccount"
-                                      onChange={() => setSelectedBankAccountId(account.id)}
-                                      type="radio"
-                                      value={account.id}
-                                    />
-                                    <strong>{account.bankName}</strong>
-                                    <span>{account.accountHolder}</span>
-                                    <b>{formatIban(account.iban)}</b>
-                                    <small>
-                                      {account.branchName ? `${account.branchName} / ` : ''}
-                                      {account.currency}
-                                      {account.accountNumber
-                                        ? ` / Hesap No: ${account.accountNumber}`
-                                        : ''}
-                                    </small>
-                                    {account.note ? <small>{account.note}</small> : null}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <p className="sf-cart-bank-transfer-empty">
-                              Su anda aktif banka hesabi tanimli degil.
-                            </p>
-                          )}
-
-                          {eftPaymentInstructions ? (
-                            <p className="sf-cart-bank-transfer-instructions">
-                              {eftPaymentInstructions}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
 
                       <label>
                         E-posta
@@ -783,6 +801,70 @@ export function CheckoutPage() {
                           );
                         })}
                       </div>
+
+                      {checkoutForm.paymentMethod === 'EFT_HAVALE' ? (
+                        <div
+                          ref={bankTransferPanelRef}
+                          className="sf-cart-bank-transfer-panel sf-cart-bank-transfer-panel-inline"
+                        >
+                          <div className="sf-cart-bank-transfer-head">
+                            <strong>Banka hesap bilgileri</strong>
+                            <small>
+                              EFT / Havale seciminizden sonra odemeyi bu hesaplardan birine
+                              yapin. Dekontu siparis sonrasinda musteri panelinden
+                              yukleyebilirsiniz.
+                            </small>
+                          </div>
+
+                          {bankAccounts.length > 0 ? (
+                            <div className="sf-cart-bank-transfer-list">
+                              {bankAccounts.map((account) => {
+                                const isSelected = selectedBankAccountId === account.id;
+
+                                return (
+                                  <label
+                                    key={account.id}
+                                    className={
+                                      isSelected
+                                        ? 'sf-cart-bank-card active'
+                                        : 'sf-cart-bank-card'
+                                    }
+                                  >
+                                    <input
+                                      checked={isSelected}
+                                      name="bankTransferAccount"
+                                      onChange={() => setSelectedBankAccountId(account.id)}
+                                      type="radio"
+                                      value={account.id}
+                                    />
+                                    <strong>{account.bankName}</strong>
+                                    <span>{account.accountHolder}</span>
+                                    <b>{formatIban(account.iban)}</b>
+                                    <small>
+                                      {account.branchName ? `${account.branchName} / ` : ''}
+                                      {account.currency}
+                                      {account.accountNumber
+                                        ? ` / Hesap No: ${account.accountNumber}`
+                                        : ''}
+                                    </small>
+                                    {account.note ? <small>{account.note}</small> : null}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="sf-cart-bank-transfer-empty">
+                              Su anda aktif banka hesabi tanimli degil.
+                            </p>
+                          )}
+
+                          {eftPaymentInstructions ? (
+                            <p className="sf-cart-bank-transfer-instructions">
+                              {eftPaymentInstructions}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       <label>
                         Sipariş Notu

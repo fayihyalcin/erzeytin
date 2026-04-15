@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, extractApiError } from '../lib/api';
-import { parseBankAccounts, stringifyBankAccounts } from '../lib/bank-transfer';
+import {
+  isBankAccountComplete,
+  parseEditableBankAccounts,
+  stringifyBankAccounts,
+} from '../lib/bank-transfer';
 import type { BankAccount, SettingsDto } from '../types/api';
 import type { AdminWizardStep } from '../components/admin/AdminFormWizard';
 
@@ -40,7 +44,7 @@ const settingsSteps = [
   },
   {
     id: 'bank-transfer',
-    title: 'Banka Hesaplari',
+    title: 'IBAN / Banka Yonetimi',
     description: 'EFT / havale icin gorunecek hesaplar ve talimatlar.',
   },
   {
@@ -115,6 +119,17 @@ function createEmptyBankAccount(index: number): BankAccount {
   };
 }
 
+function hasBankAccountDraft(account: BankAccount) {
+  return [
+    account.bankName,
+    account.branchName,
+    account.accountHolder,
+    account.iban,
+    account.accountNumber,
+    account.note,
+  ].some((value) => String(value ?? '').trim().length > 0);
+}
+
 export function SettingsPage() {
   const [form, setForm] = useState<SettingsDto>(defaultSettings);
   const [loading, setLoading] = useState(true);
@@ -139,6 +154,13 @@ export function SettingsPage() {
           );
         }
       })
+      .catch((error) => {
+        if (!mounted) {
+          return;
+        }
+
+        setMessage(extractApiError(error, 'Ayarlar yuklenemedi.'));
+      })
       .finally(() => {
         if (mounted) {
           setLoading(false);
@@ -154,7 +176,17 @@ export function SettingsPage() {
     const apiBase = form.apiBaseUrl.trim().replace(/\/+$/, '');
     return apiBase ? `${apiBase}/shop/payments/paytr/callback` : '-';
   }, [form.apiBaseUrl]);
-  const bankAccounts = useMemo(() => parseBankAccounts(form.bankAccounts), [form.bankAccounts]);
+  const bankAccounts = useMemo(
+    () => parseEditableBankAccounts(form.bankAccounts),
+    [form.bankAccounts],
+  );
+  const activeBankAccountCount = useMemo(
+    () =>
+      bankAccounts.filter(
+        (account) => account.isActive && isBankAccountComplete(account),
+      ).length,
+    [bankAccounts],
+  );
 
   const currentStepIndex = settingsSteps.findIndex((step) => step.id === currentStep);
   const activeStep = settingsSteps[currentStepIndex] ?? settingsSteps[0];
@@ -187,14 +219,28 @@ export function SettingsPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSaving(true);
     setMessage(null);
+
+    const draftedBankAccounts = bankAccounts.filter(hasBankAccountDraft);
+    const incompleteBankAccountIndex = draftedBankAccounts.findIndex(
+      (account) => !isBankAccountComplete(account),
+    );
+
+    if (incompleteBankAccountIndex >= 0) {
+      setMessage(
+        `Banka hesabi ${incompleteBankAccountIndex + 1} icin banka adi, hesap sahibi ve IBAN zorunludur.`,
+      );
+      return;
+    }
+
+    setSaving(true);
 
     try {
       const response = await api.put<Partial<SettingsDto>>('/settings', {
         ...form,
         supportEmail: form.supportEmail.trim(),
         taxRate: Number(form.taxRate),
+        bankAccounts: stringifyBankAccounts(draftedBankAccounts),
       });
 
       setForm(normalizeSettings(response.data));
@@ -299,6 +345,14 @@ export function SettingsPage() {
             <div className="admin-metric-tile">
               <span>Test</span>
               <strong>{isEnabled(form.paytrTestMode) ? 'Açık' : 'Kapalı'}</strong>
+            </div>
+            <div className="admin-metric-tile">
+              <span>Aktif banka</span>
+              <strong>{activeBankAccountCount}</strong>
+            </div>
+            <div className="admin-metric-tile">
+              <span>EFT talimati</span>
+              <strong>{form.eftPaymentInstructions.trim() ? 'Hazir' : 'Eksik'}</strong>
             </div>
           </div>
 
@@ -482,6 +536,13 @@ export function SettingsPage() {
                     </article>
                   ) : null}
 
+                  {bankAccounts.length > 0 ? (
+                    <article className="admin-inline-note">
+                      <strong>Gerekli alanlar</strong>
+                      <p>Her hesapta banka adi, hesap sahibi ve IBAN zorunludur. Tam bos taslak satirlar kayitta temizlenir.</p>
+                    </article>
+                  ) : null}
+
                   {bankAccounts.map((account, index) => (
                     <article key={account.id} className="admin-panel">
                       <div className="admin-panel-header">
@@ -614,7 +675,7 @@ export function SettingsPage() {
           {currentStep === 'paytr-mode' ? (
             <>
               <section className="admin-stage-intro">
-                <span className="admin-eyebrow">Adım 3</span>
+                <span className="admin-eyebrow">Adım 4</span>
                 <h3>PAYTR davranışını seçin</h3>
                 <p>Canlıya çıkmadan önce test, debug ve taksit yapısını buradan yönetin.</p>
               </section>
@@ -688,7 +749,7 @@ export function SettingsPage() {
           {currentStep === 'paytr-credentials' ? (
             <>
               <section className="admin-stage-intro">
-                <span className="admin-eyebrow">Adım 4</span>
+                <span className="admin-eyebrow">Adım 5</span>
                 <h3>Teknik anahtar ve limitler</h3>
                 <p>Merchant bilgileri, timeout ve dil parametreleri canlı ödeme akışını belirler.</p>
               </section>

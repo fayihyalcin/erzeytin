@@ -22,6 +22,15 @@ import { UsersModule } from './users/users.module';
 import { MediaModule } from './media/media.module';
 import { SeoModule } from './seo/seo.module';
 
+function getConfigValue(
+  configService: ConfigService,
+  key: string,
+  fallback: string,
+) {
+  const value = configService.get<string>(key);
+  return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -35,11 +44,11 @@ import { SeoModule } from './seo/seo.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: configService.get<string>('DB_HOST', 'localhost'),
-        port: Number(configService.get<string>('DB_PORT', '5432')),
-        username: configService.get<string>('DB_USER', 'postgres'),
-        password: configService.get<string>('DB_PASSWORD', 'postgres'),
-        database: configService.get<string>('DB_NAME', 'zeytin_admin'),
+        host: getConfigValue(configService, 'DB_HOST', 'localhost'),
+        port: Number(getConfigValue(configService, 'DB_PORT', '5432')),
+        username: getConfigValue(configService, 'DB_USER', 'postgres'),
+        password: getConfigValue(configService, 'DB_PASSWORD', 'postgres'),
+        database: getConfigValue(configService, 'DB_NAME', 'zeytin_admin'),
         entities: [
           AdminUser,
           Setting,
@@ -49,9 +58,9 @@ import { SeoModule } from './seo/seo.module';
           OrderActivity,
           PaymentTransaction,
         ],
-        synchronize: configService.get<string>('DB_SYNC', 'true') === 'true',
+        synchronize: getConfigValue(configService, 'DB_SYNC', 'true') === 'true',
         ssl:
-          configService.get<string>('DB_SSL', 'false') === 'true'
+          getConfigValue(configService, 'DB_SSL', 'false') === 'true'
             ? { rejectUnauthorized: false }
             : false,
       }),

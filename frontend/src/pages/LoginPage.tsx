@@ -1,6 +1,7 @@
 ﻿import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { extractApiError, isUnauthorizedResponse } from '../lib/api';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -19,8 +20,12 @@ export function LoginPage() {
     try {
       await login(username, password);
       navigate('/dashboard');
-    } catch {
-      setError('Giris basarisiz. Bilgileri kontrol et.');
+    } catch (error) {
+      setError(
+        isUnauthorizedResponse(error)
+          ? 'Giris basarisiz. Bilgileri kontrol et.'
+          : extractApiError(error, 'Giris sirasinda beklenmeyen bir hata olustu.'),
+      );
     } finally {
       setLoading(false);
     }

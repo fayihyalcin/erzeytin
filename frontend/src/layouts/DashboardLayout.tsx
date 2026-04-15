@@ -126,6 +126,44 @@ export function DashboardLayout() {
   }, [location.pathname]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const isMobileViewport =
+      typeof window !== 'undefined' && window.matchMedia('(max-width: 1080px)').matches;
+
+    if (!sidebarOpen || !isMobileViewport) {
+      document.body.classList.remove('dashboard-sidebar-lock');
+      return;
+    }
+
+    document.body.classList.add('dashboard-sidebar-lock');
+
+    return () => {
+      document.body.classList.remove('dashboard-sidebar-lock');
+    };
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (!sidebarOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sidebarOpen]);
+
+  useEffect(() => {
     if (!token) {
       return;
     }
@@ -161,6 +199,14 @@ export function DashboardLayout() {
     navigate('/admin');
   };
 
+  const sidebarClassName = [
+    'dashboard-sidebar',
+    sidebarCollapsed ? 'dashboard-sidebar-collapsed' : '',
+    sidebarOpen ? 'dashboard-sidebar-open' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <div className="dashboard-shell modern-admin">
       {sidebarOpen ? (
@@ -172,15 +218,7 @@ export function DashboardLayout() {
         />
       ) : null}
 
-      <aside
-        className={
-          sidebarCollapsed
-            ? 'dashboard-sidebar dashboard-sidebar-collapsed'
-            : sidebarOpen
-              ? 'dashboard-sidebar dashboard-sidebar-open'
-              : 'dashboard-sidebar'
-        }
-      >
+      <aside className={sidebarClassName} id="dashboard-sidebar">
         <div className="dashboard-sidebar-top">
           <div className="dashboard-brand-block">
             <span className="dashboard-brand-mark">EZ</span>
@@ -192,13 +230,27 @@ export function DashboardLayout() {
             ) : null}
           </div>
 
-          <button
-            className="dashboard-collapse-button"
-            onClick={() => setSidebarCollapsed((current) => !current)}
-            type="button"
-          >
-            {sidebarCollapsed ? '>' : '<'}
-          </button>
+          <div className="dashboard-sidebar-actions">
+            <button
+              aria-label="Menuyu kapat"
+              className="dashboard-sidebar-close"
+              onClick={() => setSidebarOpen(false)}
+              type="button"
+            >
+              <span aria-hidden="true" className="dashboard-sidebar-close-icon">
+                x
+              </span>
+              <span>Kapat</span>
+            </button>
+            <button
+              aria-label={sidebarCollapsed ? 'Yan menuyu genislet' : 'Yan menuyu daralt'}
+              className="dashboard-collapse-button"
+              onClick={() => setSidebarCollapsed((current) => !current)}
+              type="button"
+            >
+              {sidebarCollapsed ? '>' : '<'}
+            </button>
+          </div>
         </div>
 
         {!sidebarCollapsed ? (
@@ -260,8 +312,22 @@ export function DashboardLayout() {
       <div className={sidebarCollapsed ? 'dashboard-content dashboard-content-wide' : 'dashboard-content'}>
         <header className="dashboard-topbar">
           <div className="dashboard-topbar-left">
-            <button className="dashboard-mobile-toggle" onClick={() => setSidebarOpen(true)} type="button">
-              Menü
+            <button
+              aria-controls="dashboard-sidebar"
+              aria-expanded={sidebarOpen}
+              aria-label={sidebarOpen ? 'Menuyu kapat' : 'Menuyu ac'}
+              className={sidebarOpen ? 'dashboard-mobile-toggle is-open' : 'dashboard-mobile-toggle'}
+              onClick={() => setSidebarOpen((current) => !current)}
+              type="button"
+            >
+              <span aria-hidden="true" className="dashboard-mobile-toggle-icon">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="dashboard-mobile-toggle-text">
+                {sidebarOpen ? 'Kapat' : 'Menü'}
+              </span>
             </button>
             <div className="dashboard-topbar-copy">
               <span className="dashboard-topbar-label">Yönetim merkezi</span>

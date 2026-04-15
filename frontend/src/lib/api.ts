@@ -99,6 +99,10 @@ export function extractApiError(error: unknown, fallback: string) {
     return 'Yukleme reddedildi: dosya boyutu sunucu limitini asiyor.';
   }
 
+  if (!error.response) {
+    return `Sunucuya baglanilamadi. Backend API erisilemiyor: ${API_BASE_URL}`;
+  }
+
   const message = error.response?.data?.message;
   if (typeof message === 'string' && message.trim()) {
     return message;

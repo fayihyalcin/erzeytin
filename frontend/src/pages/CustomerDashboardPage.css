@@ -88,6 +88,10 @@
   color: #138454;
 }
 
+.sf-customer-msg.error {
+  color: #b5304e;
+}
+
 .sf-customer-panel {
   margin-top: 12px;
   border: 1px solid #d7dfea;
@@ -313,6 +317,152 @@
   font-weight: 700;
 }
 
+.sf-tracking-bank-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sf-tracking-bank-panel,
+.sf-receipt-upload-form,
+.sf-tracking-note-card {
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
+  background: #fbfdff;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.sf-tracking-bank-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sf-tracking-bank-head strong {
+  color: #1f304b;
+  font-size: 16px;
+}
+
+.sf-tracking-bank-head span {
+  color: #677790;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sf-tracking-bank-card {
+  border: 1px solid #d6e0ec;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff, #f7fbff);
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.sf-tracking-bank-card strong {
+  color: #1e2e48;
+  font-size: 18px;
+}
+
+.sf-tracking-bank-card span {
+  color: #52627a;
+  font-size: 13px;
+}
+
+.sf-tracking-bank-card b {
+  color: var(--public-olive);
+  font-size: 16px;
+  letter-spacing: 0.04em;
+}
+
+.sf-tracking-bank-card small {
+  color: #6f7f96;
+  font-size: 12px;
+}
+
+.sf-receipt-upload-copy,
+.sf-tracking-note-card p {
+  margin: 0;
+  color: #5b6a80;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sf-tracking-note-card strong {
+  color: #1f304b;
+  font-size: 16px;
+}
+
+.sf-tracking-receipt-link {
+  min-height: 38px;
+  border: 1px solid #cfd9e7;
+  border-radius: 10px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: #32445f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sf-receipt-upload-form label {
+  display: grid;
+  gap: 6px;
+  color: #445672;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sf-receipt-upload-form input,
+.sf-receipt-upload-form textarea {
+  width: 100%;
+  border: 1px solid #d4ddeb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #ffffff;
+  color: #1f2d45;
+  font-size: 13px;
+}
+
+.sf-receipt-upload-form input {
+  min-height: 42px;
+}
+
+.sf-receipt-upload-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.sf-receipt-file-field input {
+  padding: 10px;
+}
+
+.sf-receipt-upload-meta {
+  color: #6f7d92;
+  font-size: 12px;
+}
+
+.sf-receipt-upload-form button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: #f7ca00;
+  color: #1f2d42;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sf-receipt-upload-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .sf-receipt-grid {
   display: grid;
   gap: 10px;
@@ -349,6 +499,28 @@
   min-height: 34px;
   border: 1px solid #d2dce9;
   border-radius: 10px;
+  background: #ffffff;
+  color: #35455f;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sf-receipt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sf-receipt-actions a,
+.sf-receipt-actions button {
+  min-height: 34px;
+  border: 1px solid #d2dce9;
+  border-radius: 10px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #ffffff;
   color: #35455f;
   font-size: 12px;
@@ -604,6 +776,7 @@
   .sf-receipt-grid,
   .sf-payment-cards,
   .sf-payment-history-grid,
+  .sf-tracking-bank-grid,
   .sf-customer-address-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -622,6 +795,7 @@
   .sf-receipt-grid,
   .sf-payment-cards,
   .sf-payment-history-grid,
+  .sf-tracking-bank-grid,
   .sf-customer-address-grid,
   .sf-customer-account-form {
     grid-template-columns: 1fr;
@@ -674,5 +848,123 @@
     color: #6d788c;
     font-size: 11px;
     font-weight: 700;
+  }
+}
+
+@media (max-width: 1180px) {
+  .sf-customer-layout {
+    gap: 12px;
+  }
+
+  .sf-customer-sidebar {
+    padding: 10px;
+  }
+
+  .sf-customer-menu {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .sf-customer-menu::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sf-customer-menu-item {
+    min-width: 156px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 760px) {
+  .sf-customer-panel {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .sf-customer-panel-head h1 {
+    font-size: clamp(24px, 7vw, 32px);
+  }
+
+  .sf-customer-order-linker {
+    flex-direction: column;
+  }
+
+  .sf-customer-order-linker button {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .sf-customer-orders-table td {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sf-customer-order-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .sf-customer-order-actions button {
+    flex: 1 1 120px;
+    min-height: 36px;
+  }
+
+  .sf-tracking-bank-head,
+  .sf-payment-history-head,
+  .sf-customer-address-grid header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sf-tracking-link,
+  .sf-tracking-receipt-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .sf-address-actions,
+  .sf-receipt-actions {
+    width: 100%;
+  }
+
+  .sf-address-actions button,
+  .sf-receipt-actions a,
+  .sf-receipt-actions button {
+    flex: 1 1 120px;
+  }
+
+  .sf-checkbox-row {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .sf-customer-page {
+    padding: 12px 0 22px;
+  }
+
+  .sf-customer-user-card {
+    padding: 12px;
+  }
+
+  .sf-customer-menu-item {
+    min-width: 144px;
+    min-height: 42px;
+    font-size: 13px;
+  }
+
+  .sf-tracking-bank-panel,
+  .sf-receipt-upload-form,
+  .sf-tracking-note-card,
+  .sf-payment-history-grid article,
+  .sf-receipt-grid article,
+  .sf-customer-address-grid article {
+    padding: 10px;
   }
 }

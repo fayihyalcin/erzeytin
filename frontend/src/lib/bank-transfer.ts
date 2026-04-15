@@ -20,7 +20,20 @@ export function normalizeBankAccount(input: Partial<BankAccount>, index = 0): Ba
   };
 }
 
-export function parseBankAccounts(rawValue?: string | null) {
+export function isBankAccountComplete(input: Partial<BankAccount>) {
+  return (
+    String(input.bankName ?? '').trim().length > 0 &&
+    String(input.accountHolder ?? '').trim().length > 0 &&
+    String(input.iban ?? '')
+      .replace(/\s+/g, '')
+      .toUpperCase().length > 0
+  );
+}
+
+function parseBankAccountsInternal(
+  rawValue?: string | null,
+  options?: { includeIncomplete?: boolean },
+) {
   if (!rawValue?.trim()) {
     return [] as BankAccount[];
   }
@@ -40,13 +53,19 @@ export function parseBankAccounts(rawValue?: string | null) {
       .filter(
         (item): item is BankAccount =>
           item !== null &&
-          item.bankName.length > 0 &&
-          item.accountHolder.length > 0 &&
-          item.iban.length > 0,
+          (options?.includeIncomplete ? true : isBankAccountComplete(item)),
       );
   } catch {
     return [] as BankAccount[];
   }
+}
+
+export function parseBankAccounts(rawValue?: string | null) {
+  return parseBankAccountsInternal(rawValue);
+}
+
+export function parseEditableBankAccounts(rawValue?: string | null) {
+  return parseBankAccountsInternal(rawValue, { includeIncomplete: true });
 }
 
 export function stringifyBankAccounts(accounts: BankAccount[]) {

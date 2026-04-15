@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { formatIban } from '../lib/bank-transfer';
 import type {
   AdminUser,
   FulfillmentStatus,
@@ -117,6 +118,10 @@ function normalizeWhatsappPhone(phone?: string | null) {
   }
 
   return digits.length >= 10 ? digits : null;
+}
+
+function isBankTransferPaymentMethod(method: PaymentMethod) {
+  return method === 'EFT_HAVALE' || method === 'BANK_TRANSFER';
 }
 
 function toUpdateForm(order: Order): UpdateFormState {
@@ -424,6 +429,67 @@ export function OrderDetailPage() {
                   </span>
                 </li>
               ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {isBankTransferPaymentMethod(order.paymentMethod) ? (
+          <div className="order-items">
+            <small>EFT / Havale Bilgileri</small>
+            <ul>
+              <li>
+                <span>Banka</span>
+                <span>{order.bankTransferAccount?.bankName ?? '-'}</span>
+              </li>
+              <li>
+                <span>Hesap Sahibi</span>
+                <span>{order.bankTransferAccount?.accountHolder ?? '-'}</span>
+              </li>
+              <li>
+                <span>IBAN</span>
+                <span>
+                  {order.bankTransferAccount
+                    ? formatIban(order.bankTransferAccount.iban)
+                    : '-'}
+                </span>
+              </li>
+              <li>
+                <span>Sube / Hesap No</span>
+                <span>
+                  {order.bankTransferAccount
+                    ? [
+                        order.bankTransferAccount.branchName,
+                        order.bankTransferAccount.accountNumber,
+                      ]
+                        .filter(Boolean)
+                        .join(' / ') || '-'
+                    : '-'}
+                </span>
+              </li>
+              <li>
+                <span>Dekont</span>
+                <span>
+                  {order.bankTransferReceiptUrl ? (
+                    <a href={order.bankTransferReceiptUrl} target="_blank" rel="noreferrer">
+                      Dekontu ac
+                    </a>
+                  ) : (
+                    'Yuklenmedi'
+                  )}
+                </span>
+              </li>
+              <li>
+                <span>Dekont Notu</span>
+                <span>{order.bankTransferReceiptNote ?? '-'}</span>
+              </li>
+              <li>
+                <span>Dekont Tarihi</span>
+                <span>
+                  {order.bankTransferReceiptUploadedAt
+                    ? formatDate(order.bankTransferReceiptUploadedAt)
+                    : '-'}
+                </span>
+              </li>
             </ul>
           </div>
         ) : null}

@@ -207,7 +207,7 @@ export interface PublicSettingsDto extends Partial<SettingsDto> {
   paytrEnabled?: string;
 }
 
-export interface BankAccount {
+export interface BankTransferAccountSnapshot {
   id: string;
   bankName: string;
   branchName?: string;
@@ -216,6 +216,9 @@ export interface BankAccount {
   accountNumber?: string;
   currency: string;
   note?: string;
+}
+
+export interface BankAccount extends BankTransferAccountSnapshot {
   isActive: boolean;
 }
 
@@ -459,7 +462,7 @@ export interface Order {
   shippingCompany: string | null;
   trackingNumber: string | null;
   trackingUrl: string | null;
-  bankTransferAccount: BankAccount | null;
+  bankTransferAccount: BankTransferAccountSnapshot | null;
   bankTransferReceiptUrl: string | null;
   bankTransferReceiptOriginalName: string | null;
   bankTransferReceiptNote: string | null;

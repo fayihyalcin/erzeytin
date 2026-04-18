@@ -127,6 +127,7 @@ export function CheckoutPage() {
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
   const [paytrSession, setPaytrSession] = useState<PaytrCheckoutSession | null>(null);
   const bankTransferPanelRef = useRef<HTMLDivElement | null>(null);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const [checkoutForm, setCheckoutForm] = useState<CheckoutFormState>({
     fullName: '',
     email: '',
@@ -384,6 +385,17 @@ export function CheckoutPage() {
     if (checkoutForm.paymentMethod === 'CARD' && !isValidCheckoutPhone(checkoutForm.phone)) {
       setPhoneError(PAYTR_PHONE_MESSAGE);
       setCheckoutError('PAYTR odemesi icin telefon numaranizi dogru formatta girin.');
+      showToast({
+        title: 'Telefon numarasini kontrol edin',
+        description: PAYTR_PHONE_MESSAGE,
+        tone: 'warning',
+        durationMs: 4200,
+      });
+      phoneInputRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      phoneInputRef.current?.focus();
       return;
     }
 
@@ -638,6 +650,7 @@ export function CheckoutPage() {
                         <label>
                           Telefon
                           <input
+                            ref={phoneInputRef}
                             type="tel"
                             value={checkoutForm.phone}
                             inputMode="tel"

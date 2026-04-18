@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useRef } from 'react';
 import { StorefrontBrandLink } from '../components/public/StorefrontBrandLink';
 import { StorefrontMobileCategoryStrip } from '../components/public/StorefrontMobileCategoryStrip';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
@@ -133,6 +134,7 @@ export function CartPage() {
   const [phoneError, setPhoneError] = useState('');
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
   const [paytrSession, setPaytrSession] = useState<PaytrCheckoutSession | null>(null);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const headerNavItems = useStoreHeaderNavItems();
   const [checkoutForm, setCheckoutForm] = useState<CheckoutFormState>({
     fullName: '',
@@ -377,6 +379,17 @@ export function CartPage() {
     if (checkoutForm.paymentMethod === 'CARD' && !isValidCheckoutPhone(checkoutForm.phone)) {
       setPhoneError(PAYTR_PHONE_MESSAGE);
       setCheckoutError('PAYTR odemesi icin telefon numaranizi dogru formatta girin.');
+      showToast({
+        title: 'Telefon numarasini kontrol edin',
+        description: PAYTR_PHONE_MESSAGE,
+        tone: 'warning',
+        durationMs: 4200,
+      });
+      phoneInputRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      phoneInputRef.current?.focus();
       return;
     }
 
@@ -877,6 +890,7 @@ export function CartPage() {
                       <label>
                         Telefon
                         <input
+                          ref={phoneInputRef}
                           type="tel"
                           value={checkoutForm.phone}
                           inputMode="tel"

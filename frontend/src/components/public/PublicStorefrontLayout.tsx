@@ -15,6 +15,7 @@ import { useStoreHeaderNavItems } from '../../lib/storefront-navigation';
 import type { WebsiteConfig } from '../../types/api';
 import '../../pages/StorefrontPage.css';
 import { StorefrontBrandLink } from './StorefrontBrandLink';
+import { StorefrontMobileCategoryStrip } from './StorefrontMobileCategoryStrip';
 import './PublicStorefrontLayout.css';
 
 function StoreLink({
@@ -198,6 +199,12 @@ export function PublicStorefrontLayout({
           >
             {mobileMenuOpen ? 'Kapat' : 'Menu'}
           </button>
+
+          <StorefrontMobileCategoryStrip
+            activePath={activePath}
+            items={headerNavItems}
+            onNavigate={() => setMobileMenuOpen(false)}
+          />
         </div>
 
         <button

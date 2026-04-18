@@ -635,6 +635,28 @@
   box-shadow: 0 0 0 3px rgba(var(--public-olive-rgb), 0.1);
 }
 
+.sf-cart-checkout-form input[aria-invalid="true"] {
+  border-color: rgba(191, 61, 93, 0.72);
+  box-shadow: 0 0 0 3px rgba(191, 61, 93, 0.12);
+}
+
+.sf-cart-field-hint,
+.sf-cart-field-error {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sf-cart-field-hint {
+  color: #63738c;
+}
+
+.sf-cart-field-error {
+  color: #b23d5b;
+  font-weight: 700;
+}
+
 .sf-cart-checkout-form button {
   min-height: 44px;
   border-radius: 10px;

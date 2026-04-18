@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { StorefrontBrandLink } from '../components/public/StorefrontBrandLink';
+import { StorefrontMobileCategoryStrip } from '../components/public/StorefrontMobileCategoryStrip';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api, extractApiError } from '../lib/api';
@@ -483,6 +484,12 @@ export function CustomerDashboardPage() {
           >
             {mobileMenuOpen ? 'Kapat' : 'Menu'}
           </button>
+
+          <StorefrontMobileCategoryStrip
+            activePath="/customer/dashboard"
+            items={headerNavItems}
+            onNavigate={() => setMobileMenuOpen(false)}
+          />
         </div>
 
         <button

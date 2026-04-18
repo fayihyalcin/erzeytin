@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { StorefrontBrandLink } from '../components/public/StorefrontBrandLink';
+import { StorefrontMobileCategoryStrip } from '../components/public/StorefrontMobileCategoryStrip';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
@@ -1132,6 +1133,12 @@ export function StorefrontPage() {
           >
             MENÜ
           </button>
+
+          <StorefrontMobileCategoryStrip
+            activePath="/"
+            items={headerNavItems}
+            onNavigate={() => setMobileMenuOpen(false)}
+          />
         </div>
 
         <div className="sf-nav-row">

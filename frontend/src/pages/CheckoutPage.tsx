@@ -7,6 +7,7 @@ import { useStoreCart } from '../context/StoreCartContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../lib/api';
 import { formatIban, getActiveBankAccounts, parseBankAccounts } from '../lib/bank-transfer';
+import { isValidCheckoutPhone, PAYTR_PHONE_MESSAGE } from '../lib/checkout';
 import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { resolvePublicProductPath } from '../lib/public-site';
@@ -32,7 +33,7 @@ const CHECKOUT_PAYMENT_OPTIONS: Array<{
   {
     value: 'CARD',
     label: 'Kredi Karti',
-    note: 'PAYTR iframe ile hızlı ve güvenli ödeme.',
+    note: 'PAYTR guvenli odeme sayfasinda tamamlanir.',
   },
   {
     value: 'CASH_ON_DELIVERY',
@@ -115,11 +116,13 @@ export function CheckoutPage() {
   const [config, setConfig] = useState<WebsiteConfig>(createDefaultWebsiteConfig);
   const [currency, setCurrency] = useState('TRY');
   const [paytrEnabled, setPaytrEnabled] = useState(false);
+  const [publicSettingsLoaded, setPublicSettingsLoaded] = useState(false);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [eftPaymentInstructions, setEftPaymentInstructions] = useState('');
   const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
   const [paytrSession, setPaytrSession] = useState<PaytrCheckoutSession | null>(null);
@@ -168,6 +171,7 @@ export function CheckoutPage() {
         if (response.data.currency) {
           setCurrency(response.data.currency.toUpperCase());
         }
+        setPublicSettingsLoaded(true);
       })
       .catch(() => {
         if (!mounted) {
@@ -175,6 +179,7 @@ export function CheckoutPage() {
         }
 
         setConfig(defaultConfig);
+        setPublicSettingsLoaded(true);
       });
 
     return () => {
@@ -202,7 +207,7 @@ export function CheckoutPage() {
   }, [customerUser]);
 
   useEffect(() => {
-    if (paytrEnabled || checkoutForm.paymentMethod !== 'CARD') {
+    if (!publicSettingsLoaded || paytrEnabled || checkoutForm.paymentMethod !== 'CARD') {
       return;
     }
 
@@ -210,7 +215,15 @@ export function CheckoutPage() {
       ...current,
       paymentMethod: 'CASH_ON_DELIVERY',
     }));
-  }, [checkoutForm.paymentMethod, paytrEnabled]);
+  }, [checkoutForm.paymentMethod, paytrEnabled, publicSettingsLoaded]);
+
+  useEffect(() => {
+    if (checkoutForm.paymentMethod === 'CARD') {
+      return;
+    }
+
+    setPhoneError('');
+  }, [checkoutForm.paymentMethod]);
 
   useEffect(() => {
     if (bankAccounts.length === 0) {
@@ -344,6 +357,7 @@ export function CheckoutPage() {
 
   const submitOrder = async () => {
     setCheckoutError('');
+    setPhoneError('');
     setCreatedOrder(null);
     setCreatedOrderNumber('');
 
@@ -364,6 +378,12 @@ export function CheckoutPage() {
     );
     if (isMissingRequired || !checkoutForm.email.includes('@')) {
       setCheckoutError('Lütfen zorunlu teslimat ve iletişim alanlarını doldurun.');
+      return;
+    }
+
+    if (checkoutForm.paymentMethod === 'CARD' && !isValidCheckoutPhone(checkoutForm.phone)) {
+      setPhoneError(PAYTR_PHONE_MESSAGE);
+      setCheckoutError('PAYTR odemesi icin telefon numaranizi dogru formatta girin.');
       return;
     }
 
@@ -418,12 +438,7 @@ export function CheckoutPage() {
         );
 
         linkOrderToEmail(response.data.orderNumber, checkoutForm.email);
-        setPaytrSession(response.data);
-        showToast({
-          title: 'Ödeme ekranı hazır',
-          description: 'PAYTR güvenli ödeme oturumu açıldı.',
-          tone: 'success',
-        });
+        window.location.assign(response.data.iframeUrl);
         return;
       }
 
@@ -625,14 +640,40 @@ export function CheckoutPage() {
                           <input
                             type="tel"
                             value={checkoutForm.phone}
+                            inputMode="tel"
+                            autoComplete="tel"
+                            placeholder="05xx xxx xx xx"
+                            aria-invalid={phoneError ? 'true' : 'false'}
                             onChange={(event) =>
-                              setCheckoutForm((current) => ({
-                                ...current,
-                                phone: event.target.value,
-                              }))
+                              setCheckoutForm((current) => {
+                                const nextPhone = event.target.value;
+                                if (phoneError && isValidCheckoutPhone(nextPhone)) {
+                                  setPhoneError('');
+                                }
+
+                                return {
+                                  ...current,
+                                  phone: nextPhone,
+                                };
+                              })
                             }
+                            onBlur={() => {
+                              if (
+                                checkoutForm.paymentMethod === 'CARD' &&
+                                checkoutForm.phone.trim().length > 0 &&
+                                !isValidCheckoutPhone(checkoutForm.phone)
+                              ) {
+                                setPhoneError(PAYTR_PHONE_MESSAGE);
+                              }
+                            }}
                             required
                           />
+                          <span className={phoneError ? 'sf-cart-field-error' : 'sf-cart-field-hint'}>
+                            {phoneError ||
+                              (checkoutForm.paymentMethod === 'CARD'
+                                ? 'PAYTR icin cep telefonu numarasi 05xx xxx xx xx formatinda olmali.'
+                                : 'Siparis ve kargo bilgilendirmeleri bu numaraya gider.')}
+                          </span>
                         </label>
                       </div>
 
@@ -895,7 +936,7 @@ export function CheckoutPage() {
                         {checkoutLoading
                           ? 'Ödeme Hazırlanıyor...'
                           : checkoutForm.paymentMethod === 'CARD'
-                            ? 'PAYTR Ödeme Ekranını Aç'
+                            ? 'PAYTR Odeme Sayfasina Gec'
                             : 'Siparişi Oluştur'}
                       </button>
                       <button

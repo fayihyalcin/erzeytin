@@ -530,31 +530,6 @@ function ProductDetailContent({
         </section>
       </div>
 
-      <div className="sf-pd-mobile-dock">
-        <div className="sf-pd-mobile-dock-meta">
-          <small>{product.name}</small>
-          <strong>{formatter.format(price)}</strong>
-        </div>
-        <div className="sf-pd-mobile-dock-actions">
-          <button
-            className="ghost"
-            disabled={!canPurchase}
-            type="button"
-            onClick={() => onAddProduct(product, quantity || 1)}
-          >
-            Sepete Ekle
-          </button>
-          <button
-            className="primary"
-            disabled={!canPurchase}
-            type="button"
-            onClick={() => onBuyNow(product, quantity || 1)}
-          >
-            Hemen Al
-          </button>
-        </div>
-      </div>
-
       {zoomOpen ? (
         <div className="sf-pd-lightbox" role="dialog" aria-modal="true" onClick={() => setZoomOpen(false)}>
           <div className="sf-pd-lightbox-panel" onClick={(event) => event.stopPropagation()}>
@@ -737,6 +712,7 @@ export function ProductDetailPage() {
       });
     }
   }, [currency]);
+  const contact = config.contact.phoneDisplay ? config.contact : defaultConfig.contact;
 
   useEffect(() => {
     if (!product) {
@@ -855,6 +831,19 @@ export function ProductDetailPage() {
           navigate('/cart');
         }}
       />
+      {!loading && contact.whatsappLink ? (
+        <a
+          className="sf-whatsapp-float sf-pd-whatsapp-float"
+          href={contact.whatsappLink}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span className="label">WhatsApp</span>
+          <span className="icon" aria-hidden="true">
+            WA
+          </span>
+        </a>
+      ) : null}
     </PublicStorefrontLayout>
   );
 }

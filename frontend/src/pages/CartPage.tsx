@@ -158,6 +158,36 @@ export function CartPage() {
   }, []);
 
   useEffect(() => {
+    const className = 'sf-mobile-nav-open';
+    if (mobileMenuOpen) {
+      document.body.classList.add(className);
+    } else {
+      document.body.classList.remove(className);
+    }
+
+    return () => {
+      document.body.classList.remove(className);
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
     let mounted = true;
 
     api
@@ -523,10 +553,14 @@ export function CartPage() {
 
           <div className="sf-header-actions">
             <Link
-              className="sf-customer-btn"
+              aria-label={isCustomerAuthenticated ? 'Müşteri paneli' : 'Müşteri girişi'}
+              className="sf-customer-btn sf-header-icon-button"
               to={isCustomerAuthenticated ? '/customer/dashboard' : '/customer/login'}
             >
-              {isCustomerAuthenticated ? 'Hesab\u0131m' : 'M\u00fc\u015fteri Giri\u015fi'}
+              <span className="sf-header-action-icon sf-header-action-icon-user" aria-hidden="true" />
+              <span className="sf-header-action-label">
+                {isCustomerAuthenticated ? 'Hesabım' : 'Müşteri Girişi'}
+              </span>
             </Link>
             {isCustomerAuthenticated ? (
               <button
@@ -543,12 +577,19 @@ export function CartPage() {
                   });
                 }}
               >
-                \u00c7\u0131k\u0131\u015f
+                <span className="sf-header-action-label">Çıkış</span>
               </button>
             ) : null}
-            <Link className="sf-cart-btn" to="/cart">
-              Sepetim
-              <span>{itemCount} ürün</span>
+            <Link
+              aria-label={`Sepetim, ${itemCount} ürün`}
+              className="sf-cart-btn sf-header-icon-button"
+              to="/cart"
+            >
+              <span className="sf-header-action-icon sf-header-action-icon-cart" aria-hidden="true" />
+              <span className="sf-header-action-label">Sepetim</span>
+              <span className="sf-header-action-count" aria-hidden="true">
+                {itemCount}
+              </span>
             </Link>
           </div>
 
@@ -556,8 +597,22 @@ export function CartPage() {
             className="sf-mobile-toggle"
             type="button"
             onClick={() => setMobileMenuOpen((current) => !current)}
+            aria-controls="cart-mobile-nav"
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
           >
-            MENÜ
+            <span
+              className={
+                mobileMenuOpen
+                  ? 'sf-mobile-toggle-bars sf-mobile-toggle-bars-open'
+                  : 'sf-mobile-toggle-bars'
+              }
+              aria-hidden="true"
+            >
+              <span />
+              <span />
+              <span />
+            </span>
           </button>
 
           <StorefrontMobileCategoryStrip
@@ -567,9 +622,30 @@ export function CartPage() {
           />
         </div>
 
+        <button
+          type="button"
+          aria-label="Menüyü kapat"
+          className={mobileMenuOpen ? 'sf-mobile-backdrop active' : 'sf-mobile-backdrop'}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+
         <div className="sf-nav-row">
-          <div className="sf-container sf-nav-inner">
+          <div
+            className={
+              mobileMenuOpen
+                ? 'sf-container sf-nav-inner sf-nav-inner-open'
+                : 'sf-container sf-nav-inner'
+            }
+          >
+            <button
+              type="button"
+              className="sf-mobile-nav-close"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Kapat
+            </button>
             <nav
+              id="cart-mobile-nav"
               aria-label="Mağaza gezinme"
               className={mobileMenuOpen ? 'sf-nav sf-nav-open' : 'sf-nav'}
             >
@@ -583,6 +659,37 @@ export function CartPage() {
                 </Link>
               ))}
             </nav>
+
+            <div className="sf-mobile-nav-actions">
+              <Link
+                className="sf-mobile-nav-primary"
+                onClick={() => setMobileMenuOpen(false)}
+                to={isCustomerAuthenticated ? '/customer/dashboard' : '/customer/login'}
+              >
+                {isCustomerAuthenticated ? 'Hesabım' : 'Müşteri Girişi'}
+              </Link>
+              <Link onClick={() => setMobileMenuOpen(false)} to="/">
+                Alışverişe Devam Et
+              </Link>
+              {isCustomerAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setCheckoutOpen(false);
+                    setPaytrSession(null);
+                    setMobileMenuOpen(false);
+                    showToast({
+                      title: 'Oturum kapatıldı',
+                      description: 'Müşteri hesabınızdan güvenli çıkış yapıldı.',
+                      tone: 'info',
+                    });
+                  }}
+                >
+                  Çıkış Yap
+                </button>
+              ) : null}
+            </div>
 
             <div className="sf-support-right">
               <span>{contact.workingHours}</span>

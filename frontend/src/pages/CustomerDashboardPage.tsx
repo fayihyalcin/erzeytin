@@ -456,8 +456,13 @@ export function CustomerDashboardPage() {
           </form>
 
           <div className="sf-header-actions">
-            <Link className="sf-customer-btn" to="/customer/dashboard">
-              Hesabım
+            <Link
+              aria-label="Müşteri paneli"
+              className="sf-customer-btn sf-header-icon-button"
+              to="/customer/dashboard"
+            >
+              <span className="sf-header-action-icon sf-header-action-icon-user" aria-hidden="true" />
+              <span className="sf-header-action-label">Hesabım</span>
             </Link>
             <button
               className="sf-account-btn"
@@ -467,11 +472,18 @@ export function CustomerDashboardPage() {
                 navigate('/customer/login');
               }}
             >
-              Çıkış
+              <span className="sf-header-action-label">Çıkış</span>
             </button>
-            <Link className="sf-cart-btn" to="/cart">
-              Sepetim
-              <span>{cartCount} ürün</span>
+            <Link
+              aria-label={`Sepetim, ${cartCount} ürün`}
+              className="sf-cart-btn sf-header-icon-button"
+              to="/cart"
+            >
+              <span className="sf-header-action-icon sf-header-action-icon-cart" aria-hidden="true" />
+              <span className="sf-header-action-label">Sepetim</span>
+              <span className="sf-header-action-count" aria-hidden="true">
+                {cartCount}
+              </span>
             </Link>
           </div>
 
@@ -481,8 +493,20 @@ export function CustomerDashboardPage() {
             onClick={() => setMobileMenuOpen((current) => !current)}
             aria-controls="customer-mobile-nav"
             aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
           >
-            {mobileMenuOpen ? 'Kapat' : 'Menu'}
+            <span
+              className={
+                mobileMenuOpen
+                  ? 'sf-mobile-toggle-bars sf-mobile-toggle-bars-open'
+                  : 'sf-mobile-toggle-bars'
+              }
+              aria-hidden="true"
+            >
+              <span />
+              <span />
+              <span />
+            </span>
           </button>
 
           <StorefrontMobileCategoryStrip

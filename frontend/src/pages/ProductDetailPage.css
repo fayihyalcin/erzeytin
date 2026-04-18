@@ -524,74 +524,12 @@
   font-size: 12px;
 }
 
-.sf-pd-mobile-dock {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  z-index: 55;
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border: 1px solid rgba(202, 216, 234, 0.92);
-  border-radius: 18px;
-  padding: 12px;
-  background: rgba(15, 24, 39, 0.94);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 18px 34px rgba(7, 12, 22, 0.26);
-}
-
 .ps-main .sf-pd-page > .sf-footer {
   display: none;
 }
 
-.sf-pd-mobile-dock-meta {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.sf-pd-mobile-dock-meta small {
-  color: rgba(220, 233, 246, 0.8);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.sf-pd-mobile-dock-meta strong {
-  color: #ffffff;
-  font-size: 16px;
-}
-
-.sf-pd-mobile-dock-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.sf-pd-mobile-dock-actions button {
-  min-height: 44px;
-  border-radius: 12px;
-  padding: 0 14px;
-  border: 0;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.sf-pd-mobile-dock-actions .ghost {
-  background: #eef4fb;
-  color: #22344c;
-}
-
-.sf-pd-mobile-dock-actions .primary {
-  background: linear-gradient(90deg, var(--public-olive), var(--public-olive-strong));
-  color: #ffffff;
-}
-
-.sf-pd-mobile-dock-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+.sf-pd-whatsapp-float {
+  display: none;
 }
 
 @media (max-width: 1380px) {
@@ -681,7 +619,7 @@
 
 @media (max-width: 640px) {
   .sf-pd-page {
-    padding-bottom: calc(110px + env(safe-area-inset-bottom));
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
   }
 
   .sf-pd-head {
@@ -760,7 +698,8 @@
     font-size: 30px;
   }
 
-  .sf-pd-mobile-dock {
-    display: flex;
+  .sf-pd-whatsapp-float {
+    display: inline-flex;
+    bottom: calc(16px + env(safe-area-inset-bottom));
   }
 }

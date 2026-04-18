@@ -174,19 +174,30 @@ export function PublicStorefrontLayout({
 
           <div className="sf-header-actions">
             <Link
-              className="sf-customer-btn"
+              aria-label={isAuthenticated ? 'Müşteri paneli' : 'Müşteri girişi'}
+              className="sf-customer-btn sf-header-icon-button"
               to={isAuthenticated ? '/customer/dashboard' : '/customer/login'}
             >
-              {isAuthenticated ? 'Hesabım' : 'Müşteri Girişi'}
+              <span className="sf-header-action-icon sf-header-action-icon-user" aria-hidden="true" />
+              <span className="sf-header-action-label">
+                {isAuthenticated ? 'Hesabım' : 'Müşteri Girişi'}
+              </span>
             </Link>
             {isAuthenticated ? (
               <button className="sf-account-btn" onClick={() => logout()} type="button">
-                Çıkış
+                <span className="sf-header-action-label">Çıkış</span>
               </button>
             ) : null}
-            <Link className="sf-cart-btn" to="/cart">
-              Sepetim
-              <span>{itemCount} ürün</span>
+            <Link
+              aria-label={`Sepetim, ${itemCount} ürün`}
+              className="sf-cart-btn sf-header-icon-button"
+              to="/cart"
+            >
+              <span className="sf-header-action-icon sf-header-action-icon-cart" aria-hidden="true" />
+              <span className="sf-header-action-label">Sepetim</span>
+              <span className="sf-header-action-count" aria-hidden="true">
+                {itemCount}
+              </span>
             </Link>
           </div>
 
@@ -196,8 +207,20 @@ export function PublicStorefrontLayout({
             type="button"
             aria-controls="storefront-mobile-nav"
             aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
           >
-            {mobileMenuOpen ? 'Kapat' : 'Menu'}
+            <span
+              className={
+                mobileMenuOpen
+                  ? 'sf-mobile-toggle-bars sf-mobile-toggle-bars-open'
+                  : 'sf-mobile-toggle-bars'
+              }
+              aria-hidden="true"
+            >
+              <span />
+              <span />
+              <span />
+            </span>
           </button>
 
           <StorefrontMobileCategoryStrip

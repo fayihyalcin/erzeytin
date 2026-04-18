@@ -968,3 +968,197 @@
     padding: 10px;
   }
 }
+
+@media (max-width: 900px) {
+  .sf-customer-layout {
+    gap: 10px;
+  }
+
+  .sf-customer-sidebar,
+  .sf-customer-panel {
+    border-radius: 14px;
+  }
+
+  .sf-customer-menu {
+    grid-auto-columns: minmax(152px, 42vw);
+    gap: 8px;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 2px;
+  }
+
+  .sf-customer-menu-item {
+    min-width: 0;
+    padding: 0 14px;
+    justify-content: flex-start;
+    scroll-snap-align: start;
+  }
+
+  .sf-customer-order-linker {
+    flex-direction: column;
+  }
+
+  .sf-customer-order-linker input,
+  .sf-customer-order-linker button,
+  .sf-tracking-link,
+  .sf-tracking-receipt-link,
+  .sf-receipt-upload-form button,
+  .sf-address-form button,
+  .sf-customer-account-form button {
+    width: 100%;
+  }
+
+  .sf-customer-orders-wrap {
+    overflow: visible;
+  }
+
+  .sf-customer-orders-table tr,
+  .sf-tracking-bank-panel,
+  .sf-receipt-upload-form,
+  .sf-tracking-note-card,
+  .sf-receipt-grid article,
+  .sf-payment-history-grid article,
+  .sf-customer-address-grid article {
+    min-width: 0;
+  }
+
+  .sf-tracking-bank-card strong,
+  .sf-tracking-bank-card span,
+  .sf-tracking-bank-card b,
+  .sf-tracking-bank-card small,
+  .sf-payment-history-grid p,
+  .sf-payment-history-grid small,
+  .sf-customer-address-grid p {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .sf-tracking-bank-head,
+  .sf-payment-history-head,
+  .sf-customer-address-grid header {
+    flex-wrap: wrap;
+  }
+
+  .sf-receipt-upload-form label,
+  .sf-customer-account-form label,
+  .sf-address-form,
+  .sf-customer-account-form,
+  .sf-payment-history-grid,
+  .sf-receipt-grid,
+  .sf-customer-address-grid {
+    min-width: 0;
+  }
+
+  .sf-checkbox-row {
+    min-height: 48px;
+    border: 1px solid #dce5ef;
+    border-radius: 12px;
+    padding: 10px 12px;
+    align-items: center;
+    background: #fafcff;
+  }
+}
+
+@media (max-width: 640px) {
+  .sf-customer-page {
+    padding: 10px 0 20px;
+  }
+
+  .sf-customer-sidebar,
+  .sf-customer-panel {
+    padding: 12px;
+  }
+
+  .sf-customer-user-card strong {
+    font-size: 15px;
+  }
+
+  .sf-customer-panel-head {
+    display: grid;
+    gap: 6px;
+  }
+
+  .sf-customer-panel-head h1 {
+    font-size: clamp(22px, 7vw, 30px);
+    line-height: 1.08;
+  }
+
+  .sf-customer-menu {
+    grid-auto-columns: minmax(144px, 74vw);
+  }
+
+  .sf-customer-menu-item {
+    min-height: 44px;
+    font-size: 13px;
+  }
+
+  .sf-simple-grid article strong {
+    font-size: 20px;
+  }
+
+  .sf-customer-orders-table tr {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .sf-customer-orders-table td {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .sf-customer-orders-table td > *:last-child {
+    max-width: 100%;
+  }
+
+  .sf-customer-order-actions,
+  .sf-address-actions,
+  .sf-receipt-actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .sf-customer-order-actions button,
+  .sf-address-actions button,
+  .sf-receipt-actions a,
+  .sf-receipt-actions button {
+    flex: 1 1 100%;
+    min-height: 38px;
+  }
+
+  .sf-tracking-bank-grid,
+  .sf-receipt-grid,
+  .sf-payment-history-grid,
+  .sf-customer-address-grid,
+  .sf-customer-account-form,
+  .sf-address-grid,
+  .sf-payment-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sf-tracking-bank-head strong,
+  .sf-payment-security-note strong,
+  .sf-payment-history-head strong,
+  .sf-address-form h3,
+  .sf-customer-address-grid h3 {
+    font-size: 15px;
+  }
+
+  .sf-tracking-bank-card strong {
+    font-size: 16px;
+  }
+
+  .sf-tracking-bank-card b {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .sf-receipt-upload-form input,
+  .sf-receipt-upload-form textarea,
+  .sf-address-form input,
+  .sf-customer-account-form input {
+    font-size: 14px;
+  }
+
+  .sf-checkbox-row {
+    align-items: flex-start;
+  }
+}

@@ -19,6 +19,7 @@
   font-size: clamp(30px, 3.2vw, 45px);
   font-weight: 500;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .sf-pd-head p {
@@ -43,6 +44,7 @@
   display: grid;
   grid-template-columns: 124px minmax(0, 1fr);
   gap: 12px;
+  min-width: 0;
 }
 
 .sf-pd-thumbs {
@@ -89,6 +91,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
+  min-width: 0;
 }
 
 .sf-pd-main-media img {
@@ -162,6 +165,7 @@
   display: grid;
   align-content: start;
   gap: 14px;
+  min-width: 0;
 }
 
 .sf-pd-review-line {
@@ -237,6 +241,7 @@
   color: #50627e;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 .sf-pd-qty-line {
@@ -304,6 +309,7 @@
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+  min-width: 0;
 }
 
 .sf-pd-btn svg {
@@ -397,6 +403,7 @@
   padding: 14px;
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .sf-pd-description h2 {
@@ -619,16 +626,61 @@
 
 @media (max-width: 640px) {
   .sf-pd-page {
-    padding-bottom: calc(28px + env(safe-area-inset-bottom));
+    padding-top: 14px;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom));
   }
 
   .sf-pd-head {
     margin-bottom: 10px;
   }
 
+  .sf-pd-head h1 {
+    font-size: clamp(26px, 8vw, 34px);
+    line-height: 1.16;
+  }
+
+  .sf-pd-head p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .sf-pd-shell {
+    padding: 8px;
+    border-radius: 12px;
+    gap: 10px;
+    box-shadow: 0 10px 24px rgba(25, 41, 69, 0.08);
+  }
+
+  .sf-pd-gallery {
+    gap: 8px;
+  }
+
+  .sf-pd-thumbs {
+    padding: 6px;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 72px;
+    gap: 6px;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .sf-pd-thumbs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sf-pd-thumbs button {
+    scroll-snap-align: start;
+  }
+
   .sf-pd-main-media {
-    padding: 14px;
-    min-height: 320px;
+    padding: 12px 48px;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
   }
 
   .sf-pd-main-media img {
@@ -642,46 +694,94 @@
     font-size: 16px;
   }
 
+  .sf-pd-main-arrow.left {
+    left: 10px;
+  }
+
+  .sf-pd-main-arrow.right {
+    right: 10px;
+  }
+
+  .sf-pd-zoom-chip {
+    top: 10px;
+    right: 10px;
+  }
+
   .sf-pd-info {
     padding: 12px;
     gap: 11px;
+    border-radius: 12px;
   }
 
   .sf-pd-service-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
 
   .sf-pd-service-strip span {
     font-size: 11px;
+    justify-content: center;
+    text-align: center;
   }
 
   .sf-pd-review-line {
     font-size: 13px;
+    align-items: flex-start;
   }
 
   .sf-pd-review-line .star {
     font-size: 26px;
   }
 
+  .sf-pd-price-row {
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+
   .sf-pd-price-row strong {
     font-size: 38px;
   }
 
+  .sf-pd-price-row span {
+    font-size: 17px;
+  }
+
   .sf-pd-shipping {
     font-size: 16px;
+    line-height: 1.45;
   }
 
   .sf-pd-qty-line {
-    min-height: 48px;
-    grid-template-columns: 94px minmax(0, 1fr);
+    min-height: 0;
+    grid-template-columns: 1fr;
+    overflow: hidden;
   }
 
   .sf-pd-qty-label {
-    font-size: 16px;
+    min-height: 38px;
+    border-right: 0;
+    border-bottom: 1px solid #dbe2ed;
+    font-size: 14px;
+    letter-spacing: 0.18em;
+  }
+
+  .sf-pd-qty-box {
+    grid-template-columns: 46px minmax(0, 1fr) 46px;
+    min-height: 48px;
   }
 
   .sf-pd-qty-box input {
     font-size: 18px;
+  }
+
+  .sf-pd-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .sf-pd-actions .sf-pd-btn {
+    grid-column: 1 / -1;
   }
 
   .sf-pd-btn,
@@ -689,17 +789,165 @@
     min-height: 46px;
   }
 
-  .sf-pd-meta div {
-    grid-template-columns: 92px minmax(0, 1fr);
+  .sf-pd-btn {
     gap: 8px;
+    padding-inline: 14px;
+  }
+
+  .sf-pd-icon-btn {
+    width: 100%;
+    border-radius: 16px;
+  }
+
+  .sf-pd-meta div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    border: 1px solid #e2e8f2;
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #f9fbff;
+  }
+
+  .sf-pd-meta dt,
+  .sf-pd-meta dd {
+    overflow-wrap: anywhere;
+  }
+
+  .sf-pd-description {
+    padding: 12px;
+    border-radius: 12px;
+    gap: 8px;
+  }
+
+  .sf-pd-description h2 {
+    font-size: 24px;
+  }
+
+  .sf-pd-description p,
+  .sf-pd-note-grid p {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .sf-pd-page .sf-related-products {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .sf-pd-page .sf-related-head {
+    display: grid;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .sf-pd-page .sf-related-nav {
+    justify-content: flex-start;
   }
 
   .sf-pd-page .sf-related-head h2 {
     font-size: 30px;
   }
 
+  .sf-pd-lightbox {
+    padding: 12px;
+  }
+
+  .sf-pd-lightbox-panel {
+    max-height: calc(100vh - 24px);
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .sf-pd-lightbox-toolbar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .sf-pd-lightbox-toolbar span {
+    width: 100%;
+    min-width: 0;
+  }
+
   .sf-pd-whatsapp-float {
     display: inline-flex;
-    bottom: calc(16px + env(safe-area-inset-bottom));
+    right: 12px;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 520px) {
+  .sf-pd-page {
+    padding-top: 12px;
+    padding-bottom: calc(118px + env(safe-area-inset-bottom));
+  }
+
+  .sf-pd-shell {
+    padding: 6px;
+    gap: 8px;
+  }
+
+  .sf-pd-main-media {
+    padding: 10px 42px;
+  }
+
+  .sf-pd-main-media img {
+    max-height: min(42vh, 280px);
+  }
+
+  .sf-pd-main-arrow {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+  }
+
+  .sf-pd-zoom-chip {
+    min-height: 30px;
+    padding: 0 8px;
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .sf-pd-review-line button {
+    width: 100%;
+    padding-top: 2px;
+    text-align: left;
+  }
+
+  .sf-pd-price-row strong {
+    font-size: clamp(31px, 10vw, 36px);
+  }
+
+  .sf-pd-price-row span {
+    font-size: 15px;
+  }
+
+  .sf-pd-service-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .sf-pd-btn span {
+    font-size: 14px;
+  }
+
+  .sf-pd-btn svg,
+  .sf-pd-icon-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .sf-pd-description h2 {
+    font-size: 22px;
+  }
+
+  .sf-pd-page .sf-related-head h2 {
+    font-size: 26px;
+  }
+
+  .sf-pd-lightbox-toolbar button {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .sf-pd-lightbox-help {
+    text-align: center;
   }
 }

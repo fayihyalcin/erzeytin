@@ -164,6 +164,7 @@ body.sf-modal-open {
   position: sticky;
   top: 0;
   z-index: 30;
+  isolation: isolate;
   background: rgba(255, 253, 248, 0.96);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid rgba(35, 49, 38, 0.08);
@@ -4096,7 +4097,7 @@ body.sf-modal-open {
     width: 50px;
     height: 50px;
     right: 10px;
-    bottom: 10px;
+    bottom: calc(90px + env(safe-area-inset-bottom));
   }
 
   .sf-footer-legal-links {
@@ -6150,6 +6151,14 @@ body.sf-mobile-nav-open {
   overflow: hidden;
 }
 
+body.sf-mobile-nav-open .sf-top-strip {
+  z-index: 139;
+}
+
+body.sf-mobile-nav-open .sf-main-header {
+  z-index: 140;
+}
+
 .sf-mobile-backdrop,
 .sf-mobile-nav-close,
 .sf-mobile-nav-actions,
@@ -6192,27 +6201,30 @@ body.sf-mobile-nav-open {
   }
 
   .sf-main-header {
-    z-index: 35;
+    z-index: 110;
   }
 
   .sf-brand-row {
     min-height: auto;
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 52px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     padding: 12px 0;
   }
 
   .sf-logo {
     grid-column: 2 / 3;
+    width: 100%;
     flex: 0 1 auto;
     justify-content: center;
     justify-self: center;
+    align-self: center;
     min-width: 0;
   }
 
   .sf-logo-image {
+    margin-inline: auto;
     height: 54px;
     max-width: min(100%, 220px);
   }
@@ -6234,6 +6246,7 @@ body.sf-mobile-nav-open {
     width: auto;
     min-width: 0;
     gap: 8px;
+    align-self: center;
     justify-content: flex-end;
     justify-self: end;
   }
@@ -6290,6 +6303,7 @@ body.sf-mobile-nav-open {
   .sf-mobile-toggle {
     display: inline-flex;
     grid-column: 1 / 2;
+    align-self: center;
     justify-self: start;
     border-color: rgba(35, 53, 74, 0.12);
     background: linear-gradient(180deg, #ffffff, #f3f7fb);
@@ -6353,7 +6367,7 @@ body.sf-mobile-nav-open {
     display: block;
     position: fixed;
     inset: 0;
-    z-index: 41;
+    z-index: 150;
     border: 0;
     padding: 0;
     background: rgba(11, 16, 24, 0.46);
@@ -6370,7 +6384,7 @@ body.sf-mobile-nav-open {
   .sf-nav-row {
     position: fixed;
     inset: 0 0 0 auto;
-    z-index: 42;
+    z-index: 160;
     border: 0;
     background: transparent;
     pointer-events: none;
@@ -6519,6 +6533,7 @@ body.sf-mobile-nav-open {
   }
 
   .sf-brand-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
     gap: 8px;
     padding: 10px 0 12px;
   }

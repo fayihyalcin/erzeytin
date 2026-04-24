@@ -44,9 +44,20 @@ function resolveMaxFiles() {
 }
 
 function resolveMaxFileSizeBytes() {
-  const raw = Number(process.env.UPLOAD_MAX_FILE_SIZE_MB ?? '12');
-  const safeValue = Number.isFinite(raw) && raw > 0 ? raw : 12;
-  return Math.trunc(safeValue * 1024 * 1024);
+  const rawValue = process.env.UPLOAD_MAX_FILE_SIZE_MB?.trim();
+
+  // Empty or invalid values disable the per-file multer limit so large assets
+  // can still be uploaded from the media library.
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const raw = Number(rawValue);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return undefined;
+  }
+
+  return Math.trunc(raw * 1024 * 1024);
 }
 
 function createStoredFilename(originalName: string, mimeType: string) {
@@ -57,6 +68,8 @@ function createStoredFilename(originalName: string, mimeType: string) {
 
   return `${Date.now()}-${randomUUID()}-${sanitizeFileNameBase(baseName)}${extension}`;
 }
+
+const mediaUploadMaxFileSizeBytes = resolveMaxFileSizeBytes();
 
 @Controller('media')
 @UseGuards(JwtAuthGuard)
@@ -79,9 +92,11 @@ export class MediaController {
 
         callback(null, true);
       },
-      limits: {
-        fileSize: resolveMaxFileSizeBytes(),
-      },
+      limits: mediaUploadMaxFileSizeBytes
+        ? {
+            fileSize: mediaUploadMaxFileSizeBytes,
+          }
+        : undefined,
       storage: diskStorage({
         destination: (request, _file, callback) => {
           try {

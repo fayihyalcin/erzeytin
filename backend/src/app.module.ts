@@ -21,6 +21,8 @@ import { OrdersModule } from './orders/orders.module';
 import { UsersModule } from './users/users.module';
 import { MediaModule } from './media/media.module';
 import { SeoModule } from './seo/seo.module';
+import { LandingPagesModule } from './landing-pages/landing-pages.module';
+import { LandingPage } from './landing-pages/landing-page.entity';
 
 function getConfigValue(
   configService: ConfigService,
@@ -54,6 +56,7 @@ function getConfigValue(
           Setting,
           Category,
           Product,
+          LandingPage,
           Order,
           OrderActivity,
           PaymentTransaction,
@@ -72,6 +75,7 @@ function getConfigValue(
     UsersModule,
     MediaModule,
     SeoModule,
+    LandingPagesModule,
     SettingsModule,
     CatalogModule,
     OrdersModule,

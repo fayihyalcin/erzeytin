@@ -101,4 +101,20 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsString()
   paytrLang?: string;
+
+  @IsOptional()
+  @IsString()
+  metaPixelPageScript?: string;
+
+  @IsOptional()
+  @IsString()
+  metaPixelPurchaseScript?: string;
+
+  @IsOptional()
+  @IsString()
+  tiktokPixelPageScript?: string;
+
+  @IsOptional()
+  @IsString()
+  tiktokPixelPurchaseScript?: string;
 }

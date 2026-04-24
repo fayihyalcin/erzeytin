@@ -23,6 +23,6 @@ import { OrdersService } from './orders.service';
   ],
   controllers: [AdminOrdersController, ShopOrdersController, ShopPaymentsController],
   providers: [OrdersService, PaytrService],
-  exports: [OrdersService],
+  exports: [OrdersService, PaytrService],
 })
 export class OrdersModule {}

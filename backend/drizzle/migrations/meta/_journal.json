@@ -15,6 +15,13 @@
       "when": 1776016727746,
       "tag": "0001_aromatic_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776733200000,
+      "tag": "0002_sturdy_landing_pages",
+      "breakpoints": true
     }
   ]
 }

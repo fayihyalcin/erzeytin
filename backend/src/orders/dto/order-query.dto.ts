@@ -16,6 +16,7 @@ const PAYMENT_STATUSES = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'] as const;
 const PAYMENT_METHODS = [
   'CARD',
   'CASH_ON_DELIVERY',
+  'CARD_ON_DELIVERY',
   'BANK_TRANSFER',
   'EFT_HAVALE',
   'PAYPAL',
@@ -28,6 +29,8 @@ const FULFILLMENT_STATUSES = [
   'SHIPPED',
   'DELIVERED',
 ] as const;
+
+const ORDER_SOURCES = ['WEBSITE', 'LANDING_PAGE'] as const;
 
 export class OrderQueryDto extends PaginationQueryDto {
   @IsOptional()
@@ -57,4 +60,8 @@ export class OrderQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsIn(ORDER_SOURCES)
+  source?: (typeof ORDER_SOURCES)[number];
 }

@@ -476,7 +476,12 @@ button {
 .dashboard-menu {
   display: grid;
   gap: 18px;
+  flex: 1 1 auto;
+  min-height: 0;
   min-width: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  align-content: start;
 }
 
 .dashboard-menu-group {
@@ -532,9 +537,11 @@ button {
 }
 
 .dashboard-sidebar-footer {
-  margin-top: auto;
+  flex: 0 0 auto;
   display: grid;
   gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(216, 226, 239, 0.92);
 }
 
 .dashboard-footer-button {

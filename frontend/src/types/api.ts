@@ -41,6 +41,10 @@ export interface SettingsDto {
   paytrMaxInstallment: string;
   paytrTimeoutLimit: string;
   paytrLang: string;
+  metaPixelPageScript: string;
+  metaPixelPurchaseScript: string;
+  tiktokPixelPageScript: string;
+  tiktokPixelPurchaseScript: string;
 }
 
 export interface WebsiteThemeConfig {
@@ -197,6 +201,91 @@ export interface WebsiteConfig {
   pages: WebsiteManagedPagesConfig;
   legalPages: WebsiteLegalPagesConfig;
   footerColumns: WebsiteFooterColumn[];
+}
+
+export type LandingPageStatus = 'DRAFT' | 'PUBLISHED';
+
+export interface LandingPagePackage {
+  id: string;
+  title: string;
+  subtitle: string;
+  note?: string;
+  badge?: string;
+  originalPrice: number;
+  price: number;
+  quantity: number;
+  highlight?: string;
+  isDefault?: boolean;
+}
+
+export interface LandingPageInfoCard {
+  id: string;
+  icon: string;
+  title: string;
+  items: string[];
+}
+
+export interface LandingPageFaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface LandingPageReview {
+  id: string;
+  name: string;
+  initials: string;
+  rating: number;
+  comment: string;
+}
+
+export interface LandingPageFooterLink {
+  id: string;
+  label: string;
+  href: string;
+}
+
+export interface LandingPageConfig {
+  announcementTitle: string;
+  announcementSubtitle: string;
+  stepLabels: string[];
+  visitorCount: number;
+  visitorLabel: string;
+  stockCount: number;
+  stockLabel: string;
+  packageSectionTitle: string;
+  orderSectionTitle: string;
+  addressPlaceholder: string;
+  paymentSectionTitle: string;
+  orderButtonLabel: string;
+  stickyButtonLabel: string;
+  termsLabel: string;
+  productInfoTitle: string;
+  productInfoDescription: string;
+  trustBadges: string[];
+  infoCards: LandingPageInfoCard[];
+  faqTitle: string;
+  faqItems: LandingPageFaqItem[];
+  reviewsTitle: string;
+  reviews: LandingPageReview[];
+  footerSellerText: string;
+  footerLinks: LandingPageFooterLink[];
+  galleryImages: string[];
+  packages: LandingPagePackage[];
+}
+
+export interface LandingPage {
+  id: string;
+  name: string;
+  slug: string;
+  status: LandingPageStatus;
+  featuredImage: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  config: LandingPageConfig;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PublicSettingsDto extends Partial<SettingsDto> {
@@ -396,6 +485,7 @@ export interface PaymentTransaction {
 export type PaymentMethod =
   | 'CARD'
   | 'CASH_ON_DELIVERY'
+  | 'CARD_ON_DELIVERY'
   | 'BANK_TRANSFER'
   | 'EFT_HAVALE'
   | 'PAYPAL'
@@ -454,6 +544,7 @@ export interface Order {
   customerNote: string | null;
   adminNote: string | null;
   source: string;
+  sourceMeta: Record<string, unknown> | null;
   assignedRepresentativeId: string | null;
   assignedRepresentative: AdminUser | null;
   assignmentNote: string | null;

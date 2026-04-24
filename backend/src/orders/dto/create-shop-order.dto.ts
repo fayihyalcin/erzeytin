@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsIn,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Min,
@@ -16,6 +17,7 @@ const PAYMENT_STATUSES = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'] as const;
 const PAYMENT_METHODS = [
   'CARD',
   'CASH_ON_DELIVERY',
+  'CARD_ON_DELIVERY',
   'BANK_TRANSFER',
   'EFT_HAVALE',
   'PAYPAL',
@@ -163,4 +165,8 @@ export class CreateShopOrderDto {
   @IsOptional()
   @IsString()
   customerNote?: string;
+
+  @IsOptional()
+  @IsObject()
+  tracking?: Record<string, unknown>;
 }

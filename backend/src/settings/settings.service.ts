@@ -17,6 +17,10 @@ const PUBLIC_SETTING_KEYS = [
   'websiteConfig',
   'blogPosts',
   'paytrEnabled',
+  'metaPixelPageScript',
+  'metaPixelPurchaseScript',
+  'tiktokPixelPageScript',
+  'tiktokPixelPurchaseScript',
 ] as const;
 
 @Injectable()

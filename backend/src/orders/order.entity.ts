@@ -26,6 +26,7 @@ export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 export type PaymentMethod =
   | 'CARD'
   | 'CASH_ON_DELIVERY'
+  | 'CARD_ON_DELIVERY'
   | 'BANK_TRANSFER'
   | 'EFT_HAVALE'
   | 'PAYPAL'
@@ -68,6 +69,10 @@ export interface BankTransferAccountSnapshot {
   accountNumber?: string;
   currency: string;
   note?: string;
+}
+
+export interface OrderSourceMeta {
+  [key: string]: unknown;
 }
 
 @Entity('orders')
@@ -158,6 +163,9 @@ export class Order {
 
   @Column({ default: 'WEBSITE' })
   source: string;
+
+  @Column({ name: 'source_meta', type: 'jsonb', nullable: true })
+  sourceMeta: OrderSourceMeta | null;
 
   @Column({ name: 'assigned_representative_id', type: 'uuid', nullable: true })
   assignedRepresentativeId: string | null;

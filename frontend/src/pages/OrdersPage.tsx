@@ -34,6 +34,7 @@ const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
 const PAYMENT_METHOD_OPTIONS: PaymentMethod[] = [
   'CARD',
   'CASH_ON_DELIVERY',
+  'CARD_ON_DELIVERY',
   'BANK_TRANSFER',
   'EFT_HAVALE',
   'PAYPAL',
@@ -46,6 +47,11 @@ const FULFILLMENT_STATUS_OPTIONS: FulfillmentStatus[] = [
   'SHIPPED',
   'DELIVERED',
 ];
+
+const SOURCE_OPTIONS = [
+  { value: 'WEBSITE', label: 'Website' },
+  { value: 'LANDING_PAGE', label: 'Landing Page' },
+] as const;
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: 'Yeni',
@@ -60,6 +66,7 @@ const STATUS_LABELS: Record<string, string> = {
   FAILED: 'Basarisiz',
   CARD: 'Kredi/Banka Karti',
   CASH_ON_DELIVERY: 'Kapida Odeme',
+  CARD_ON_DELIVERY: 'Kapida Kartla Odeme',
   BANK_TRANSFER: 'Banka Havalesi',
   EFT_HAVALE: 'EFT/Havale',
   PAYPAL: 'PayPal',
@@ -131,6 +138,16 @@ function badgeClass(status: string) {
   return 'badge badge-muted';
 }
 
+function getOrderSourceLabel(order: Order) {
+  return order.source === 'LANDING_PAGE' ? 'Landing Page' : 'Website';
+}
+
+function getLandingPageName(order: Order) {
+  return typeof order.sourceMeta?.landingPageName === 'string'
+    ? order.sourceMeta.landingPageName
+    : null;
+}
+
 export function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -146,6 +163,7 @@ export function OrdersPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [filters, setFilters] = useState({
+    source: '',
     status: '',
     paymentStatus: '',
     paymentMethod: '',
@@ -156,6 +174,7 @@ export function OrdersPage() {
   });
   const [query, setQuery] = useState({
     page: 1,
+    source: '',
     status: '',
     paymentStatus: '',
     paymentMethod: '',
@@ -194,6 +213,9 @@ export function OrdersPage() {
 
     if (nextQuery.status) {
       params.status = nextQuery.status;
+    }
+    if (nextQuery.source) {
+      params.source = nextQuery.source;
     }
     if (nextQuery.paymentStatus) {
       params.paymentStatus = nextQuery.paymentStatus;
@@ -254,6 +276,7 @@ export function OrdersPage() {
     event.preventDefault();
     setQuery({
       page: 1,
+      source: filters.source,
       status: filters.status,
       paymentStatus: filters.paymentStatus,
       paymentMethod: filters.paymentMethod,
@@ -295,7 +318,7 @@ export function OrdersPage() {
     <section className="panel-card">
       <div className="panel-title-row">
         <h3>Siparis Yonetimi</h3>
-        <span>Website Siparis Listesi</span>
+        <span>Tum Siparisler Ortak Tabloda</span>
       </div>
 
       <div className="orders-stats-grid">
@@ -323,6 +346,15 @@ export function OrdersPage() {
           value={filters.search}
           onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
         />
+
+        <select value={filters.source} onChange={(event) => setFilters((current) => ({ ...current, source: event.target.value }))}>
+          <option value="">Tum Kaynaklar</option>
+          {SOURCE_OPTIONS.map((source) => (
+            <option key={source.value} value={source.value}>
+              {source.label}
+            </option>
+          ))}
+        </select>
 
         <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
           <option value="">Tum Siparis Durumlari</option>
@@ -406,6 +438,7 @@ export function OrdersPage() {
             <tr>
               <th>Siparis No</th>
               <th>Musteri</th>
+              <th>Kaynak</th>
               <th>Temsilci</th>
               <th>Tutar</th>
               <th>Siparis</th>
@@ -420,11 +453,12 @@ export function OrdersPage() {
           <tbody>
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={11}>Siparis bulunamadi.</td>
+                <td colSpan={12}>Siparis bulunamadi.</td>
               </tr>
             ) : (
               orders.map((order) => {
                 const whatsappLink = buildWhatsappLink(order);
+                const landingPageName = getLandingPageName(order);
 
                 return (
                   <tr key={order.id}>
@@ -432,6 +466,10 @@ export function OrdersPage() {
                     <td data-label="Musteri">
                       <div>{order.customerName}</div>
                       <small>{order.customerEmail}</small>
+                    </td>
+                    <td data-label="Kaynak">
+                      <div>{getOrderSourceLabel(order)}</div>
+                      <small>{landingPageName ?? '-'}</small>
                     </td>
                     <td data-label="Temsilci">{order.assignedRepresentative?.fullName ?? 'Zimmet Yok'}</td>
                     <td data-label="Tutar">{formatCurrency(order.grandTotal, order.currency)}</td>

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  InternalServerErrorException,
   Injectable,
   Logger,
   NotFoundException,
@@ -39,6 +40,11 @@ type PaytrApiResponse =
   | { status: 'success'; token: string }
   | { status: 'failed'; reason?: string };
 
+type CheckoutForOrderOptions = {
+  returnPath?: string;
+  failureMessagePrefix?: string;
+};
+
 @Injectable()
 export class PaytrService {
   private readonly logger = new Logger(PaytrService.name);
@@ -53,195 +59,426 @@ export class PaytrService {
   ) {}
 
   async createCheckout(dto: CreateShopOrderDto, context: PaytrClientContext) {
-    const settingsRecord = await this.settingsService.findAll();
-    const settings = this.parseSettings(settingsRecord);
-
-    if (!settings.enabled) {
-      throw new BadRequestException('PAYTR odeme sistemi aktif degil.');
-    }
-
-    if (!settings.merchantId || !settings.merchantKey || !settings.merchantSalt) {
-      throw new BadRequestException('PAYTR ayarlari eksik. Merchant bilgilerini kontrol edin.');
-    }
-
-    if ((dto.paymentMethod ?? 'CARD') !== 'CARD') {
-      throw new BadRequestException('PAYTR checkout sadece kredi karti odemeleri icindir.');
-    }
-
-    const merchantOid = this.createMerchantOid();
-    const order = await this.ordersService.createFromWebsite({
-      ...dto,
-      paymentMethod: 'CARD',
-      paymentStatus: 'PENDING',
-      paymentProvider: 'PAYTR',
-      paymentTransactionId: merchantOid,
-    });
-
-    if (!order) {
-      throw new BadRequestException('Odeme icin siparis hazirlanamadi.');
-    }
-
-    let payment: PaymentTransaction | null = null;
-    try {
-      payment = await this.paymentTransactionsRepository.save(
-        this.paymentTransactionsRepository.create({
-          orderId: order.id,
-          provider: 'PAYTR',
-          merchantOid,
-          status: 'PENDING',
-          requestAmount: order.grandTotal,
-          paidAmount: null,
-          currency: order.currency,
-          iframeToken: null,
-          paymentType: null,
-          providerTransactionId: null,
-          failureCode: null,
-          failureMessage: null,
-          callbackCount: 0,
-          isTest: settings.testMode,
-          rawRequest: {},
-          rawResponse: {},
-          rawCallback: {},
-          paidAt: null,
-          failedAt: null,
-        }),
-      );
-    } catch (error) {
-      this.logger.error(
-        `PAYTR transaction log kaydi olusturulamadi (${merchantOid}). Order fallback kullanilacak. ${this.describeError(error)}`,
-      );
-    }
+    let stage = 'SETTINGS_LOAD';
+    const debugRef = this.createDebugRef();
 
     try {
-      const paymentAmount = this.toMinorUnits(order.grandTotal);
-      const currency = this.resolvePaytrCurrency(order.currency);
-      const userBasket = Buffer.from(
-        JSON.stringify(
-          order.items.map((item) => [
-            this.limitText(item.productName, 120),
-            Number(item.unitPrice).toFixed(2),
-            Number(item.quantity),
-          ]),
-        ),
-      ).toString('base64');
+      const settingsRecord = await this.settingsService.findAll();
+      const settings = this.parseSettings(settingsRecord);
 
-      const merchantOkUrl = this.buildReturnUrl(
-        settings.siteUrl,
-        context,
-        order.orderNumber,
-        merchantOid,
-        'success',
-      );
-      const merchantFailUrl = this.buildReturnUrl(
-        settings.siteUrl,
-        context,
-        order.orderNumber,
-        merchantOid,
-        'failed',
-      );
-
-      const hashStr = [
-        settings.merchantId,
-        this.normalizeIp(context.ip),
-        merchantOid,
-        order.customerEmail,
-        String(paymentAmount),
-        userBasket,
-        settings.noInstallment ? '1' : '0',
-        String(settings.maxInstallment),
-        currency,
-        settings.testMode ? '1' : '0',
-      ].join('');
-      const paytrToken = this.hashToBase64(
-        `${hashStr}${settings.merchantSalt}`,
-        settings.merchantKey,
-      );
-
-      const requestPayload = {
-        merchant_id: settings.merchantId,
-        user_ip: this.normalizeIp(context.ip),
-        merchant_oid: merchantOid,
-        email: order.customerEmail,
-        payment_amount: String(paymentAmount),
-        paytr_token: paytrToken,
-        user_basket: userBasket,
-        debug_on: settings.debugOn ? '1' : '0',
-        no_installment: settings.noInstallment ? '1' : '0',
-        max_installment: String(settings.maxInstallment),
-        user_name: order.customerName,
-        user_address: this.formatAddress(order.shippingAddress),
-        user_phone: order.customerPhone ?? '',
-        merchant_ok_url: merchantOkUrl,
-        merchant_fail_url: merchantFailUrl,
-        timeout_limit: String(settings.timeoutLimit),
-        currency,
-        test_mode: settings.testMode ? '1' : '0',
-        lang: settings.lang,
-      };
-
-      const apiResponse = await this.fetchToken(requestPayload);
-
-      if (payment) {
-        payment.iframeToken = apiResponse.token;
-        payment.rawRequest = {
-          ...requestPayload,
-          paytr_token: '[REDACTED]',
-        };
-        payment.rawResponse = apiResponse;
-        payment.failureCode = null;
-        payment.failureMessage = null;
-        payment.failedAt = null;
-
-        try {
-          await this.paymentTransactionsRepository.save(payment);
-        } catch (error) {
-          this.logger.error(
-            `PAYTR transaction log kaydi guncellenemedi (${merchantOid}). Order fallback kullanilacak. ${this.describeError(error)}`,
-          );
-          payment = null;
-        }
+      stage = 'SETTINGS_VALIDATE';
+      if (!settings.enabled) {
+        throw new BadRequestException('PAYTR odeme sistemi aktif degil.');
       }
 
-      return {
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        merchantOid,
-        paymentId: payment?.id ?? merchantOid,
-        iframeToken: apiResponse.token,
-        iframeUrl: `https://www.paytr.com/odeme/guvenli/${apiResponse.token}`,
-      };
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'PAYTR odeme oturumu olusturulamadi.';
-
-      if (payment) {
-        payment.status = 'FAILED';
-        payment.failureMessage = message;
-        payment.failedAt = new Date();
-
-        try {
-          await this.paymentTransactionsRepository.save(payment);
-        } catch (persistError) {
-          this.logger.error(
-            `PAYTR failed transaction log kaydi guncellenemedi (${merchantOid}). ${this.describeError(persistError)}`,
-          );
-        }
+      if (!settings.merchantId || !settings.merchantKey || !settings.merchantSalt) {
+        throw new BadRequestException('PAYTR ayarlari eksik. Merchant bilgilerini kontrol edin.');
       }
 
-      await this.ordersService.markOrderPaymentFailedBySystem(order.id, {
-        provider: 'PAYTR',
-        transactionId: merchantOid,
-        reason: `PAYTR iframe token alinamadi: ${message}`,
-        meta: {
-          merchantOid,
-          stage: 'TOKEN_REQUEST',
-        },
-        cancelOrder: true,
+      if ((dto.paymentMethod ?? 'CARD') !== 'CARD') {
+        throw new BadRequestException('PAYTR checkout sadece kredi karti odemeleri icindir.');
+      }
+
+      stage = 'ORDER_CREATE';
+      const merchantOid = this.createMerchantOid();
+      const order = await this.ordersService.createFromWebsite({
+        ...dto,
+        paymentMethod: 'CARD',
+        paymentStatus: 'PENDING',
+        paymentProvider: 'PAYTR',
+        paymentTransactionId: merchantOid,
       });
 
-      throw new BadRequestException(message);
+      if (!order) {
+        throw new BadRequestException('Odeme icin siparis hazirlanamadi.');
+      }
+
+      let payment: PaymentTransaction | null = null;
+      stage = 'PAYMENT_LOG_CREATE';
+      try {
+        payment = await this.paymentTransactionsRepository.save(
+          this.paymentTransactionsRepository.create({
+            orderId: order.id,
+            provider: 'PAYTR',
+            merchantOid,
+            status: 'PENDING',
+            requestAmount: order.grandTotal,
+            paidAmount: null,
+            currency: order.currency,
+            iframeToken: null,
+            paymentType: null,
+            providerTransactionId: null,
+            failureCode: null,
+            failureMessage: null,
+            callbackCount: 0,
+            isTest: settings.testMode,
+            rawRequest: {},
+            rawResponse: {},
+            rawCallback: {},
+            paidAt: null,
+            failedAt: null,
+          }),
+        );
+      } catch (error) {
+        this.logger.error(
+          `PAYTR transaction log kaydi olusturulamadi (${merchantOid}). Order fallback kullanilacak. ${this.describeError(error)}`,
+        );
+      }
+
+      try {
+        stage = 'TOKEN_PREPARE';
+        const paymentAmount = this.toMinorUnits(order.grandTotal);
+        const currency = this.resolvePaytrCurrency(order.currency);
+        const userBasket = Buffer.from(
+          JSON.stringify(
+            order.items.map((item) => [
+              this.limitText(item.productName, 120),
+              Number(item.unitPrice).toFixed(2),
+              Number(item.quantity),
+            ]),
+          ),
+        ).toString('base64');
+
+        const merchantOkUrl = this.buildReturnUrl(
+          settings.siteUrl,
+          context,
+          order.orderNumber,
+          merchantOid,
+          'success',
+        );
+        const merchantFailUrl = this.buildReturnUrl(
+          settings.siteUrl,
+          context,
+          order.orderNumber,
+          merchantOid,
+          'failed',
+        );
+
+        const hashStr = [
+          settings.merchantId,
+          this.normalizeIp(context.ip),
+          merchantOid,
+          order.customerEmail,
+          String(paymentAmount),
+          userBasket,
+          settings.noInstallment ? '1' : '0',
+          String(settings.maxInstallment),
+          currency,
+          settings.testMode ? '1' : '0',
+        ].join('');
+        const paytrToken = this.hashToBase64(
+          `${hashStr}${settings.merchantSalt}`,
+          settings.merchantKey,
+        );
+
+        const requestPayload = {
+          merchant_id: settings.merchantId,
+          user_ip: this.normalizeIp(context.ip),
+          merchant_oid: merchantOid,
+          email: order.customerEmail,
+          payment_amount: String(paymentAmount),
+          paytr_token: paytrToken,
+          user_basket: userBasket,
+          debug_on: settings.debugOn ? '1' : '0',
+          no_installment: settings.noInstallment ? '1' : '0',
+          max_installment: String(settings.maxInstallment),
+          user_name: order.customerName,
+          user_address: this.formatAddress(order.shippingAddress),
+          user_phone: order.customerPhone ?? '',
+          merchant_ok_url: merchantOkUrl,
+          merchant_fail_url: merchantFailUrl,
+          timeout_limit: String(settings.timeoutLimit),
+          currency,
+          test_mode: settings.testMode ? '1' : '0',
+          lang: settings.lang,
+        };
+
+        stage = 'TOKEN_REQUEST';
+        const apiResponse = await this.fetchToken(requestPayload);
+
+        if (payment) {
+          payment.iframeToken = apiResponse.token;
+          payment.rawRequest = {
+            ...requestPayload,
+            paytr_token: '[REDACTED]',
+          };
+          payment.rawResponse = apiResponse;
+          payment.failureCode = null;
+          payment.failureMessage = null;
+          payment.failedAt = null;
+
+          stage = 'PAYMENT_LOG_UPDATE';
+          try {
+            await this.paymentTransactionsRepository.save(payment);
+          } catch (error) {
+            this.logger.error(
+              `PAYTR transaction log kaydi guncellenemedi (${merchantOid}). Order fallback kullanilacak. ${this.describeError(error)}`,
+            );
+            payment = null;
+          }
+        }
+
+        return {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          merchantOid,
+          paymentId: payment?.id ?? merchantOid,
+          iframeToken: apiResponse.token,
+          iframeUrl: `https://www.paytr.com/odeme/guvenli/${apiResponse.token}`,
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'PAYTR odeme oturumu olusturulamadi.';
+
+        if (payment) {
+          payment.status = 'FAILED';
+          payment.failureMessage = message;
+          payment.failedAt = new Date();
+
+          try {
+            await this.paymentTransactionsRepository.save(payment);
+          } catch (persistError) {
+            this.logger.error(
+              `PAYTR failed transaction log kaydi guncellenemedi (${merchantOid}). ${this.describeError(persistError)}`,
+            );
+          }
+        }
+
+        try {
+          stage = 'ORDER_FAIL_MARK';
+          await this.ordersService.markOrderPaymentFailedBySystem(order.id, {
+            provider: 'PAYTR',
+            transactionId: merchantOid,
+            reason: `PAYTR iframe token alinamadi: ${message}`,
+            meta: {
+              merchantOid,
+              stage: 'TOKEN_REQUEST',
+            },
+            cancelOrder: true,
+          });
+        } catch (markError) {
+          this.logger.error(
+            `PAYTR failed siparis guncellemesi yapilamadi (${merchantOid}). ${this.describeError(markError)}`,
+          );
+        }
+
+        throw new BadRequestException(message);
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `PAYTR checkout beklenmeyen hata [${debugRef}] stage=${stage}. ${this.describeError(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException(
+        `PAYTR checkout baslatilamadi. Referans: ${debugRef}, asama: ${stage}`,
+      );
+    }
+  }
+
+  async createCheckoutForExistingOrder(
+    orderId: string,
+    context: PaytrClientContext,
+    options: CheckoutForOrderOptions = {},
+  ) {
+    let stage = 'SETTINGS_LOAD';
+    const debugRef = this.createDebugRef();
+
+    try {
+      const settingsRecord = await this.settingsService.findAll();
+      const settings = this.parseSettings(settingsRecord);
+
+      stage = 'SETTINGS_VALIDATE';
+      if (!settings.enabled) {
+        throw new BadRequestException('PAYTR odeme sistemi aktif degil.');
+      }
+
+      if (!settings.merchantId || !settings.merchantKey || !settings.merchantSalt) {
+        throw new BadRequestException('PAYTR ayarlari eksik. Merchant bilgilerini kontrol edin.');
+      }
+
+      stage = 'ORDER_LOAD';
+      const order = await this.ordersRepository.findOne({ where: { id: orderId } });
+      if (!order) {
+        throw new NotFoundException('Odeme icin siparis bulunamadi.');
+      }
+
+      const merchantOid = this.createMerchantOid();
+      order.paymentMethod = 'CARD';
+      order.paymentProvider = 'PAYTR';
+      order.paymentStatus = 'PENDING';
+      order.paymentTransactionId = merchantOid;
+      await this.ordersRepository.save(order);
+
+      let payment: PaymentTransaction | null = null;
+      stage = 'PAYMENT_LOG_CREATE';
+      try {
+        payment = await this.paymentTransactionsRepository.save(
+          this.paymentTransactionsRepository.create({
+            orderId: order.id,
+            provider: 'PAYTR',
+            merchantOid,
+            status: 'PENDING',
+            requestAmount: order.grandTotal,
+            paidAmount: null,
+            currency: order.currency,
+            iframeToken: null,
+            paymentType: null,
+            providerTransactionId: null,
+            failureCode: null,
+            failureMessage: null,
+            callbackCount: 0,
+            isTest: settings.testMode,
+            rawRequest: {},
+            rawResponse: {},
+            rawCallback: {},
+            paidAt: null,
+            failedAt: null,
+          }),
+        );
+      } catch (error) {
+        this.logger.error(
+          `PAYTR transaction log kaydi olusturulamadi (${merchantOid}). ${this.describeError(error)}`,
+        );
+      }
+
+      try {
+        stage = 'TOKEN_PREPARE';
+        const paymentAmount = this.toMinorUnits(order.grandTotal);
+        const currency = this.resolvePaytrCurrency(order.currency);
+        const userBasket = Buffer.from(
+          JSON.stringify(
+            order.items.map((item) => [
+              this.limitText(item.productName, 120),
+              Number(item.unitPrice).toFixed(2),
+              Number(item.quantity),
+            ]),
+          ),
+        ).toString('base64');
+
+        const merchantOkUrl = this.buildReturnUrl(
+          settings.siteUrl,
+          context,
+          order.orderNumber,
+          merchantOid,
+          'success',
+          options.returnPath,
+        );
+        const merchantFailUrl = this.buildReturnUrl(
+          settings.siteUrl,
+          context,
+          order.orderNumber,
+          merchantOid,
+          'failed',
+          options.returnPath,
+        );
+
+        const hashStr = [
+          settings.merchantId,
+          this.normalizeIp(context.ip),
+          merchantOid,
+          order.customerEmail,
+          String(paymentAmount),
+          userBasket,
+          settings.noInstallment ? '1' : '0',
+          String(settings.maxInstallment),
+          currency,
+          settings.testMode ? '1' : '0',
+        ].join('');
+        const paytrToken = this.hashToBase64(
+          `${hashStr}${settings.merchantSalt}`,
+          settings.merchantKey,
+        );
+
+        const requestPayload = {
+          merchant_id: settings.merchantId,
+          user_ip: this.normalizeIp(context.ip),
+          merchant_oid: merchantOid,
+          email: order.customerEmail,
+          payment_amount: String(paymentAmount),
+          paytr_token: paytrToken,
+          user_basket: userBasket,
+          debug_on: settings.debugOn ? '1' : '0',
+          no_installment: settings.noInstallment ? '1' : '0',
+          max_installment: String(settings.maxInstallment),
+          user_name: order.customerName,
+          user_address: this.formatAddress(order.shippingAddress),
+          user_phone: order.customerPhone ?? '',
+          merchant_ok_url: merchantOkUrl,
+          merchant_fail_url: merchantFailUrl,
+          timeout_limit: String(settings.timeoutLimit),
+          currency,
+          test_mode: settings.testMode ? '1' : '0',
+          lang: settings.lang,
+        };
+
+        stage = 'TOKEN_REQUEST';
+        const apiResponse = await this.fetchToken(requestPayload);
+
+        if (payment) {
+          payment.iframeToken = apiResponse.token;
+          payment.rawRequest = {
+            ...requestPayload,
+            paytr_token: '[REDACTED]',
+          };
+          payment.rawResponse = apiResponse;
+          payment.failureCode = null;
+          payment.failureMessage = null;
+          payment.failedAt = null;
+          await this.paymentTransactionsRepository.save(payment);
+        }
+
+        return {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          merchantOid,
+          paymentId: payment?.id ?? merchantOid,
+          iframeToken: apiResponse.token,
+          iframeUrl: `https://www.paytr.com/odeme/guvenli/${apiResponse.token}`,
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'PAYTR odeme oturumu olusturulamadi.';
+
+        if (payment) {
+          payment.status = 'FAILED';
+          payment.failureMessage = message;
+          payment.failedAt = new Date();
+          await this.paymentTransactionsRepository.save(payment);
+        }
+
+        await this.ordersService.markOrderPaymentFailedBySystem(order.id, {
+          provider: 'PAYTR',
+          transactionId: merchantOid,
+          reason: `${options.failureMessagePrefix ?? 'PAYTR iframe token alinamadi'}: ${message}`,
+          meta: {
+            merchantOid,
+            stage: 'TOKEN_REQUEST',
+          },
+          cancelOrder: true,
+        });
+
+        throw new BadRequestException(message);
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `PAYTR existing-order checkout beklenmeyen hata [${debugRef}] stage=${stage}. ${this.describeError(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException(
+        `PAYTR checkout baslatilamadi. Referans: ${debugRef}, asama: ${stage}`,
+      );
     }
   }
 
@@ -424,9 +661,11 @@ export class PaytrService {
     orderNumber: string,
     merchantOid: string,
     result: 'success' | 'failed',
+    returnPath = '/checkout/paytr/return',
   ) {
+    const configuredBaseUrl = siteUrl;
     const resolvedBaseUrl =
-      siteUrl ||
+      configuredBaseUrl ||
       this.normalizeBaseUrl(context.origin) ||
       this.extractOrigin(context.referer) ||
       this.normalizeBaseUrl(
@@ -439,7 +678,18 @@ export class PaytrService {
       );
     }
 
-    const url = new URL('/checkout/paytr/return', resolvedBaseUrl);
+    if (
+      configuredBaseUrl &&
+      this.isLoopbackOrigin(configuredBaseUrl) &&
+      context.host &&
+      !this.isLoopbackHost(context.host)
+    ) {
+      throw new BadRequestException(
+        'Site URL ayari localhost gorunuyor. Ayarlarda site URL alanini canli domaininiz olarak guncelleyin.',
+      );
+    }
+
+    const url = new URL(returnPath, resolvedBaseUrl);
     url.searchParams.set('order', orderNumber);
     url.searchParams.set('merchantOid', merchantOid);
     url.searchParams.set('result', result);
@@ -464,6 +714,10 @@ export class PaytrService {
 
   private createMerchantOid() {
     return `PAYTR${Date.now()}${randomBytes(6).toString('hex').toUpperCase()}`;
+  }
+
+  private createDebugRef() {
+    return randomBytes(4).toString('hex').toUpperCase();
   }
 
   private resolvePaytrCurrency(value: string) {
@@ -568,6 +822,27 @@ export class PaytrService {
     } catch {
       return null;
     }
+  }
+
+  private isLoopbackOrigin(value: string) {
+    try {
+      const url = new URL(value);
+      return this.isLoopbackHost(url.hostname);
+    } catch {
+      return false;
+    }
+  }
+
+  private isLoopbackHost(value: string) {
+    const normalized = value.trim().toLowerCase();
+    return (
+      normalized === 'localhost' ||
+      normalized === '127.0.0.1' ||
+      normalized === '::1' ||
+      normalized.startsWith('localhost:') ||
+      normalized.startsWith('127.0.0.1:') ||
+      normalized.startsWith('[::1]:')
+    );
   }
 
   private toNullableString(value: unknown) {

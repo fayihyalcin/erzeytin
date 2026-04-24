@@ -68,6 +68,7 @@ function paymentMeta(status: Order['paymentStatus']) {
 function paymentMethodLabel(method: Order['paymentMethod']) {
   if (method === 'CARD') return 'Kredi Karti';
   if (method === 'CASH_ON_DELIVERY') return 'Kapida Odeme';
+  if (method === 'CARD_ON_DELIVERY') return 'Kapida Kartla Odeme';
   if (method === 'EFT_HAVALE') return 'EFT / Havale';
   if (method === 'BANK_TRANSFER') return 'Banka Havalesi';
   return 'Diger';

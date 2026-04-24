@@ -88,6 +88,20 @@ export const products = pgTable('products', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const landingPages = pgTable('landing_pages', {
+  id: uuid('id').default(sql`uuid_generate_v4()`).primaryKey(),
+  name: varchar('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  status: varchar('status').default('DRAFT').notNull(),
+  featuredImage: text('featured_image'),
+  seoTitle: text('seo_title'),
+  seoDescription: text('seo_description'),
+  config: jsonb('config').$type<Record<string, unknown>>().default(emptyObjectJson).notNull(),
+  publishedAt: timestamp('published_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const orders = pgTable('orders', {
   id: uuid('id').default(sql`uuid_generate_v4()`).primaryKey(),
   orderNumber: varchar('order_number').notNull().unique(),
@@ -112,6 +126,7 @@ export const orders = pgTable('orders', {
   customerNote: text('customer_note'),
   adminNote: text('admin_note'),
   source: varchar('source').default('WEBSITE').notNull(),
+  sourceMeta: jsonb('source_meta').$type<Record<string, unknown>>(),
   assignedRepresentativeId: uuid('assigned_representative_id').references(() => adminUsers.id, {
     onDelete: 'set null',
   }),

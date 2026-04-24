@@ -20,6 +20,7 @@ import { SettingsService } from '../settings/settings.service';
 import { AdminUser } from '../users/admin-user.entity';
 import { CreateShopOrderDto } from './dto/create-shop-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
+import { sanitizeOrderTrackingPayload } from './order-tracking.utils';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderActivity } from './order-activity.entity';
 import {
@@ -84,6 +85,8 @@ export class OrdersService {
         'order.customerName',
         'order.customerEmail',
         'order.customerPhone',
+        'order.source',
+        'order.sourceMeta',
         'order.grandTotal',
         'order.currency',
         'order.status',
@@ -184,6 +187,7 @@ export class OrdersService {
       dto.paymentMethod,
       dto.bankTransferAccountId,
     );
+    const tracking = sanitizeOrderTrackingPayload(dto.tracking);
 
     const saved = await this.dataSource.transaction(async (manager) => {
       const productRepository = manager.getRepository(Product);
@@ -224,6 +228,7 @@ export class OrdersService {
         customerNote: this.toNullable(dto.customerNote),
         adminNote: null,
         source: 'WEBSITE',
+        sourceMeta: tracking ? { tracking } : null,
         assignedRepresentativeId: null,
         assignedRepresentative: null,
         assignmentNote: null,
@@ -847,6 +852,12 @@ export class OrdersService {
     if (query.fulfillmentStatus) {
       queryBuilder.andWhere('order.fulfillmentStatus = :fulfillmentStatus', {
         fulfillmentStatus: query.fulfillmentStatus,
+      });
+    }
+
+    if (query.source) {
+      queryBuilder.andWhere('order.source = :source', {
+        source: query.source,
       });
     }
 

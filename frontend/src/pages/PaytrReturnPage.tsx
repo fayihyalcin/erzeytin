@@ -6,6 +6,7 @@ import { useStoreCart } from '../context/StoreCartContext';
 import { api } from '../lib/api';
 import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText, toAbsoluteSiteUrl } from '../lib/public-seo';
 import { useSeo } from '../lib/seo';
+import { firePurchaseTrackingScripts } from '../lib/tracking';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type { Order, PublicSettingsDto, WebsiteConfig } from '../types/api';
 import './StorefrontPage.css';
@@ -28,6 +29,10 @@ export function PaytrReturnPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [attemptCount, setAttemptCount] = useState(0);
+  const [trackingScripts, setTrackingScripts] = useState({
+    metaPixelPurchaseScript: '',
+    tiktokPixelPurchaseScript: '',
+  });
 
   const orderNumber = searchParams.get('order')?.trim() ?? '';
   const resultHint = searchParams.get('result')?.trim() ?? '';
@@ -47,6 +52,10 @@ export function PaytrReturnPage() {
         if (response.data.currency) {
           setCurrency(response.data.currency.toUpperCase());
         }
+        setTrackingScripts({
+          metaPixelPurchaseScript: response.data.metaPixelPurchaseScript ?? '',
+          tiktokPixelPurchaseScript: response.data.tiktokPixelPurchaseScript ?? '',
+        });
       })
       .catch(() => {
         if (mounted) {
@@ -135,6 +144,18 @@ export function PaytrReturnPage() {
       }
     };
   }, [addOrderNumber, clearCart, isAuthenticated, isEmbedded, linkOrderToEmail, orderNumber]);
+
+  useEffect(() => {
+    if (order?.paymentStatus !== 'PAID') {
+      return;
+    }
+
+    firePurchaseTrackingScripts(
+      trackingScripts,
+      order,
+      `checkout-paytr:${order.orderNumber}`,
+    );
+  }, [order, trackingScripts]);
 
   const orderCurrency = order?.currency || currency;
   const formatter = useMemo(() => {

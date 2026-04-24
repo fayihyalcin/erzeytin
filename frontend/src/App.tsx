@@ -1,5 +1,6 @@
 import { Suspense, lazy, useLayoutEffect, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { PublicTrackingManager } from './components/PublicTrackingManager';
 import { StorefrontWhatsAppButton } from './components/StorefrontWhatsAppButton';
 import { useAuth } from './context/AuthContext';
 import { useCustomerAuth } from './context/CustomerAuthContext';
@@ -48,6 +49,24 @@ const ProductDetailPage = lazy(() =>
 );
 const ProductFormPage = lazy(() =>
   import('./pages/ProductFormPage').then((module) => ({ default: module.ProductFormPage })),
+);
+const LandingPagesPage = lazy(() =>
+  import('./pages/LandingPagesPage').then((module) => ({ default: module.LandingPagesPage })),
+);
+const LandingPageFormPage = lazy(() =>
+  import('./pages/LandingPageFormPage').then((module) => ({ default: module.LandingPageFormPage })),
+);
+const LandingPagePublicPage = lazy(() =>
+  import('./pages/LandingPagePublicPage').then((module) => ({ default: module.LandingPagePublicPage })),
+);
+const LandingPagePreviewPage = lazy(() =>
+  import('./pages/LandingPagePreviewPage').then((module) => ({ default: module.LandingPagePreviewPage })),
+);
+const LandingPaytrReturnPage = lazy(() =>
+  import('./pages/LandingPaytrReturnPage').then((module) => ({ default: module.LandingPaytrReturnPage })),
+);
+const LandingOrderResultPage = lazy(() =>
+  import('./pages/LandingOrderResultPage').then((module) => ({ default: module.LandingOrderResultPage })),
 );
 const ProductsPage = lazy(() =>
   import('./pages/ProductsPage').then((module) => ({ default: module.ProductsPage })),
@@ -104,6 +123,29 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/admin" replace />;
+  }
+
+  return children;
+}
+
+function AdminOnlyRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="screen-message">Yukleniyor...</div>;
+  }
+
+  if (user?.role !== 'ADMIN') {
+    return (
+      <section className="admin-panel">
+        <div className="admin-panel-header">
+          <div>
+            <h3>Yetki gerekli</h3>
+            <p>Bu alan sadece admin hesabi ile acilabilir.</p>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return children;
@@ -182,13 +224,16 @@ function App() {
     location.pathname === '/admin' ||
     location.pathname === '/login' ||
     location.pathname.startsWith('/checkout') ||
+    location.pathname.startsWith('/landing') ||
+    location.pathname.startsWith('/landing-preview') ||
     location.pathname === '/customer/login' ||
     location.pathname === '/customer/register' ||
     location.pathname.startsWith('/dashboard');
 
-  return (
+    return (
       <>
         <ScrollManager />
+        <PublicTrackingManager />
 
       <Suspense fallback={<RouteFallback />}>
         <Routes>
@@ -202,6 +247,19 @@ function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/checkout/paytr/return" element={<PaytrReturnPage />} />
+          <Route path="/landing/paytr/return" element={<LandingPaytrReturnPage />} />
+          <Route path="/landing/order/result" element={<LandingOrderResultPage />} />
+          <Route path="/landing/:slug" element={<LandingPagePublicPage />} />
+          <Route
+            path="/landing-preview/:landingPageId"
+            element={
+              <ProtectedRoute>
+                <AdminOnlyRoute>
+                  <LandingPagePreviewPage />
+                </AdminOnlyRoute>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/customer/dashboard"
             element={
@@ -251,16 +309,54 @@ function App() {
             }
           >
             <Route index element={<DashboardOverviewPage />} />
-            <Route path="website" element={<WebsiteContentPage />} />
+            <Route
+              path="website"
+              element={
+                <AdminOnlyRoute>
+                  <WebsiteContentPage />
+                </AdminOnlyRoute>
+              }
+            />
             <Route path="posts" element={<PostsPage />} />
             <Route path="media" element={<MediaLibraryPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            <Route
+              path="settings"
+              element={
+                <AdminOnlyRoute>
+                  <SettingsPage />
+                </AdminOnlyRoute>
+              }
+            />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="categories/new" element={<CategoryFormPage />} />
             <Route path="categories/:categoryId/edit" element={<CategoryFormPage />} />
             <Route path="products" element={<ProductsPage />} />
             <Route path="products/new" element={<ProductFormPage />} />
             <Route path="products/:productId/edit" element={<ProductFormPage />} />
+            <Route
+              path="landing-pages"
+              element={
+                <AdminOnlyRoute>
+                  <LandingPagesPage />
+                </AdminOnlyRoute>
+              }
+            />
+            <Route
+              path="landing-pages/new"
+              element={
+                <AdminOnlyRoute>
+                  <LandingPageFormPage />
+                </AdminOnlyRoute>
+              }
+            />
+            <Route
+              path="landing-pages/:landingPageId/edit"
+              element={
+                <AdminOnlyRoute>
+                  <LandingPageFormPage />
+                </AdminOnlyRoute>
+              }
+            />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="orders/:orderId" element={<OrderDetailPage />} />
             <Route path="representatives" element={<RepresentativesPage />} />

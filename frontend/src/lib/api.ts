@@ -20,6 +20,7 @@ export const ADMIN_AUTH_CLEARED_EVENT = 'zeytin-admin-auth-cleared';
 const PUBLIC_API_PREFIXES = [
   '/auth/login',
   '/catalog/public',
+  '/landing-pages/public',
   '/settings/public',
   '/shop/',
 ] as const;

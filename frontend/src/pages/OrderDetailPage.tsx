@@ -34,6 +34,7 @@ const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
 const PAYMENT_METHOD_OPTIONS: PaymentMethod[] = [
   'CARD',
   'CASH_ON_DELIVERY',
+  'CARD_ON_DELIVERY',
   'BANK_TRANSFER',
   'EFT_HAVALE',
   'PAYPAL',
@@ -62,6 +63,7 @@ const STATUS_LABELS: Record<string, string> = {
   PROCESSING: 'Hazirlaniyor',
   CARD: 'Kredi/Banka Karti',
   CASH_ON_DELIVERY: 'Kapida Odeme',
+  CARD_ON_DELIVERY: 'Kapida Kartla Odeme',
   BANK_TRANSFER: 'Banka Havalesi',
   EFT_HAVALE: 'EFT/Havale',
   PAYPAL: 'PayPal',
@@ -300,6 +302,26 @@ export function OrderDetailPage() {
         `${order.orderNumber} siparisiniz icin destek hattina baglandiniz.`,
       )}`
     : null;
+  const landingPageName =
+    typeof order.sourceMeta?.landingPageName === 'string'
+      ? order.sourceMeta.landingPageName
+      : null;
+  const landingPackageTitle =
+    typeof order.sourceMeta?.selectedPackageTitle === 'string'
+      ? order.sourceMeta.selectedPackageTitle
+      : null;
+  const landingPath =
+    typeof order.sourceMeta?.landingPath === 'string' ? order.sourceMeta.landingPath : null;
+  const trackingMeta =
+    order.sourceMeta && typeof order.sourceMeta.tracking === 'object'
+      ? (order.sourceMeta.tracking as Record<string, unknown>)
+      : null;
+  const trackingParams =
+    trackingMeta?.params && typeof trackingMeta.params === 'object'
+      ? Object.entries(trackingMeta.params as Record<string, unknown>).filter(
+          ([, value]) => typeof value === 'string' && value.trim().length > 0,
+        )
+      : [];
 
   return (
     <section className="orders-page-grid">
@@ -330,7 +352,12 @@ export function OrderDetailPage() {
           </div>
           <div>
             <small>E-Posta</small>
-            <p>{order.customerEmail}</p>
+            <p>
+              {order.source === 'LANDING_PAGE' &&
+              order.customerEmail.endsWith('@landing.local')
+                ? '-'
+                : order.customerEmail}
+            </p>
           </div>
           <div>
             <small>Telefon</small>
@@ -375,6 +402,10 @@ export function OrderDetailPage() {
             <p>{order.shippingMethod ?? '-'}</p>
           </div>
           <div>
+            <small>Kaynak</small>
+            <p>{order.source}</p>
+          </div>
+          <div>
             <small>Kargo Firmasi</small>
             <p>{order.shippingCompany ?? '-'}</p>
           </div>
@@ -391,6 +422,64 @@ export function OrderDetailPage() {
             <p>{formatCurrency(order.grandTotal, order.currency)}</p>
           </div>
         </div>
+
+        {order.source === 'LANDING_PAGE' ? (
+          <div className="order-items">
+            <small>Landing Bilgisi</small>
+            <ul>
+              <li>
+                <span>Landing page</span>
+                <span>{landingPageName ?? '-'}</span>
+              </li>
+              <li>
+                <span>Paket</span>
+                <span>{landingPackageTitle ?? '-'}</span>
+              </li>
+              <li>
+                <span>Canli yol</span>
+                <span>{landingPath ?? '-'}</span>
+              </li>
+            </ul>
+          </div>
+        ) : null}
+
+        {trackingMeta ? (
+          <div className="order-items">
+            <small>Reklam / Tracking</small>
+            <ul>
+              <li>
+                <span>Giris URL</span>
+                <span>{typeof trackingMeta.entryUrl === 'string' ? trackingMeta.entryUrl : '-'}</span>
+              </li>
+              <li>
+                <span>Mevcut URL</span>
+                <span>{typeof trackingMeta.currentUrl === 'string' ? trackingMeta.currentUrl : '-'}</span>
+              </li>
+              <li>
+                <span>Referrer</span>
+                <span>{typeof trackingMeta.referrer === 'string' ? trackingMeta.referrer : '-'}</span>
+              </li>
+              <li>
+                <span>Ilk yol</span>
+                <span>{typeof trackingMeta.entryPath === 'string' ? trackingMeta.entryPath : '-'}</span>
+              </li>
+              <li>
+                <span>Kayit zamani</span>
+                <span>{typeof trackingMeta.capturedAt === 'string' ? formatDate(trackingMeta.capturedAt) : '-'}</span>
+              </li>
+              <li>
+                <span>Parametreler</span>
+                <span>
+                  {trackingParams.length > 0
+                    ? trackingParams
+                        .map(([key, value]) => `${key}=${String(value)}`)
+                        .join(' | ')
+                    : '-'}
+                </span>
+              </li>
+            </ul>
+          </div>
+        ) : null}
 
         <div className="order-address">
           <small>Teslimat Adresi</small>

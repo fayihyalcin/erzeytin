@@ -12,6 +12,7 @@ import { buildDefaultSeoImageUrl, buildPageTitle, buildKeywordSet, summarizeText
 import { resolveProductImage as resolveCatalogProductImage } from '../lib/product-images';
 import { resolvePublicProductPath } from '../lib/public-site';
 import { useSeo } from '../lib/seo';
+import { buildOrderTrackingPayload, firePurchaseTrackingScripts } from '../lib/tracking';
 import { createDefaultWebsiteConfig, parseWebsiteConfig } from '../lib/website-config';
 import type {
   BankAccount,
@@ -126,6 +127,10 @@ export function CheckoutPage() {
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [createdOrderNumber, setCreatedOrderNumber] = useState('');
   const [paytrSession, setPaytrSession] = useState<PaytrCheckoutSession | null>(null);
+  const [trackingScripts, setTrackingScripts] = useState({
+    metaPixelPurchaseScript: '',
+    tiktokPixelPurchaseScript: '',
+  });
   const bankTransferPanelRef = useRef<HTMLDivElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const [checkoutForm, setCheckoutForm] = useState<CheckoutFormState>({
@@ -166,6 +171,10 @@ export function CheckoutPage() {
         );
         setBankAccounts(parsedBankAccounts);
         setEftPaymentInstructions(response.data.eftPaymentInstructions ?? '');
+        setTrackingScripts({
+          metaPixelPurchaseScript: response.data.metaPixelPurchaseScript ?? '',
+          tiktokPixelPurchaseScript: response.data.tiktokPixelPurchaseScript ?? '',
+        });
         setSelectedBankAccountId((current) =>
           current || parsedBankAccounts[0]?.id || '',
         );
@@ -269,6 +278,18 @@ export function CheckoutPage() {
     };
   }, [checkoutForm.paymentMethod]);
 
+  useEffect(() => {
+    if (!createdOrder) {
+      return;
+    }
+
+    firePurchaseTrackingScripts(
+      trackingScripts,
+      createdOrder,
+      `checkout-manual:${createdOrder.orderNumber}`,
+    );
+  }, [createdOrder, trackingScripts]);
+
   const formatter = useMemo(() => {
     try {
       return new Intl.NumberFormat('tr-TR', {
@@ -354,6 +375,7 @@ export function CheckoutPage() {
         ? selectedBankAccountId || undefined
         : undefined,
     customerNote: checkoutForm.note.trim(),
+    tracking: buildOrderTrackingPayload(),
   };
 
   const submitOrder = async () => {

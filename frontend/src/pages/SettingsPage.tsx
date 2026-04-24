@@ -29,6 +29,10 @@ const defaultSettings: SettingsDto = {
   paytrMaxInstallment: '0',
   paytrTimeoutLimit: '30',
   paytrLang: 'tr',
+  metaPixelPageScript: '',
+  metaPixelPurchaseScript: '',
+  tiktokPixelPageScript: '',
+  tiktokPixelPurchaseScript: '',
 };
 
 const settingsSteps = [
@@ -56,6 +60,11 @@ const settingsSteps = [
     id: 'paytr-credentials',
     title: 'API Anahtarları',
     description: 'Merchant bilgileri ve teknik parametreler.',
+  },
+  {
+    id: 'tracking',
+    title: 'Reklam Takibi',
+    description: 'Meta ve TikTok donusum scriptleri.',
   },
 ] satisfies AdminWizardStep[];
 
@@ -94,6 +103,14 @@ function normalizeSettings(settings: Partial<SettingsDto> = {}): SettingsDto {
     paytrTimeoutLimit:
       settings.paytrTimeoutLimit ?? defaultSettings.paytrTimeoutLimit,
     paytrLang: settings.paytrLang ?? defaultSettings.paytrLang,
+    metaPixelPageScript:
+      settings.metaPixelPageScript ?? defaultSettings.metaPixelPageScript,
+    metaPixelPurchaseScript:
+      settings.metaPixelPurchaseScript ?? defaultSettings.metaPixelPurchaseScript,
+    tiktokPixelPageScript:
+      settings.tiktokPixelPageScript ?? defaultSettings.tiktokPixelPageScript,
+    tiktokPixelPurchaseScript:
+      settings.tiktokPixelPurchaseScript ?? defaultSettings.tiktokPixelPurchaseScript,
   };
 }
 
@@ -128,6 +145,15 @@ function hasBankAccountDraft(account: BankAccount) {
     account.accountNumber,
     account.note,
   ].some((value) => String(value ?? '').trim().length > 0);
+}
+
+function countConfiguredTrackingScripts(settings: SettingsDto) {
+  return [
+    settings.metaPixelPageScript,
+    settings.metaPixelPurchaseScript,
+    settings.tiktokPixelPageScript,
+    settings.tiktokPixelPurchaseScript,
+  ].filter((value) => value.trim().length > 0).length;
 }
 
 export function SettingsPage() {
@@ -186,6 +212,10 @@ export function SettingsPage() {
         (account) => account.isActive && isBankAccountComplete(account),
       ).length,
     [bankAccounts],
+  );
+  const configuredTrackingScriptsCount = useMemo(
+    () => countConfiguredTrackingScripts(form),
+    [form],
   );
 
   const currentStepIndex = settingsSteps.findIndex((step) => step.id === currentStep);
@@ -353,6 +383,10 @@ export function SettingsPage() {
             <div className="admin-metric-tile">
               <span>EFT talimati</span>
               <strong>{form.eftPaymentInstructions.trim() ? 'Hazir' : 'Eksik'}</strong>
+            </div>
+            <div className="admin-metric-tile">
+              <span>Tracking script</span>
+              <strong>{configuredTrackingScriptsCount}/4</strong>
             </div>
           </div>
 
@@ -789,6 +823,87 @@ export function SettingsPage() {
                       <option value="tr">Türkçe</option>
                       <option value="en">English</option>
                     </select>
+                  </label>
+                </div>
+              </section>
+            </>
+          ) : null}
+
+          {currentStep === 'tracking' ? (
+            <>
+              <section className="admin-stage-intro">
+                <span className="admin-eyebrow">Adim 6</span>
+                <h3>Reklam ve donusum kodlari</h3>
+                <p>Meta / Facebook ve TikTok kodlarini site ile siparis tamamlama ekranlari icin ayri yonetin.</p>
+              </section>
+
+              <section className="admin-panel">
+                <div className="admin-panel-header">
+                  <div>
+                    <h3>Tracking scriptleri</h3>
+                    <p>Kodu aynen yapistirin. Site scriptleri public sayfalarda, purchase scriptleri siparis basari ekranlarinda calisir.</p>
+                  </div>
+                </div>
+
+                <article className="admin-inline-note">
+                  <strong>Kullanilabilir yer tutucular</strong>
+                  <p>
+                    {'{{ORDER_NUMBER}}'}, {'{{ORDER_ID}}'}, {'{{VALUE}}'}, {'{{CURRENCY}}'}, {'{{PAYMENT_METHOD}}'}, {'{{PAGE_URL}}'}, {'{{PATHNAME}}'}, {'{{SOURCE}}'}
+                  </p>
+                  <small>Degerler JSON formatinda enjekte edilir; ornegin currency icin ayrica tirnak eklemenize gerek yoktur.</small>
+                </article>
+
+                <div className="admin-form-grid">
+                  <label className="admin-label admin-span-full">
+                    <span>Meta / Facebook site scripti</span>
+                    <textarea
+                      className="admin-input"
+                      onChange={(event) =>
+                        setForm({ ...form, metaPixelPageScript: event.target.value })
+                      }
+                      placeholder="<script>...</script>"
+                      rows={8}
+                      value={form.metaPixelPageScript}
+                    />
+                  </label>
+
+                  <label className="admin-label admin-span-full">
+                    <span>Meta / Facebook purchase scripti</span>
+                    <textarea
+                      className="admin-input"
+                      onChange={(event) =>
+                        setForm({ ...form, metaPixelPurchaseScript: event.target.value })
+                      }
+                      placeholder="fbq('track', 'Purchase', { value: {{VALUE}}, currency: {{CURRENCY}} });"
+                      rows={8}
+                      value={form.metaPixelPurchaseScript}
+                    />
+                  </label>
+
+                  <label className="admin-label admin-span-full">
+                    <span>TikTok site scripti</span>
+                    <textarea
+                      className="admin-input"
+                      onChange={(event) =>
+                        setForm({ ...form, tiktokPixelPageScript: event.target.value })
+                      }
+                      placeholder="<script>...</script>"
+                      rows={8}
+                      value={form.tiktokPixelPageScript}
+                    />
+                  </label>
+
+                  <label className="admin-label admin-span-full">
+                    <span>TikTok purchase scripti</span>
+                    <textarea
+                      className="admin-input"
+                      onChange={(event) =>
+                        setForm({ ...form, tiktokPixelPurchaseScript: event.target.value })
+                      }
+                      placeholder="ttq.track('CompletePayment', { value: {{VALUE}}, currency: {{CURRENCY}} });"
+                      rows={8}
+                      value={form.tiktokPixelPurchaseScript}
+                    />
                   </label>
                 </div>
               </section>

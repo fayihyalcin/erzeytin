@@ -3,11 +3,14 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useAuth } from '../context/AuthContext';
 import { createAdminSocket } from '../lib/socket';
 
+type AdminRole = 'ADMIN' | 'REPRESENTATIVE';
+
 interface MenuItem {
   to: string;
   title: string;
   description: string;
   shortCode: string;
+  roles?: AdminRole[];
 }
 
 const menuGroups: Array<{ title: string; items: MenuItem[] }> = [
@@ -17,19 +20,20 @@ const menuGroups: Array<{ title: string; items: MenuItem[] }> = [
       {
         to: '/dashboard',
         title: 'Panel',
-        description: 'Genel metrikler ve hızlı işlemler',
+        description: 'Genel metrikler ve hizli islemler',
         shortCode: 'PN',
       },
       {
         to: '/dashboard/website',
-        title: 'Site İçeriği',
-        description: 'Anasayfa, iletişim ve yasal sayfalar',
+        title: 'Site Icerigi',
+        description: 'Anasayfa, iletisim ve yasal sayfalar',
         shortCode: 'SI',
+        roles: ['ADMIN'],
       },
       {
         to: '/dashboard/posts',
-        title: 'Yazılar',
-        description: 'Blog ve rehber içerikleri',
+        title: 'Yazilar',
+        description: 'Blog ve rehber icerikleri',
         shortCode: 'YZ',
       },
       {
@@ -46,14 +50,21 @@ const menuGroups: Array<{ title: string; items: MenuItem[] }> = [
       {
         to: '/dashboard/categories',
         title: 'Kategoriler',
-        description: 'Ürün grupları ve SEO alanları',
+        description: 'Urun gruplari ve SEO alanlari',
         shortCode: 'KT',
       },
       {
         to: '/dashboard/products',
-        title: 'Ürünler',
-        description: 'Ürün, fiyat, stok ve görseller',
+        title: 'Urunler',
+        description: 'Urun, fiyat, stok ve gorseller',
         shortCode: 'UR',
+      },
+      {
+        to: '/dashboard/landing-pages',
+        title: 'Landing Pages',
+        description: 'Reklam sayfalari ve tekil urun akislari',
+        shortCode: 'LP',
+        roles: ['ADMIN'],
       },
     ],
   },
@@ -62,14 +73,14 @@ const menuGroups: Array<{ title: string; items: MenuItem[] }> = [
     items: [
       {
         to: '/dashboard/orders',
-        title: 'Siparişler',
-        description: 'Sipariş, ödeme, kargo ve zimmet',
+        title: 'Siparisler',
+        description: 'Siparis, odeme, kargo ve zimmet',
         shortCode: 'SP',
       },
       {
         to: '/dashboard/representatives',
         title: 'Temsilciler',
-        description: 'Ekip ve müşteri temsilciliği',
+        description: 'Ekip ve musteri temsilciligi',
         shortCode: 'TM',
       },
     ],
@@ -80,19 +91,34 @@ const menuGroups: Array<{ title: string; items: MenuItem[] }> = [
       {
         to: '/dashboard/settings',
         title: 'Ayarlar',
-        description: 'Mağaza, para birimi ve vergi ayarları',
+        description: 'Magaza, para birimi ve vergi ayarlari',
         shortCode: 'AY',
+        roles: ['ADMIN'],
       },
     ],
   },
 ];
 
-function findCurrentItem(pathname: string) {
-  return menuGroups
+function findCurrentItem(
+  pathname: string,
+  groups: Array<{ title: string; items: MenuItem[] }>,
+) {
+  return groups
     .flatMap((group) => group.items)
     .find((item) =>
       item.to === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.to),
     );
+}
+
+function buildVisibleMenuGroups(role: AdminRole | undefined) {
+  return menuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.roles || !role || item.roles.includes(role),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
 }
 
 export function DashboardLayout() {
@@ -183,7 +209,11 @@ export function DashboardLayout() {
     };
   }, [token]);
 
-  const currentItem = useMemo(() => findCurrentItem(location.pathname), [location.pathname]);
+  const visibleMenuGroups = useMemo(() => buildVisibleMenuGroups(user?.role), [user?.role]);
+  const currentItem = useMemo(
+    () => findCurrentItem(location.pathname, menuGroups),
+    [location.pathname],
+  );
   const todayLabel = useMemo(
     () =>
       new Intl.DateTimeFormat('tr-TR', {
@@ -225,7 +255,7 @@ export function DashboardLayout() {
             {!sidebarCollapsed ? (
               <div>
                 <strong>Er Zeyincilik</strong>
-                <small>E-Ticaret admin paneli</small>
+                <small>E-ticaret admin paneli</small>
               </div>
             ) : null}
           </div>
@@ -255,15 +285,15 @@ export function DashboardLayout() {
 
         {!sidebarCollapsed ? (
           <div className="dashboard-sidebar-insight">
-            <span className="dashboard-menu-group-title">Operasyon özeti</span>
+            <span className="dashboard-menu-group-title">Operasyon ozeti</span>
             <strong>{currentItem?.title ?? 'Panel'}</strong>
             <p>
               {currentItem?.description ??
-                'Sipariş, katalog, medya ve CMS alanlarını tek merkezden yönetin.'}
+                'Siparis, katalog, medya ve CMS alanlarini tek merkezden yonetin.'}
             </p>
             <div className="dashboard-sidebar-tags">
               <span className={connection === 'bagli' ? 'admin-chip success' : 'admin-chip'}>
-                {connection === 'bagli' ? 'Canlı akış' : 'Çevrimdışı'}
+                {connection === 'bagli' ? 'Canli akis' : 'Cevrimdisi'}
               </span>
               <span className="admin-chip info">{user?.role ?? 'ADMIN'}</span>
             </div>
@@ -271,9 +301,11 @@ export function DashboardLayout() {
         ) : null}
 
         <nav className="dashboard-menu">
-          {menuGroups.map((group) => (
+          {visibleMenuGroups.map((group) => (
             <div key={group.title} className="dashboard-menu-group">
-              {!sidebarCollapsed ? <span className="dashboard-menu-group-title">{group.title}</span> : null}
+              {!sidebarCollapsed ? (
+                <span className="dashboard-menu-group-title">{group.title}</span>
+              ) : null}
               {group.items.map((item) => (
                 <NavLink
                   key={item.to}
@@ -300,11 +332,11 @@ export function DashboardLayout() {
         <div className="dashboard-sidebar-footer">
           <Link className="dashboard-footer-link" to="/">
             <span className="dashboard-menu-icon">WS</span>
-            {!sidebarCollapsed ? 'Siteyi gör' : null}
+            {!sidebarCollapsed ? 'Siteyi gor' : null}
           </Link>
           <button className="dashboard-footer-button" onClick={handleLogout} type="button">
             <span className="dashboard-menu-icon">CK</span>
-            {!sidebarCollapsed ? 'Çıkış yap' : null}
+            {!sidebarCollapsed ? 'Cikis yap' : null}
           </button>
         </div>
       </aside>
@@ -326,27 +358,27 @@ export function DashboardLayout() {
                 <span />
               </span>
               <span className="dashboard-mobile-toggle-text">
-                {sidebarOpen ? 'Kapat' : 'Menü'}
+                {sidebarOpen ? 'Kapat' : 'Menu'}
               </span>
             </button>
             <div className="dashboard-topbar-copy">
-              <span className="dashboard-topbar-label">Yönetim merkezi</span>
+              <span className="dashboard-topbar-label">Yonetim merkezi</span>
               <h1>{currentItem?.title ?? 'Panel'}</h1>
               <p>
                 {currentItem?.description ??
-                  'Katalog, içerik ve operasyon akışını daha hızlı yönetmek için optimize edildi.'}
+                  'Katalog, icerik ve operasyon akislarini daha hizli yonetmek icin optimize edildi.'}
               </p>
             </div>
           </div>
 
           <div className="dashboard-topbar-right">
-          <div className="dashboard-topbar-meta">
-            <strong>{todayLabel}</strong>
-            <span>Kurumsal yönetim akışı</span>
-          </div>
-          <span className={connection === 'bagli' ? 'admin-pill success' : 'admin-pill'}>
-              {connection === 'bagli' ? 'Canlı bağlantı' : 'Bağlantı yok'}
-          </span>
+            <div className="dashboard-topbar-meta">
+              <strong>{todayLabel}</strong>
+              <span>Kurumsal yonetim akisi</span>
+            </div>
+            <span className={connection === 'bagli' ? 'admin-pill success' : 'admin-pill'}>
+              {connection === 'bagli' ? 'Canli baglanti' : 'Baglanti yok'}
+            </span>
             <div className="dashboard-user-chip">
               <strong>{user?.fullName || user?.username || 'admin'}</strong>
               <span>{user?.role ?? 'ADMIN'}</span>

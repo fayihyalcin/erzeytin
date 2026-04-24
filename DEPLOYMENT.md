@@ -86,6 +86,7 @@ Notlar:
 - `server_name` alanini kendi domaininizle degistirin.
 - `root` yolunu repo konumunuza gore guncelleyin.
 - `/uploads/` blogu backend'e proxy edilmelidir; ornek konfigurasyonda bu hazir.
+- Buyuk medya yuklemeleri icin Nginx tarafinda `client_max_body_size 0;` tanimlidir. Mevcut sunucuda 413 hatasi aliyorsaniz aktif Nginx config icinde ayni ayarin yer aldigini `nginx -T | grep client_max_body_size` ile kontrol edin.
 
 ## 8) SSL (Lets Encrypt)
 
@@ -106,4 +107,32 @@ npm --prefix backend run build
 npm --prefix frontend run build
 pm2 restart zeytin-backend
 sudo systemctl reload nginx
+```
+
+Medya yukleme sonrasi hala boyut limiti hatasi aliyorsaniz:
+
+```bash
+sudo nginx -T | grep client_max_body_size -n
+sudo editor /etc/nginx/sites-available/erzeytin
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+`server {}` blogu icine su ayari ekleyin:
+
+```nginx
+client_max_body_size 0;
+client_body_timeout 300s;
+
+location /api/ {
+    proxy_pass http://127.0.0.1:3000/api/;
+    proxy_http_version 1.1;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_request_buffering off;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
 ```

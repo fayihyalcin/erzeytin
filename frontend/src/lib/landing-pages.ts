@@ -52,13 +52,13 @@ export function buildLandingGalleryImages(
   return Array.from(new Set(images));
 }
 
-export function createDefaultLandingPackage(name = 'Tekli Urun'): LandingPagePackage {
+export function createDefaultLandingPackage(name = 'Tekli Ürün'): LandingPagePackage {
   return {
     id: createLandingId(),
     title: `1 Adet ${name}`,
-    subtitle: 'Kisa paket aciklamasi',
+    subtitle: 'Kısa paket açıklaması',
     note: 'Standart paket',
-    badge: 'One Cikan',
+    badge: 'Öne Çıkan',
     originalPrice: 1999,
     price: 1499,
     quantity: 1,
@@ -71,26 +71,26 @@ export function createDefaultLandingInfoCard(): LandingPageInfoCard {
   return {
     id: createLandingId(),
     icon: '✓',
-    title: 'One Cikan Ozellikler',
-    items: ['Ozellik 1', 'Ozellik 2', 'Ozellik 3'],
+    title: 'Öne Çıkan Ozellikler',
+    items: ['Özellik 1', 'Özellik 2', 'Özellik 3'],
   };
 }
 
 export function createDefaultLandingFaqItem(): LandingPageFaqItem {
   return {
     id: createLandingId(),
-    question: 'Urunle ilgili sik gelen soru',
-    answer: 'Bu alandan cevabi duzenleyebilirsiniz.',
+    question: 'Ürünle ilgili sık gelen soru',
+    answer: 'Bu alandan cevabı düzenleyebilirsiniz.',
   };
 }
 
 export function createDefaultLandingReview(): LandingPageReview {
   return {
     id: createLandingId(),
-    name: 'Ayse K.',
+    name: 'Ayşe K.',
     initials: 'A',
     rating: 5,
-    comment: 'Cok hizli kargo, tesekkurler!',
+    comment: 'Çok hızlı kargo, teşekkürler!',
   };
 }
 
@@ -102,36 +102,36 @@ export function createDefaultLandingFooterLink(label: string, href = '#'): Landi
   };
 }
 
-export function createDefaultLandingConfig(name = 'Tekli Urun'): LandingPageConfig {
+export function createDefaultLandingConfig(name = 'Tekli Ürün'): LandingPageConfig {
   return {
-    announcementTitle: 'Hizli Siparis',
-    announcementSubtitle: '1-3 gunde kapinda, guvenli alisveris',
-    stepLabels: ['1. Paket', '2. Bilgiler', '3. Odeme'],
+    announcementTitle: 'Hızlı Sipariş',
+    announcementSubtitle: '1-3 günde kapında, güvenli alışveriş',
+    stepLabels: ['1. Paket', '2. Bilgiler', '3. Ödeme'],
     visitorCount: 47,
-    visitorLabel: 'kisi',
+    visitorLabel: 'kişi',
     stockCount: 29,
-    stockLabel: 'Son urun',
-    packageSectionTitle: 'Kac tane alacaksin? (Adet sec)',
-    orderSectionTitle: 'Siparis Formu',
-    addressPlaceholder: 'Adres (Mahalle, sokak, ilce, il)',
-    paymentSectionTitle: 'Nasil odeyeceksin?',
-    orderButtonLabel: 'Siparisi Onayla',
-    stickyButtonLabel: 'Siparisi Onayla',
-    termsLabel: "Sozlesme ve Gizlilik'i okudum.",
-    productInfoTitle: `${name} Urun Bilgileri`,
+    stockLabel: 'Son ürün',
+    packageSectionTitle: 'Kaç tane alacaksın? (Adet seç)',
+    orderSectionTitle: 'Sipariş Formu',
+    addressPlaceholder: 'Adres (Mahalle, sokak, ilçe, il)',
+    paymentSectionTitle: 'Nasıl ödeyeceksin?',
+    orderButtonLabel: 'Siparişi Onayla',
+    stickyButtonLabel: 'Siparişi Onayla',
+    termsLabel: "Sözleşme ve Gizlilik'i okudum.",
+    productInfoTitle: `${name} Ürün Bilgileri`,
     productInfoDescription:
-      'Urun detaylari, ozellikler, sik sorulanlar ve musteri yorumlarini bu alanda yonetin.',
-    trustBadges: ['Hizli Teslimat', 'Kalite Garantisi', 'Kapida Odeme', 'Kolay Iade'],
+      'Ürün detayları, özellikler, sık sorulanlar ve müşteri yorumlarını bu alanda yönetin.',
+    trustBadges: ['Hizli Teslimat', 'Kalite Garantisi', 'Kapıda Ödeme', 'Kolay Iade'],
     infoCards: [createDefaultLandingInfoCard()],
     faqTitle: 'Sik Sorulanlar',
     faqItems: [createDefaultLandingFaqItem()],
-    reviewsTitle: 'Musteri Yorumlari',
+    reviewsTitle: 'Müşteri Yorumları',
     reviews: [createDefaultLandingReview()],
-    footerSellerText: 'Satici:',
+    footerSellerText: 'Satıcı:',
     footerLinks: [
-      createDefaultLandingFooterLink('Hakkimizda'),
-      createDefaultLandingFooterLink('Sozlesme'),
-      createDefaultLandingFooterLink('Odeme'),
+      createDefaultLandingFooterLink('Hakkımızda'),
+      createDefaultLandingFooterLink('Sözleşme'),
+      createDefaultLandingFooterLink('Ödeme'),
       createDefaultLandingFooterLink('Gizlilik'),
     ],
     galleryImages: [],
@@ -140,7 +140,7 @@ export function createDefaultLandingConfig(name = 'Tekli Urun'): LandingPageConf
 }
 
 export function createDefaultLandingPage(): Omit<LandingPage, 'id' | 'createdAt' | 'updatedAt' | 'publishedAt'> {
-  const name = 'Tekli Urun Kampanyasi';
+  const name = 'Tekli Ürün Kampanyası';
 
   return {
     name,

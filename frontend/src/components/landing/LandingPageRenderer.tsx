@@ -18,10 +18,63 @@ const PAYMENT_OPTIONS: Array<{
   value: LandingPaymentOption;
   label: string;
 }> = [
-  { value: 'PAYTR', label: 'Online kart ile ode' },
-  { value: 'CASH_ON_DELIVERY', label: 'Kapida nakit ode' },
-  { value: 'CARD_ON_DELIVERY', label: 'Kapida kartla ode' },
+  { value: 'CASH_ON_DELIVERY', label: 'Kapıda nakit öde' },
+  { value: 'CARD_ON_DELIVERY', label: 'Kapıda kartla öde' },
+  { value: 'PAYTR', label: 'Online kart ile öde' },
 ];
+
+const TURKISH_TEXT_FIXES: Record<string, string> = {
+  '1-3 gunde kapinda, guvenli alisveris': '1-3 günde kapında, güvenli alışveriş',
+  '1-3 günde kapında, güvenli alışveriş': '1-3 günde kapında, güvenli alışveriş',
+  '1. Paket': '1. Paket',
+  '2. Bilgiler': '2. Bilgiler',
+  '3. Odeme': '3. Ödeme',
+  '3. Ödeme': '3. Ödeme',
+  'Adres (Mahalle, sokak, ilce, il)': 'Adres (Mahalle, sokak, ilçe, il)',
+  'Adres (Mahalle, sokak, ilçe, il)': 'Adres (Mahalle, sokak, ilçe, il)',
+  'Avantajli fiyat': 'Avantajlı fiyat',
+  'Bu landing page icin henuz gorsel eklenmedi.': 'Bu landing page için henüz görsel eklenmedi.',
+  'Hizli Siparis': 'Hızlı Sipariş',
+  'Hızlı Sipariş': 'Hızlı Sipariş',
+  'Hakkimizda': 'Hakkımızda',
+  'Kapida Odeme': 'Kapıda Ödeme',
+  'Kapıda Ödeme': 'Kapıda Ödeme',
+  'Kac tane alacaksin? (Adet sec)': 'Kaç tane alacaksın? (Adet seç)',
+  'Kaç tane alacaksın? (Adet seç)': 'Kaç tane alacaksın? (Adet seç)',
+  'Kisa paket aciklamasi': 'Kısa paket açıklaması',
+  'Kısa paket açıklaması': 'Kısa paket açıklaması',
+  'Musteri Yorumlari': 'Müşteri Yorumları',
+  'Nasil odeyeceksin?': 'Nasıl ödeyeceksin?',
+  'Nasıl ödeyeceksin?': 'Nasıl ödeyeceksin?',
+  'Odeme': 'Ödeme',
+  'Ödeme': 'Ödeme',
+  'One Cikan': 'Öne Çıkan',
+  'Öne Çıkan': 'Öne Çıkan',
+  'One Cikan Ozellikler': 'Öne Çıkan Özellikler',
+  'Öne Çıkan Ozellikler': 'Öne Çıkan Özellikler',
+  'Siparis Formu': 'Sipariş Formu',
+  'Sipariş Formu': 'Sipariş Formu',
+  'Siparisi Onayla': 'Siparişi Onayla',
+  'Siparişi Onayla': 'Siparişi Onayla',
+  'Satici:': 'Satıcı:',
+  'Satıcı:': 'Satıcı:',
+  'Son urun': 'Son ürün',
+  "Sozlesme ve Gizlilik'i okudum.": "Sözleşme ve Gizlilik'i okudum.",
+  'Sozlesme': 'Sözleşme',
+  "Sözleşme ve Gizlilik'i okudum.": "Sözleşme ve Gizlilik'i okudum.",
+  'Standart paket': 'Standart paket',
+  'Tekli Urun': 'Tekli Ürün',
+  'Tekli Ürün': 'Tekli Ürün',
+  'Tekli Urun Kampanyasi': 'Tekli Ürün Kampanyası',
+  'Tekli Ürün Kampanyası': 'Tekli Ürün Kampanyası',
+  'Urun Bilgileri': 'Ürün Bilgileri',
+  'Ürün Bilgileri': 'Ürün Bilgileri',
+  'kisi': 'kişi',
+};
+
+function fixTurkishText(value: string) {
+  return TURKISH_TEXT_FIXES[value] ?? value;
+}
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('tr-TR', {
@@ -42,13 +95,17 @@ export function LandingPageRenderer({
     [page.config.packages],
   );
   const formRef = useRef<HTMLElement | null>(null);
+  const customerNameRef = useRef<HTMLInputElement | null>(null);
+  const paytrFrameRef = useRef<HTMLDivElement | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState(defaultPackageId);
-  const [paymentMethod, setPaymentMethod] = useState<LandingPaymentOption>('PAYTR');
+  const [paymentMethod, setPaymentMethod] = useState<LandingPaymentOption>('CASH_ON_DELIVERY');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [paytrLoading, setPaytrLoading] = useState(false);
+  const [paytrSession, setPaytrSession] = useState<PaytrCheckoutSession | null>(null);
   const [error, setError] = useState('');
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
   const [selectedImage, setSelectedImage] = useState('');
@@ -60,6 +117,10 @@ export function LandingPageRenderer({
   useEffect(() => {
     setSelectedPackageId(defaultPackageId);
   }, [defaultPackageId]);
+
+  useEffect(() => {
+    setPaytrSession(null);
+  }, [address, customerName, customerPhone, selectedPackageId]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -141,26 +202,101 @@ export function LandingPageRenderer({
     return 3;
   }, [customerName, customerPhone, paymentMethod]);
 
-  const submit = async () => {
-    setError('');
-
+  const buildLandingOrderPayload = (method: LandingPaymentOption) => {
     if (!selectedPackage) {
-      setError('Once bir paket secmelisiniz.');
-      return;
+      return null;
+    }
+
+    return {
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      address: address.trim(),
+      packageId: selectedPackage.id,
+      paymentMethod: method,
+      termsAccepted,
+      tracking: buildOrderTrackingPayload(),
+    };
+  };
+
+  const validateLandingOrderFields = () => {
+    if (!selectedPackage) {
+      setError('Önce bir paket seçmelisiniz.');
+      return false;
     }
 
     if (customerName.trim().length < 2) {
-      setError('Ad soyad alanini doldurun.');
-      return;
+      setError('Ad soyad alanını doldurun.');
+      scrollToForm();
+      return false;
     }
 
     if (customerPhone.trim().length < 5) {
-      setError('Telefon alanini doldurun.');
-      return;
+      setError('Telefon alanını doldurun.');
+      scrollToForm();
+      return false;
     }
 
     if (!termsAccepted) {
-      setError('Devam etmek icin sozlesmeyi kabul etmelisiniz.');
+      setError('Devam etmek için sözleşmeyi kabul etmelisiniz.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const scrollToPaytrFrame = () => {
+    window.setTimeout(() => {
+      paytrFrameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const openPaytrCheckout = async () => {
+    setError('');
+
+    if (!validateLandingOrderFields()) {
+      return;
+    }
+
+    if (previewMode) {
+      setPaytrSession({
+        orderId: 'preview-order',
+        orderNumber: 'ONIZLEME-0001',
+        merchantOid: 'PREVIEW',
+        paymentId: 'PREVIEW',
+        iframeToken: 'PREVIEW',
+        iframeUrl: 'about:blank',
+      });
+      scrollToPaytrFrame();
+      return;
+    }
+
+    const payload = buildLandingOrderPayload('PAYTR');
+    if (!payload) {
+      return;
+    }
+
+    setPaytrLoading(true);
+
+    try {
+      const response = await api.post<PaytrCheckoutSession>(
+        `/landing-pages/public/${encodeURIComponent(page.slug)}/paytr/checkout`,
+        payload,
+        { requiresAdminAuth: false },
+      );
+      setPaytrSession(response.data);
+      scrollToPaytrFrame();
+    } catch (requestError) {
+      setPaytrSession(null);
+      setError(extractApiError(requestError, 'PAYTR ödeme formu açılamadı.'));
+    } finally {
+      setPaytrLoading(false);
+    }
+  };
+
+  const submit = async () => {
+    setError('');
+
+    if (!validateLandingOrderFields() || !selectedPackage) {
       return;
     }
 
@@ -209,7 +345,7 @@ export function LandingPageRenderer({
         assignedRepresentative: null,
         assignmentNote: null,
         assignedAt: null,
-        shippingMethod: 'Landing Page Siparisi',
+        shippingMethod: 'Landing Page Siparişi',
         shippingCompany: null,
         trackingNumber: null,
         trackingUrl: null,
@@ -234,35 +370,23 @@ export function LandingPageRenderer({
 
     try {
       if (paymentMethod === 'PAYTR') {
-        const response = await api.post<PaytrCheckoutSession>(
-          `/landing-pages/public/${encodeURIComponent(page.slug)}/paytr/checkout`,
-          {
-            customerName: customerName.trim(),
-            customerPhone: customerPhone.trim(),
-            address: address.trim(),
-            packageId: selectedPackage.id,
-            paymentMethod,
-            termsAccepted,
-            tracking: buildOrderTrackingPayload(),
-          },
-          { requiresAdminAuth: false },
-        );
+        if (paytrSession) {
+          scrollToPaytrFrame();
+          return;
+        }
 
-        window.location.assign(response.data.iframeUrl);
+        await openPaytrCheckout();
+        return;
+      }
+
+      const payload = buildLandingOrderPayload(paymentMethod);
+      if (!payload) {
         return;
       }
 
       const response = await api.post<Order>(
         `/landing-pages/public/${encodeURIComponent(page.slug)}/orders`,
-        {
-          customerName: customerName.trim(),
-          customerPhone: customerPhone.trim(),
-          address: address.trim(),
-          packageId: selectedPackage.id,
-          paymentMethod,
-          termsAccepted,
-          tracking: buildOrderTrackingPayload(),
-        },
+        payload,
         { requiresAdminAuth: false },
       );
 
@@ -270,14 +394,34 @@ export function LandingPageRenderer({
         `/landing/order/result?order=${encodeURIComponent(response.data.orderNumber)}`,
       );
     } catch (requestError) {
-      setError(extractApiError(requestError, 'Siparis olusturulamadi.'));
+      setError(extractApiError(requestError, 'Sipariş oluşturulamadı.'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const scrollToForm = () => {
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    customerNameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => {
+      customerNameRef.current?.focus({ preventScroll: true });
+    }, 350);
+  };
+
+  const selectPackageAndScrollToForm = (packageId: string) => {
+    setSelectedPackageId(packageId);
+    scrollToForm();
+  };
+
+  const selectPaymentMethod = (option: LandingPaymentOption) => {
+    setPaymentMethod(option);
+
+    if (option !== 'PAYTR') {
+      setPaytrSession(null);
+      setError('');
+      return;
+    }
+
+    void openPaytrCheckout();
   };
 
   return (
@@ -290,16 +434,16 @@ export function LandingPageRenderer({
         <div className="landing-main-layout">
           <section className="landing-form-column" ref={formRef}>
             <div className="landing-form-step">
-              <h1 className="landing-section-title">{page.config.announcementTitle}</h1>
-              <p className="landing-section-subtitle">{page.config.announcementSubtitle}</p>
+              <h1 className="landing-section-title">{fixTurkishText(page.config.announcementTitle)}</h1>
+              <p className="landing-section-subtitle">{fixTurkishText(page.config.announcementSubtitle)}</p>
 
-              <div className="landing-progress-steps" aria-label="Siparis adimlari">
+              <div className="landing-progress-steps" aria-label="Sipariş adımları">
                 {page.config.stepLabels.map((label, index) => (
                   <span
                     key={label}
                     className={activeStep >= index + 1 ? 'landing-progress-step active' : 'landing-progress-step'}
                   >
-                    {label}
+                    {fixTurkishText(label)}
                   </span>
                 ))}
               </div>
@@ -307,16 +451,16 @@ export function LandingPageRenderer({
               <div className="landing-stats-bar">
                 <div className="landing-stat-item">
                   <span className="landing-stat-count">{page.config.visitorCount}</span>{' '}
-                  {page.config.visitorLabel}
+                  {fixTurkishText(page.config.visitorLabel)}
                 </div>
                 <div className="landing-stat-item">
                   <span>Son </span>
                   <span className="landing-stat-count">{page.config.stockCount}</span>{' '}
-                  {page.config.stockLabel}
+                  {fixTurkishText(page.config.stockLabel)}
                 </div>
               </div>
 
-              <h2 className="landing-package-title">{page.config.packageSectionTitle}</h2>
+              <h2 className="landing-package-title">{fixTurkishText(page.config.packageSectionTitle)}</h2>
 
               <div className="landing-package-list">
                 {page.config.packages.map((item) => (
@@ -327,7 +471,7 @@ export function LandingPageRenderer({
                         ? 'landing-package-item selected'
                         : 'landing-package-item'
                     }
-                    onClick={() => setSelectedPackageId(item.id)}
+                    onClick={() => selectPackageAndScrollToForm(item.id)}
                     type="button"
                   >
                     <span className="landing-package-tick">
@@ -335,16 +479,19 @@ export function LandingPageRenderer({
                     </span>
 
                     <div className="landing-package-info">
-                      <h4>{item.title}</h4>
-                      {item.subtitle ? <p>{item.subtitle}</p> : null}
-                      {item.note ? <span className="landing-package-note">{item.note}</span> : null}
+                      <h4>{fixTurkishText(item.title)}</h4>
+                      {item.subtitle ? <p>{fixTurkishText(item.subtitle)}</p> : null}
+                      <div className="landing-package-tags">
+                        {item.note ? <span className="landing-package-note">{fixTurkishText(item.note)}</span> : null}
+                        <span className="landing-package-shipping">Kargo Ücretsiz</span>
+                      </div>
                     </div>
 
                     <div className="landing-package-price">
                       <div className="landing-package-old">{formatCurrency(item.originalPrice)}</div>
                       <div className="landing-package-current">{formatCurrency(item.price)}</div>
                       {item.highlight ? (
-                        <span className="landing-package-badge">{item.highlight}</span>
+                        <span className="landing-package-badge">{fixTurkishText(item.highlight)}</span>
                       ) : null}
                     </div>
                   </button>
@@ -353,15 +500,15 @@ export function LandingPageRenderer({
 
               {successOrder ? (
                 <div className="landing-success-box">
-                  <strong>Siparisiniz alindi.</strong>
-                  <div>Siparis numaraniz: {successOrder.orderNumber}</div>
+                  <strong>Siparişiniz alındı.</strong>
+                  <div>Sipariş numaranız: {successOrder.orderNumber}</div>
                 </div>
               ) : null}
 
               {error ? <div className="landing-error-box">{error}</div> : null}
 
               <div className="landing-form-step contact-focus-box">
-                <h2 className="landing-package-title">{page.config.orderSectionTitle}</h2>
+                <h2 className="landing-package-title">{fixTurkishText(page.config.orderSectionTitle)}</h2>
 
                 <div className="landing-contact-grid">
                   <div className="landing-input-group">
@@ -373,7 +520,8 @@ export function LandingPageRenderer({
                       className="landing-input contact-input"
                       enterKeyHint="next"
                       onChange={(event) => setCustomerName(event.target.value)}
-                      placeholder="Adiniz soyadiniz"
+                      placeholder="Adınız soyadınız"
+                      ref={customerNameRef}
                       value={customerName}
                     />
                   </div>
@@ -388,7 +536,7 @@ export function LandingPageRenderer({
                       inputMode="tel"
                       spellCheck={false}
                       onChange={(event) => setCustomerPhone(event.target.value)}
-                      placeholder="Telefon numaraniz"
+                      placeholder="Telefon numaranız"
                       type="tel"
                       value={customerPhone}
                     />
@@ -396,20 +544,22 @@ export function LandingPageRenderer({
                 </div>
 
                 <div className="landing-address-group">
-                  <label htmlFor="landing-address">{page.config.addressPlaceholder}</label>
+                  <label htmlFor="landing-address">
+                    {fixTurkishText(page.config.addressPlaceholder)} <span className="landing-optional-label">Opsiyonel</span>
+                  </label>
                   <textarea
                     autoComplete="street-address"
                     id="landing-address"
                     className="landing-textarea"
                     enterKeyHint="done"
                     onChange={(event) => setAddress(event.target.value)}
-                    placeholder={page.config.addressPlaceholder}
+                    placeholder={fixTurkishText(page.config.addressPlaceholder)}
                     value={address}
                   />
                 </div>
 
                 <div className="landing-address-group">
-                  <label>{page.config.paymentSectionTitle}</label>
+                  <label>{fixTurkishText(page.config.paymentSectionTitle)}</label>
                   <div className="landing-payment-options" role="radiogroup">
                     {PAYMENT_OPTIONS.map((option) => (
                       <label
@@ -423,7 +573,7 @@ export function LandingPageRenderer({
                         <input
                           checked={option.value === paymentMethod}
                           name="landing-payment-method"
-                          onChange={() => setPaymentMethod(option.value)}
+                          onChange={() => selectPaymentMethod(option.value)}
                           type="radio"
                           value={option.value}
                         />
@@ -433,21 +583,52 @@ export function LandingPageRenderer({
                         <span>{option.label}</span>
                       </label>
                     ))}
+                    {paymentMethod === 'PAYTR' ? (
+                      <div className="landing-paytr-panel" ref={paytrFrameRef}>
+                        {paytrLoading ? (
+                          <div className="landing-paytr-placeholder">PAYTR ödeme formu hazırlanıyor...</div>
+                        ) : paytrSession ? (
+                          previewMode ? (
+                            <div className="landing-paytr-placeholder">
+                              Önizleme modunda PAYTR ödeme formu oluşturulmaz.
+                            </div>
+                          ) : (
+                            <>
+                              <div className="landing-paytr-header">
+                                <strong>Güvenli kart ödemesi</strong>
+                                <a href={paytrSession.iframeUrl} target="_blank" rel="noreferrer">
+                                  Yeni sekmede aç
+                                </a>
+                              </div>
+                              <iframe
+                                className="landing-paytr-iframe"
+                                src={paytrSession.iframeUrl}
+                                title="PAYTR güvenli ödeme"
+                              />
+                            </>
+                          )
+                        ) : (
+                          <div className="landing-paytr-placeholder">
+                            Ödeme formunu açmak için ad soyad ve telefon bilgilerini doldurun.
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
                 {selectedPackage ? (
                   <div className="landing-summary">
                     <div className="landing-summary-row">
-                      <span>Sectigin paket:</span>
-                      <strong>{selectedPackage.title}</strong>
+                      <span>Seçtiğin paket:</span>
+                      <strong>{fixTurkishText(selectedPackage.title)}</strong>
                     </div>
                     <div className="landing-summary-row">
                       <span>Kargo:</span>
-                      <strong>Ucretsiz</strong>
+                      <strong>Ücretsiz</strong>
                     </div>
                     <div className="landing-summary-row landing-summary-total">
-                      <span>Odenecek tutar:</span>
+                      <span>Ödenecek tutar:</span>
                       <strong>{formatCurrency(selectedPackage.price)}</strong>
                     </div>
                   </div>
@@ -459,7 +640,7 @@ export function LandingPageRenderer({
                   onClick={() => void submit()}
                   type="button"
                 >
-                  {submitting ? 'Isleniyor...' : page.config.orderButtonLabel}
+                  {submitting ? 'İşleniyor...' : fixTurkishText(page.config.orderButtonLabel)}
                 </button>
 
                 <label className="landing-terms">
@@ -468,7 +649,7 @@ export function LandingPageRenderer({
                     onChange={(event) => setTermsAccepted(event.target.checked)}
                     type="checkbox"
                   />
-                  <span>{page.config.termsLabel}</span>
+                  <span>{fixTurkishText(page.config.termsLabel)}</span>
                 </label>
               </div>
             </div>
@@ -486,11 +667,12 @@ export function LandingPageRenderer({
                           ? 'landing-gallery-item landing-gallery-item-primary'
                           : 'landing-gallery-item'
                       }
-                      onClick={() => setSelectedImage(item)}
+                      aria-label="Sipariş formuna git"
+                      onClick={scrollToForm}
                       type="button"
                     >
                       <img
-                        alt={`${page.name} gorsel ${index + 1}`}
+                        alt={`${page.name} görsel ${index + 1}`}
                         decoding="async"
                         loading={index === 0 ? 'eager' : 'lazy'}
                         src={item}
@@ -499,18 +681,20 @@ export function LandingPageRenderer({
                   ))
                 ) : (
                   <div className="landing-gallery-empty">
-                    Bu landing page icin henuz gorsel eklenmedi.
+                    Bu landing page için henüz görsel eklenmedi.
                   </div>
                 )}
               </div>
 
               <button className="landing-info-cta" onClick={scrollToForm} type="button">
-                Siparis Formuna Git
+                Sipariş Formuna Git
               </button>
             </div>
           </aside>
         </div>
 
+        {false ? (
+        <>
         <section className="landing-product-info-section">
           <div className="landing-product-info-container">
             <div className="landing-product-info-header">
@@ -590,17 +774,19 @@ export function LandingPageRenderer({
             </div>
           </section>
         ) : null}
+        </>
+        ) : null}
 
         <footer className="landing-footer">
           <div className="landing-footer-links">
-            {page.config.footerLinks.map((item) => (
-              <a href={item.href} key={item.id} target={item.href.startsWith('http') ? '_blank' : undefined}>
-                {item.label}
+                {page.config.footerLinks.map((item) => (
+                  <a href={item.href} key={item.id} target={item.href.startsWith('http') ? '_blank' : undefined}>
+                {fixTurkishText(item.label)}
               </a>
             ))}
           </div>
           <div>
-            {page.config.footerSellerText} {page.name}
+            {fixTurkishText(page.config.footerSellerText)} {fixTurkishText(page.name)}
           </div>
         </footer>
       </div>

@@ -231,17 +231,35 @@ body.landing-page-body {
   line-height: 1.45;
 }
 
-.landing-package-note {
-  display: inline-flex;
-  max-width: 100%;
+.landing-package-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 4px;
+}
+
+.landing-package-note,
+.landing-package-shipping {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
   padding: 3px 8px;
-  border: 1px dashed var(--landing-primary);
   border-radius: 16px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.landing-package-note {
+  border: 1px dashed var(--landing-primary);
   background: #f1f5f9;
   color: var(--landing-primary);
-  font-size: 0.65rem;
-  line-height: 1.4;
+}
+
+.landing-package-shipping {
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  background: #dcfce7;
+  color: #15803d;
 }
 
 .landing-package-price {
@@ -284,6 +302,12 @@ body.landing-page-body {
   gap: 6px;
   margin-bottom: 6px;
   font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.landing-optional-label {
+  color: var(--landing-muted);
+  font-size: 0.78rem;
   font-weight: 500;
 }
 
@@ -381,6 +405,49 @@ body.landing-page-body {
   border-color: var(--landing-primary);
   background: var(--landing-primary);
   color: #ffffff;
+}
+
+.landing-paytr-panel {
+  overflow: hidden;
+  border: 1px solid rgba(23, 20, 184, 0.18);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: var(--landing-shadow-sm);
+}
+
+.landing-paytr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--landing-border);
+}
+
+.landing-paytr-header strong {
+  color: var(--landing-primary);
+  font-size: 0.95rem;
+}
+
+.landing-paytr-header a {
+  color: var(--landing-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.landing-paytr-iframe {
+  display: block;
+  width: 100%;
+  min-height: 720px;
+  border: 0;
+}
+
+.landing-paytr-placeholder {
+  padding: 18px;
+  color: var(--landing-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .landing-summary {
@@ -825,11 +892,11 @@ body.landing-page-body {
   }
 
   .landing-info-column {
-    order: 2;
+    order: 1;
   }
 
   .landing-form-column {
-    order: 1;
+    order: 2;
   }
 
   .landing-info-column-inner {

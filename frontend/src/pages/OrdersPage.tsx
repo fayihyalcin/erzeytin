@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminPagination } from '../components/admin/AdminPagination';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../lib/api';
+import { api, extractApiError } from '../lib/api';
 import type {
   AdminUser,
   FulfillmentStatus,
@@ -303,8 +303,8 @@ export function OrdersPage() {
       await api.delete(`/orders/${order.id}`);
       await refresh(query);
       setMessage('Siparis silindi.');
-    } catch {
-      setMessage('Siparis silinemedi.');
+    } catch (error) {
+      setMessage(extractApiError(error, 'Siparis silinemedi.'));
     } finally {
       setDeletingId(null);
     }

@@ -183,7 +183,7 @@ export function LandingPaytrReturnPage() {
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             <Link className="landing-info-cta" to={landingPath}>
-              Landing sayfasina don
+              Satış sayfasına dön
             </Link>
           </div>
         </section>

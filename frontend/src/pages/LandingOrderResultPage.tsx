@@ -12,15 +12,15 @@ function parsePrice(value: string) {
 
 function paymentMethodLabel(value: Order['paymentMethod']) {
   if (value === 'CASH_ON_DELIVERY') {
-    return 'Kapida nakit odeme';
+    return 'Kapıda nakit ödeme';
   }
 
   if (value === 'CARD_ON_DELIVERY') {
-    return 'Kapida kart ile odeme';
+    return 'Kapıda kart ile ödeme';
   }
 
   if (value === 'CARD') {
-    return 'Online kart odemesi';
+    return 'Online kart ödemesi';
   }
 
   return value;
@@ -87,7 +87,7 @@ export function LandingOrderResultPage() {
       })
       .catch(() => {
         if (!cancelled) {
-          setError('Siparis sonucu su anda okunamiyor. Lutfen biraz sonra tekrar deneyin.');
+          setError('Sipariş sonucu şu anda okunamıyor. Lütfen biraz sonra tekrar deneyin.');
         }
       })
       .finally(() => {
@@ -145,55 +145,70 @@ export function LandingOrderResultPage() {
     : '-';
 
   return (
-    <main className="landing-page-shell">
-      <div className="landing-page-container" style={{ maxWidth: 760 }}>
-        <section className="landing-form-step">
-          <h1 className="landing-section-title">Siparisiniz alindi</h1>
-          <p className="landing-section-subtitle">
-            {loading
-              ? 'Siparis bilginiz hazirlaniyor...'
-              : order
-                ? 'Siparisiniz basariyla olusturuldu. Ekibimiz en kisa surede sizinle iletisime gececek.'
-                : error || 'Siparis sonucu goruntulenemedi.'}
-          </p>
+    <main className="landing-page-shell landing-result-shell">
+      <div className="landing-page-container landing-result-container">
+        <section className="landing-result-card">
+          <div className="landing-result-hero">
+            <span className="landing-result-check" aria-hidden="true">
+              ✓
+            </span>
+            <span className="landing-result-eyebrow">Sipariş onayı</span>
+            <h1 className="landing-result-title">Siparişiniz alındı</h1>
+            <p className="landing-result-copy">
+              {loading
+                ? 'Sipariş bilginiz hazırlanıyor...'
+                : order
+                  ? 'Siparişiniz başarıyla oluşturuldu. Ekibimiz en kısa sürede sizinle iletişime geçecek.'
+                  : error || 'Sipariş sonucu görüntülenemedi.'}
+            </p>
+          </div>
 
           {order ? (
-            <div className="landing-summary">
-              <div className="landing-summary-row">
-                <span>Siparis No</span>
+            <>
+              <div className="landing-result-order-number">
+                <span>Sipariş No</span>
                 <strong>{order.orderNumber}</strong>
               </div>
-              <div className="landing-summary-row">
-                <span>Paket</span>
-                <strong>{packageTitle}</strong>
+
+              <div className="landing-result-details">
+                <div className="landing-result-detail landing-result-detail-wide">
+                  <span>Paket</span>
+                  <strong>{packageTitle}</strong>
+                </div>
+                <div className="landing-result-detail">
+                  <span>Müşteri</span>
+                  <strong>{order.customerName}</strong>
+                </div>
+                <div className="landing-result-detail">
+                  <span>Telefon</span>
+                  <strong>{order.customerPhone ?? '-'}</strong>
+                </div>
+                <div className="landing-result-detail">
+                  <span>Ödeme yöntemi</span>
+                  <strong>{paymentMethodLabel(order.paymentMethod)}</strong>
+                </div>
+                <div className="landing-result-detail">
+                  <span>Adres</span>
+                  <strong>{addressText}</strong>
+                </div>
               </div>
-              <div className="landing-summary-row">
-                <span>Musteri</span>
-                <strong>{order.customerName}</strong>
-              </div>
-              <div className="landing-summary-row">
-                <span>Telefon</span>
-                <strong>{order.customerPhone ?? '-'}</strong>
-              </div>
-              <div className="landing-summary-row">
-                <span>Odeme Yontemi</span>
-                <strong>{paymentMethodLabel(order.paymentMethod)}</strong>
-              </div>
-              <div className="landing-summary-row">
-                <span>Adres</span>
-                <strong>{addressText}</strong>
-              </div>
-              <div className="landing-summary-row landing-summary-total">
+
+              <div className="landing-result-total">
                 <span>Toplam</span>
                 <strong>{formatter.format(parsePrice(order.grandTotal))}</strong>
               </div>
-            </div>
+            </>
           ) : null}
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            <Link className="landing-info-cta" to={landingPath}>
-              Landing sayfasina don
+          <div className="landing-result-actions">
+            <Link className="landing-result-primary-action" to={landingPath}>
+              Satış sayfasına dön
             </Link>
+            {order ? (
+              <p className="landing-result-note">
+                Sipariş numaranızı saklayın. Destek ekibimiz görüşmede bu numara ile yardımcı olur.
+              </p>
+            ) : null}
           </div>
         </section>
       </div>

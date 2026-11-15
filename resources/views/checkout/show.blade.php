@@ -1,0 +1,127 @@
+@extends('layouts.storefront')
+
+@section('title', 'Ödeme - '.($settings->site_title ?: 'Er Zeytin Yağı'))
+@section('meta_description', 'Sipariş teslimat ve ödeme bilgilerinizi güvenli şekilde tamamlayın.')
+
+@section('content')
+    <section class="category-hero cart-hero">
+        <img src="{{ asset('images/hero-olive-grove.jpg') }}" alt="">
+        <div class="category-hero-wash"></div>
+        <div class="container-wide category-hero-inner">
+            <nav class="breadcrumb-line" aria-label="Sayfa yolu">
+                <a href="{{ route('home') }}">Anasayfa</a>
+                <span>/</span>
+                <a href="{{ route('cart.index') }}">Sepetim</a>
+                <span>/</span>
+                <strong>Ödeme</strong>
+            </nav>
+            <span class="page-kicker">Güvenli Ödeme</span>
+            <h1>Ödeme Bilgileri</h1>
+            <p>Kredi kartı için PayTR güvenli ödeme ekranına geçebilir veya havale/EFT ile siparişinizi oluşturabilirsiniz.</p>
+        </div>
+    </section>
+
+    <section class="checkout-page container-wide">
+        @if ($errors->any())
+            <div class="cart-alert is-error">{{ $errors->first() }}</div>
+        @endif
+
+        <form class="checkout-layout" method="POST" action="{{ route('checkout.store') }}">
+            @csrf
+            <div class="checkout-form-panel">
+                <div class="checkout-panel-head">
+                    <span>TESLİMAT</span>
+                    <h2>İletişim ve Adres</h2>
+                </div>
+
+                <div class="checkout-fields-two">
+                    <label>
+                        <span>Ad Soyad</span>
+                        <input type="text" name="name" value="{{ old('name', auth()->user()?->name) }}" required>
+                    </label>
+                    <label>
+                        <span>E-posta</span>
+                        <input type="email" name="email" value="{{ old('email', auth()->user()?->email) }}" required>
+                    </label>
+                </div>
+
+                <div class="checkout-fields-two">
+                    <label>
+                        <span>Telefon</span>
+                        <input type="text" name="phone" value="{{ old('phone', auth()->user()?->phone) }}" required>
+                    </label>
+                    <label>
+                        <span>Şehir</span>
+                        <input type="text" name="city" value="{{ old('city') }}" required>
+                    </label>
+                </div>
+
+                <label>
+                    <span>Adres</span>
+                    <textarea name="address" rows="4" required>{{ old('address') }}</textarea>
+                </label>
+
+                <label>
+                    <span>Sipariş Notu</span>
+                    <textarea name="note" rows="3">{{ old('note') }}</textarea>
+                </label>
+
+                <div class="checkout-panel-head checkout-payment-head">
+                    <span>ÖDEME</span>
+                    <h2>Ödeme Seçimi</h2>
+                </div>
+
+                <div class="payment-options">
+                    <label class="payment-option">
+                        <input type="radio" name="payment_method" value="transfer" @checked(old('payment_method', 'transfer') === 'transfer')>
+                        <span>
+                            <strong>Havale / EFT</strong>
+                            <small>IBAN bilgileri admin ayarlarından gelir. Dekontu müşteri panelinden yükleyebilirsiniz.</small>
+                        </span>
+                    </label>
+                    <label class="payment-option">
+                        <input type="radio" name="payment_method" value="card" @checked(old('payment_method') === 'card')>
+                        <span>
+                            <strong>Kredi Kartı - PayTR</strong>
+                            <small>PayTR güvenli ödeme ekranı ile kart işlemini tamamlayın.</small>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="bank-preview">
+                    <strong>Havale Bilgileri</strong>
+                    <span>{{ $settings->bank_name ?: 'Banka bilgisi admin panelinden eklenecek' }}</span>
+                    <span>{{ $settings->bank_account_holder ?: $settings->company_name }}</span>
+                    <code>{{ $settings->bank_iban ?: 'IBAN girilmedi' }}</code>
+                    @if ($settings->bank_description)
+                        <p>{{ $settings->bank_description }}</p>
+                    @endif
+                </div>
+            </div>
+
+            <aside class="cart-summary checkout-summary">
+                <span>SİPARİŞ ÖZETİ</span>
+                <h2>Toplam</h2>
+                <div>
+                    <small>Ürün Adedi</small>
+                    <strong>{{ $totalQuantity }}</strong>
+                </div>
+                @foreach ($cartItems as $item)
+                    <div class="checkout-summary-item">
+                        <small>{{ $item['product']->name }} x {{ $item['quantity'] }}</small>
+                        <strong>₺{{ number_format((float) $item['line_total'], 2, ',', '.') }}</strong>
+                    </div>
+                @endforeach
+                <div>
+                    <small>Kargo</small>
+                    <strong>Ücretsiz</strong>
+                </div>
+                <div class="cart-summary-total">
+                    <small>Genel Toplam</small>
+                    <strong>₺{{ number_format((float) $subtotal, 2, ',', '.') }}</strong>
+                </div>
+                <button type="submit" class="cart-checkout">Ödemeye Geç</button>
+            </aside>
+        </form>
+    </section>
+@endsection

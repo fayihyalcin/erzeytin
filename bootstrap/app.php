@@ -11,6 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Site Traefik + Cloudflare arkasında: X-Forwarded-Proto'ya güven ki
+        // asset()/url() https üretsin (aksi hâlde CSS/JS karma içerik olarak engellenir).
+        $middleware->trustProxies(at: '*');
+
         $middleware->validateCsrfTokens(except: [
             'paytr/callback',
         ]);

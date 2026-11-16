@@ -6863,3 +6863,96 @@
         grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
     }
 }
+
+/* Yönetim paneli onay penceresi (resources/js/admin-confirm.js) */
+.admin-confirm {
+    width: min(420px, calc(100vw - 32px));
+    padding: 28px 26px 22px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--cream-50);
+    color: var(--ink);
+    box-shadow: 0 24px 60px rgba(33, 54, 15, 0.28);
+    animation: admin-confirm-in 0.18s ease-out;
+}
+
+.admin-confirm::backdrop {
+    background: rgba(33, 54, 15, 0.45);
+    backdrop-filter: blur(2px);
+}
+
+.admin-confirm__title {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--olive-950);
+}
+
+.admin-confirm__text {
+    margin: 0 0 22px;
+    color: var(--olive-700);
+    line-height: 1.5;
+}
+
+.admin-confirm__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.admin-confirm__btn {
+    min-height: 42px;
+    padding: 0 20px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.admin-confirm__btn:hover {
+    background: var(--olive-100);
+}
+
+.admin-confirm__btn:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+}
+
+.admin-confirm__btn--danger {
+    border-color: #8b2020;
+    background: #8b2020;
+    color: #fff;
+}
+
+.admin-confirm__btn--danger:hover {
+    background: #7b1d1d;
+}
+
+@keyframes admin-confirm-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (max-width: 520px) {
+    .admin-confirm {
+        width: calc(100vw - 24px);
+        padding: 24px 18px 18px;
+    }
+
+    .admin-confirm__actions {
+        flex-direction: column-reverse;
+    }
+
+    .admin-confirm__btn {
+        width: 100%;
+    }
+}

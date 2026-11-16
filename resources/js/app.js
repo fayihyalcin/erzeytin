@@ -1,4 +1,5 @@
 import './bootstrap';
+import './admin-confirm';
 
 import Alpine from 'alpinejs';
 

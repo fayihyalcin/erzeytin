@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class CheckoutController extends Controller
 {
@@ -40,7 +41,7 @@ class CheckoutController extends Controller
             return to_route('cart.index')->with('status', 'Ödeme için sepetinize ürün ekleyin.');
         }
 
-        $data = $request->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:191'],
             'email' => ['required', 'email', 'max:191'],
             'phone' => ['required', 'string', 'max:50'],
@@ -48,7 +49,13 @@ class CheckoutController extends Controller
             'address' => ['required', 'string', 'max:500'],
             'payment_method' => ['required', Rule::in(['transfer', 'card'])],
             'note' => ['nullable', 'string', 'max:1000'],
-        ]);
+        ];
+
+        if (! Auth::check()) {
+            $rules['password'] = ['required', 'confirmed', Password::defaults()];
+        }
+
+        $data = $request->validate($rules);
 
         $user = $this->findOrCreateCustomer($data);
 
@@ -177,7 +184,8 @@ class CheckoutController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'],
-            'password' => Str::random(32),
+            // User modelinde 'password' => 'hashed' cast'i olduğundan düz metin verilir; model bir kez hash'ler.
+            'password' => $data['password'],
         ]);
 
         $user->fill([

@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SliderController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Storefront\CategoryController as StorefrontCategoryController;
 use App\Http\Controllers\Storefront\CartController as StorefrontCartController;
 use App\Http\Controllers\Storefront\CheckoutController;
@@ -83,6 +84,11 @@ Route::middleware(['auth', 'admin'])->prefix('dashboard')->name('admin.')->group
     Route::resource('contact-messages', ContactMessageController::class)->only(['index', 'update', 'destroy']);
     Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::patch('settings', [SettingController::class, 'update'])->name('settings.update');
+    Route::get('customers', [UserController::class, 'customers'])->name('customers.index');
+    Route::get('users', [UserController::class, 'admins'])->name('users.index');
+    Route::patch('users/grant', [UserController::class, 'grant'])->name('users.grant');
+    Route::patch('users/{user}/revoke', [UserController::class, 'revoke'])->name('users.revoke');
+    Route::patch('users/{user}/password', [UserController::class, 'password'])->name('users.password');
 });
 
 Route::post('/dashboard/uploads/image', [AdminImageUploadController::class, 'store'])

@@ -61,6 +61,21 @@
                     <textarea name="address" rows="4" required>{{ old('address') }}</textarea>
                 </label>
 
+                @guest
+                    <div class="cart-alert">Siparişinizi takip edebilmeniz için bu e-posta ile bir hesap oluşturulacak. Daha sonra bu şifreyle giriş yapabilirsiniz.</div>
+
+                    <div class="checkout-fields-two">
+                        <label>
+                            <span>Şifre</span>
+                            <input type="password" name="password" autocomplete="new-password" required>
+                        </label>
+                        <label>
+                            <span>Şifre (tekrar)</span>
+                            <input type="password" name="password_confirmation" autocomplete="new-password" required>
+                        </label>
+                    </div>
+                @endguest
+
                 <label>
                     <span>Sipariş Notu</span>
                     <textarea name="note" rows="3">{{ old('note') }}</textarea>

@@ -17,6 +17,8 @@ test('customer completes checkout with bank transfer and uploads receipt', async
     await page.locator('input[name="phone"]').fill('05305554433');
     await page.locator('input[name="city"]').fill('Bursa');
     await page.locator('textarea[name="address"]').fill('Cepni mahallesi test adresi');
+    await page.locator('input[name="password"]').fill('Test-Sifre-2026');
+    await page.locator('input[name="password_confirmation"]').fill('Test-Sifre-2026');
     await page.locator('input[name="payment_method"][value="transfer"]').check();
     await page.locator('button[type="submit"].cart-checkout').click();
 

@@ -72,9 +72,9 @@ Route::get('/odeme', [CheckoutController::class, 'show'])->name('checkout.show')
 Route::post('/odeme', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::post('/paytr/callback', PaytrCallbackController::class)->name('paytr.callback');
 
-Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'admin'])->name('dashboard');
 
-Route::middleware(['auth', 'verified'])->prefix('dashboard')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin'])->prefix('dashboard')->name('admin.')->group(function () {
     Route::resource('categories', CategoryController::class)->except(['show', 'create', 'edit']);
     Route::resource('products', ProductController::class)->except(['show', 'create', 'edit']);
     Route::resource('orders', OrderController::class)->except(['show', 'create', 'edit']);
@@ -86,7 +86,7 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard')->name('admin.')->gr
 });
 
 Route::post('/dashboard/uploads/image', [AdminImageUploadController::class, 'store'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'admin'])
     ->name('admin.images.store');
 
 Route::middleware('auth')->group(function () {

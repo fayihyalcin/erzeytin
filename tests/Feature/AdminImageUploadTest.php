@@ -16,7 +16,7 @@ class AdminImageUploadTest extends TestCase
     {
         Storage::fake('public');
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $image = $this->largeJpegUpload();
         $originalSize = $image->getSize();
 
@@ -39,7 +39,7 @@ class AdminImageUploadTest extends TestCase
     {
         Storage::fake('public');
 
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $image = $this->largeJpegUpload();
 
         $response = $this

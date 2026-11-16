@@ -13,14 +13,14 @@
 
         <!-- Email Address -->
         <div class="auth-field">
-            <x-input-label for="email" :value="__('Email')" />
+            <x-input-label for="email" :value="__('E-posta')" />
             <x-text-input id="email" class="auth-input" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="eposta@ornek.com" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
         <!-- Password -->
         <div class="auth-field">
-            <x-input-label for="password" :value="__('Password')" />
+            <x-input-label for="password" :value="__('Şifre')" />
 
             <x-text-input id="password" class="auth-input"
                             type="password"
@@ -35,19 +35,19 @@
         <div class="auth-options">
             <label for="remember_me">
                 <input id="remember_me" type="checkbox" name="remember">
-                <span>{{ __('Remember me') }}</span>
+                <span>{{ __('Beni hatırla') }}</span>
             </label>
 
             @if (Route::has('password.request'))
                 <a href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
+                    {{ __('Şifremi unuttum') }}
                 </a>
             @endif
         </div>
 
         <div class="auth-submit-row">
             <x-primary-button class="auth-submit">
-                {{ __('Log in') }}
+                {{ __('Giriş Yap') }}
             </x-primary-button>
         </div>
 

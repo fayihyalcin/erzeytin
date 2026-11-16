@@ -46,7 +46,18 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
         ];
+    }
+
+    /**
+     * Girişten sonra kullanıcının ineceği yer: yönetici → panel, diğerleri → hesabım.
+     */
+    public function homeUrl(): string
+    {
+        return $this->is_admin
+            ? route('dashboard', absolute: false)
+            : route('customer.dashboard', absolute: false);
     }
 
     public function orders(): HasMany

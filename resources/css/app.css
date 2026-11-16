@@ -3337,6 +3337,18 @@
         border-top: 1px solid var(--line);
     }
 
+    .order-pay-again {
+        display: grid;
+        gap: 12px;
+        justify-items: start;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+    }
+
+    .order-pay-again p {
+        margin: 0;
+    }
+
     .receipt-link {
         width: fit-content;
         background: #fffefa;

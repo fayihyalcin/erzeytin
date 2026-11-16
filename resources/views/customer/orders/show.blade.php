@@ -37,6 +37,13 @@
                         @endforeach
                     </div>
 
+                    @if ($order->payment_method === 'Kredi Kartı' && $order->payment_status !== 'Ödendi')
+                        <div class="order-pay-again">
+                            <p>Bu siparişin ödemesi tamamlanmadı. Güvenli ödeme sayfasında kartınızla yeniden deneyebilirsiniz.</p>
+                            <a class="cart-checkout" href="{{ route('checkout.paytr', $order) }}">Kredi Kartı ile Öde</a>
+                        </div>
+                    @endif
+
                     @if ($order->payment_method === 'Havale')
                         <form class="receipt-upload" method="POST" action="{{ route('customer.orders.receipt', $order) }}" enctype="multipart/form-data">
                             @csrf

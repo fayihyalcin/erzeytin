@@ -28,6 +28,14 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Yönetici her zaman panele iner; önceki oturumdan kalan "intended"
+        // müşteri sayfası onu /hesabim'e götürmesin.
+        if ($request->user()->is_admin) {
+            $request->session()->forget('url.intended');
+
+            return redirect($request->user()->homeUrl());
+        }
+
         return redirect()->intended($request->user()->homeUrl());
     }
 

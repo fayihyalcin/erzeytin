@@ -9,6 +9,9 @@
         <a href="{{ route('customer.dashboard') }}" @class(['active' => request()->routeIs('customer.dashboard')])>Panelim</a>
         <a href="{{ route('customer.orders.index') }}" @class(['active' => request()->routeIs('customer.orders.*')])>Siparişlerim</a>
         <a href="{{ route('customer.payments') }}" @class(['active' => request()->routeIs('customer.payments')])>Ödemelerim</a>
+        @if (auth()->user()?->is_admin)
+            <a href="{{ route('dashboard') }}">Yönetim Paneli</a>
+        @endif
         <a href="{{ route('customer.settings') }}" @class(['active' => request()->routeIs('customer.settings')])>Hesap Ayarları</a>
     </nav>
 

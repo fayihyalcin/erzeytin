@@ -18,7 +18,12 @@ class PaytrCallbackController extends Controller
             abort(403);
         }
 
-        $order = Order::where('code', $request->input('merchant_oid'))->first();
+        $oid = (string) $request->input('merchant_oid');
+
+        // PayTR'ye kod tiresiz gönderilir (bkz. PaytrService::merchantOid).
+        $order = Order::where('code', $oid)
+            ->orWhereRaw("REPLACE(code, '-', '') = ?", [$oid])
+            ->first();
 
         if ($order) {
             if ($order->payment_status === 'Ödendi') {

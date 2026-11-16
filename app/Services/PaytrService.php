@@ -27,13 +27,15 @@ class PaytrService
         $maxInstallment = '0';
         $currency = 'TL';
 
-        $hashStr = $merchantId.$userIp.$order->code.$email.$amount.$basket.$noInstallment.$maxInstallment.$currency.$testMode;
+        $merchantOid = self::merchantOid($order->code);
+
+        $hashStr = $merchantId.$userIp.$merchantOid.$email.$amount.$basket.$noInstallment.$maxInstallment.$currency.$testMode;
         $token = base64_encode(hash_hmac('sha256', $hashStr.$merchantSalt, $merchantKey, true));
 
         $payload = [
             'merchant_id' => $merchantId,
             'user_ip' => $userIp,
-            'merchant_oid' => $order->code,
+            'merchant_oid' => $merchantOid,
             'email' => $email,
             'payment_amount' => $amount,
             'paytr_token' => $token,
@@ -92,4 +94,12 @@ class PaytrService
         }
     }
 
+    /**
+     * PayTR merchant_oid yalnız harf ve rakam kabul eder; sipariş kodundaki
+     * tire gibi karakterler ayıklanır. Geri çağrıda sipariş aynı kuralla eşlenir.
+     */
+    public static function merchantOid(string $orderCode): string
+    {
+        return preg_replace('/[^A-Za-z0-9]/', '', $orderCode);
+    }
 }
